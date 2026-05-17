@@ -32,5 +32,9 @@ build/
 # Secrets / local config
 .env
 .env.local
+.secrets
+.secrets/
+*.secrets
+**/.secrets
 settings.json
 *.local
