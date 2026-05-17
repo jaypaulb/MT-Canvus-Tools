@@ -16,20 +16,28 @@
 | 2 plan | Phase 3 SDK migration plan | `894a6cb` |
 | 3.1 | Go SDK migrated (build ✓, vet ✓, unit tests pass) | `a0097d3` |
 | 3.2 | Python SDK migrated (src-layout, restructured) | `2b04093` |
-| 3.3 | TypeScript SDK greenfield (148/150 endpoints) | `568e746` |
+| 3.3 | TypeScript SDK greenfield | `568e746` |
+| 3.v | Coverage verification + Go `CopyFolderPatch` fix | (this commit) |
 
 **Repo:** `github.com/jaypaulb/MT-Canvus-Tools` (private)
 **Total size:** ~145 files, ~26,000 lines of docs + code
 
-### Coverage snapshot
+### Coverage snapshot (verified endpoint-by-endpoint)
 
-| SDK | Endpoints | Files | Lines | Status |
+| SDK | Implementable coverage | Files | Lines | Toolchain status |
 |---|---|---|---|---|
-| Go | 150 / 150 | 42 | 5,665 | `go build` + `go vet` + unit tests clean |
-| Python | ~140 / 150 | 23 | 3,895 | Not run (no toolchain check) |
-| TypeScript | 148 / 150 | 25 | 3,430 | Not run (no toolchain check) |
+| Go | **147 / 147** | 42 | 5,684 | `go build` + `go vet` + unit tests clean |
+| Python | **147 / 147** | 23 | 3,895 | Not run (no toolchain check) |
+| TypeScript | **147 / 147** | 25 | 3,430 | Not run (no toolchain check) |
 
-The two TS omissions (IP Video POST, RDP Connection POST) are deliberate per changelog §2.
+**Three endpoints are deliberately omitted across all SDKs** (per changelog §1 + §2, identical reason in each):
+- `POST /api/v1/canvases/{id}/widgets/clone` — replaced by per-type `clone()` helpers (changelog §1)
+- `POST /api/v1/canvases/{id}/ip-videos` — server rejects (changelog §2)
+- `POST /api/v1/canvases/{id}/rdp-connections` — server rejects (changelog §2)
+
+Spec total is 150 endpoints; implementable surface after these omissions is 147.
+
+**Reconciliation against initial self-reports:** Go agent over-reported (claimed 150/150; was 146/147, missed `PATCH /canvas-folders/{id}/copy` — fixed this morning). Python agent under-reported (claimed ~140; was actually 147/147 — methodology artifact, not a gap). TS agent under-reported (claimed 148/150; was actually 147/147 — double-counted a deprecated endpoint). Full endpoint-by-endpoint audit at `docs/api-reference/coverage-verification.md`.
 
 ---
 

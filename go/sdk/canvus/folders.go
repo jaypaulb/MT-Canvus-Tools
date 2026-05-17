@@ -111,12 +111,22 @@ func (s *Session) moveFolderWithMethod(ctx context.Context, method, id, parentID
 	return &folder, nil
 }
 
-// CopyFolder copies a folder inside another folder.
+// CopyFolder copies a folder inside another folder using POST.
 func (s *Session) CopyFolder(ctx context.Context, id, parentID, conflicts string) (*Folder, error) {
+	return s.copyFolderWithMethod(ctx, http.MethodPost, id, parentID, conflicts)
+}
+
+// CopyFolderPatch is the PATCH variant of CopyFolder, mirroring the dual-verb
+// /canvas-folders/{id}/copy endpoint documented in the spec.
+func (s *Session) CopyFolderPatch(ctx context.Context, id, parentID, conflicts string) (*Folder, error) {
+	return s.copyFolderWithMethod(ctx, http.MethodPatch, id, parentID, conflicts)
+}
+
+func (s *Session) copyFolderWithMethod(ctx context.Context, method, id, parentID, conflicts string) (*Folder, error) {
 	var folder Folder
 	req := MoveOrCopyFolderRequest{ParentID: parentID, Conflicts: conflicts}
-	if err := s.doRequest(ctx, http.MethodPost, fmt.Sprintf("canvas-folders/%s/copy", id), req, &folder, nil, false); err != nil {
-		return nil, fmt.Errorf("CopyFolder: %w", err)
+	if err := s.doRequest(ctx, method, fmt.Sprintf("canvas-folders/%s/copy", id), req, &folder, nil, false); err != nil {
+		return nil, fmt.Errorf("CopyFolder(%s): %w", method, err)
 	}
 	return &folder, nil
 }
