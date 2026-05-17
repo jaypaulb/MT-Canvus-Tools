@@ -1,0 +1,43 @@
+[tool.uv.workspace]
+members = [
+    "sdk",
+]
+
+[tool.uv.sources]
+canvus-sdk = { workspace = true }
+
+# ---- shared dev tool config ----------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["sdk/src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "N", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",  # line length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "N802"]
+"examples/**" = ["N803", "N806"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+testpaths = ["sdk/tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: requires a live Canvus server (CANVUS_API_URL + CANVUS_API_KEY)",
+    "slow: takes more than a few seconds; deselect with -m 'not slow'",
+]
