@@ -1,0 +1,36 @@
+# OS / editor
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Go
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.pnpm-store/
+
+# Secrets / local config
+.env
+.env.local
+settings.json
+*.local
