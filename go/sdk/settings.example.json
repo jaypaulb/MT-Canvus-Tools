@@ -1,0 +1,10 @@
+{
+  "api_base_url": "https://your-server/api/v1/",
+  "api_key": "your-api-key",
+  "timeout_seconds": 5,
+  "test_user": {
+    "username": "test@example.com",
+    "password": "password"
+  },
+  "test_canvas_id": "canvas-id-for-tests"
+}

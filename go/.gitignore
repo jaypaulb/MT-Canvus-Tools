@@ -1,0 +1,10 @@
+# Go workspace sum file — per go.md convention, not checked in.
+go.work.sum
+
+# Test settings (per-module, gitignored)
+sdk/settings.json
+
+# Common Go artifacts
+*.test
+*.out
+coverage.out
