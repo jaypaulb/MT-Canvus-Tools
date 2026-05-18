@@ -9,6 +9,7 @@ members = [
     "examples/core/06-llm-integration",
     "examples/core/07-webhooks-notifications",
     "examples/core/08-cross-canvas-clone",
+    "tools/mcp-server",
 ]
 
 [tool.uv.sources]
