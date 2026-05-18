@@ -1,8 +1,8 @@
 # MT-Canvus-Tools Consolidation Status
 
-**As of:** 2026-05-18 (mid-morning, post-verification)
-**Phases complete:** 0, 1, 2, 3 (+ Tier-1/Tier-2 verification & patch pass)
-**Next phase:** 4 (Core Examples)
+**As of:** 2026-05-18 (afternoon, post-Phase 4a)
+**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes)
+**Next phase:** 4b (Cross-SDK parity sweep)
 **Upstream doc fix tracker:** [`canvus-server#96`](https://gitlab.multitaction.com/swrd/conan/canvus/canvus-server/-/work_items/96)
 
 ---
@@ -19,7 +19,13 @@
 | 3.2 | Python SDK migrated | `2b04093` |
 | 3.3 | TypeScript SDK greenfield | `568e746` |
 | 3.v | Coverage verification + Go `CopyFolderPatch` fix | `5e0cc95` |
-| 3.t | Live-server verification + Tier-1/Tier-2 fixes + `VERIFIED-CORRECTIONS.md` | (this commit) |
+| 3.t | Live-server verification + Tier-1/Tier-2 fixes + `VERIFIED-CORRECTIONS.md` | `115ad3f` |
+| 4a plan | Phase 4a Core Examples plan | `611db46` |
+| 4a.pre | TS SDK exactOptionalPropertyTypes fixes + lockfile gen | `e51351f` |
+| 4a.1 | Go examples (8 canonical) | `a018cf3` |
+| 4a.2 | Python examples (8 canonical) | `30f2f46` |
+| 4a.3 | TypeScript examples (8 canonical) | `97297f7` |
+| 4a.r | Review-driven fixes (C1-C4 + I1/I3/I4/I5/I8) | `0770701` |
 
 **Repo:** `github.com/jaypaulb/MT-Canvus-Tools` (private)
 
@@ -106,12 +112,53 @@ Three endpoints deliberately omitted across all SDKs per changelog §1 + §2.
 
 ---
 
-## Ready for Phase 4
+## Phase 4a outcome — DONE
 
-The Phase 4 plan needs to cover:
-1. **Core Examples (4a):** 8 canonical examples × 3 languages = 24 small projects. These should be written using the freshly verified SDKs and serve as the parity contract for the SDKs themselves.
-2. **Cross-SDK parity sweep:** audit each SDK against the others; port any helpers / utilities that exist in one but not all. Likely lives in a `sdk-extras` subpackage per language to keep core SDKs lean.
-3. **Per-Item Refresh (4b):** 11 existing utility/tool repos refreshed against the new SDKs.
-4. **Phase 4 should also remove the Go dead code** flagged in Tier 3 #10 after grep confirms no callers.
+24 example projects shipped (8 × 3 languages). Total: ~4,500 lines of example code across 110 files.
 
-Tell me when to write Plan 4 and how aggressive you want me to be (foreground/background, batch size, etc.).
+| Lang | Examples | LOC | Toolchain status |
+|---|---|---|---|
+| Go | 8 mirrored modules under `go/examples/core/` | 1,692 | `go build` + `go vet` clean |
+| Python | 8 uv workspace members under `python/examples/core/` | 1,404 | `uv sync` + `ruff check` clean |
+| TypeScript | 8 pnpm workspace members under `typescript/examples/core/` | 1,370 | SDK builds (esm+cjs+dts); examples `tsc --noEmit` clean |
+
+A code-review pass flagged 13 findings (4 Critical + 9 Important). 11 were fixed in commit `0770701`:
+- **C1** TS SDK wire-shape types (21 files rewritten by a dispatched fix agent — hyphenated keys replaced with verified underscored keys; specific hyphenated exceptions kept)
+- **C2/C3** Python + TS LLM watchers' snapshot-vs-delta dedup
+- **C4 + I9** Env-var unification across all 3 languages to `CANVUS_API_URL`
+- **I1** Dropped redundant `widget_type` from Go PATCH bodies
+- **I3** Python example 02 control-flow cleanup
+- **I4** Python User/Group ID types changed from str → int
+- **I5** Python 04 redundant env check removal
+- **I8** TS example 08 arrow-wrap for SDK method references
+
+Live-server verification cred file: `.secrets` (gitignored). Test canvas reachable at `e36c286c-d447-4b99-a956-678dc118c774` on `dev-mtcs.multitaction.com`.
+
+---
+
+## Deferred to Phase 4b (parity sweep)
+
+Findings from the Phase 4a review that need broader scope than the Phase 4a fix pass:
+
+- **I7 — Go SDK Subscribe helper.** Python SDK exposes `client.widgets.subscribe(...)` and TS SDK exposes `session.widgets.subscribe(...)` as typed async iterators. Go SDK has no Subscribe method; Go examples 05/06/07 build raw `http.NewRequestWithContext` against `Session.HTTPClient`. Phase 4b adds a `Session.SubscribeNotes`, `Session.SubscribeWidgets`, etc. and refactors the three Go examples to use them.
+- **I2 — CloneWidget interpretation.** Changelog §1 reads ambiguously; the literal text says "Add `CloneWidget()` helper ... and widget type" which all three SDKs implement as ONE method with type-as-parameter. The prompt focus area #7 had been read as wanting PER-TYPE helpers. Phase 4b confirms with Jaypaul which interpretation is canonical; if per-type wanted, all three SDKs add `CloneNote()`, `CloneImage()`, etc. helpers.
+- **Legacy Python helpers parity** (`geometry`, `search`, `filters`, `export`, `widget_operations`, circular-parenting guard). Confirmed required per Tier 3 #9. Port across Go and TS as a `sdk-extras` subpackage per language.
+
+Phase 4b will be its own plan, written when Jaypaul gives the go-ahead.
+
+## Deferred to Phase 4c (per-item refresh)
+
+11 existing utility/tool repos refreshed against the new SDKs (per spec Phase 4b nomenclature):
+- Go: cli, mcp-server, powertoys, translator, db-solver, ai-personas, llm-canvas-companion, note-mapper (8 items)
+- Python: mcp-server, local-llm (2 items)
+- TypeScript: webui rewrite (1 item — original is JavaScript)
+
+Batched 4-6 agents per round per spec.
+
+## Deferred to Phase 4d (cleanup)
+
+- Go SDK dead code removal (`setToken`, `doRequestWithHeaders`, `warnOnce`, `warnAlways`) after Chesterton-fence inspection (Tier 3 #10).
+- TS SDK README inaccuracies sweep — six READMEs had "Expected output" sections referencing wire-shape fields that don't exist on the server (cascade from C1).
+- Spec doc errors at `docs/api-reference/endpoints/server.md` and `auth.md` (per VERIFIED-CORRECTIONS) — currently captured as a delta in `VERIFIED-CORRECTIONS.md`; can be back-applied to the source endpoint docs after `canvus-server#96` resolves.
+
+Tell me when to write Plan 4b.
