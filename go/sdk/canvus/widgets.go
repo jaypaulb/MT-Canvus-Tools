@@ -2,7 +2,6 @@ package canvus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +11,13 @@ import (
 // ErrWidgetTypeNotCreatable is returned when a caller attempts to create a
 // widget of a type the server refuses to construct via the API. Per
 // changelog §2, this currently applies to IP Video and RDP Connection.
-var ErrWidgetTypeNotCreatable = errors.New("widget type can only be created from the Canvus desktop client")
+//
+// Phase 4b §4.1 #4: ErrWidgetTypeNotCreatable also wraps
+// ErrUnsupportedOperation, so callers can branch with either sentinel:
+//
+//	if errors.Is(err, canvus.ErrUnsupportedOperation) { ... }
+//	if errors.Is(err, canvus.ErrWidgetTypeNotCreatable) { ... }
+var ErrWidgetTypeNotCreatable = fmt.Errorf("%w: widget type can only be created from the Canvus desktop client", ErrUnsupportedOperation)
 
 // ListWidgets retrieves all widgets for a given canvas. If filter is non-nil,
 // results are filtered client-side. If includeAnnotations is true, the

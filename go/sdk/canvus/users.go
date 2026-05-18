@@ -48,6 +48,18 @@ func (s *Session) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
+// GetCurrentUser returns the currently-authenticated user via
+// GET /users/{id} for s.UserID(). The Canvus server does not expose a
+// /users/me alias (see VERIFIED-CORRECTIONS §5), so this helper enforces
+// integer-ID lookup after a successful Login(). Returns an error if the
+// session has not authenticated. Phase 4b §4.1 #2.
+func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
+	if s.userID == 0 {
+		return nil, fmt.Errorf("GetCurrentUser: session is not logged in (call Login first)")
+	}
+	return s.GetUser(ctx, s.userID)
+}
+
 // GetUser retrieves a user by ID.
 func (s *Session) GetUser(ctx context.Context, id int64) (*User, error) {
 	var user User

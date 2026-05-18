@@ -49,6 +49,10 @@ var (
 	ErrNetwork = errors.New("network error")
 	// ErrUnexpected covers everything the SDK could not classify.
 	ErrUnexpected = errors.New("unexpected error")
+	// ErrUnsupportedOperation is returned when the SDK refuses to attempt an
+	// operation the server is known to reject (e.g. POST /ip-videos,
+	// POST /rdp-connections — see parity-matrix §5.4). Phase 4b §4.1 #4.
+	ErrUnsupportedOperation = errors.New("unsupported operation")
 )
 
 // Legacy string-typed error codes retained for compatibility. Prefer the

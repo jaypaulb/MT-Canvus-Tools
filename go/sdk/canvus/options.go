@@ -1,7 +1,14 @@
 package canvus
 
 import (
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,6 +36,15 @@ type SessionConfig struct {
 	// TokenStore is used to store and retrieve authentication tokens.
 	// If nil, tokens are not persisted between sessions.
 	TokenStore TokenStore
+	// ConnectTimeout caps the time spent dialing a TCP connection. When
+	// non-zero and HTTPClient is nil (or its transport is the default), the
+	// session installs a custom dialer with this connect deadline.
+	// Phase 4b §4.1 #16.
+	ConnectTimeout time.Duration
+	// RequestIDFunc, when non-nil, is invoked for every outbound request and
+	// its return value is used as the X-Request-ID header. The value is also
+	// echoed into APIError.RequestID for failed requests. Phase 4b §4.1 #3.
+	RequestIDFunc func() string
 }
 
 // CircuitBreakerConfig holds configuration for the circuit breaker.
@@ -114,6 +130,93 @@ func WithCircuitBreaker(maxFailures int, resetTimeout time.Duration) SessionConf
 // WithTokenRefreshThreshold sets the token refresh threshold.
 func WithTokenRefreshThreshold(threshold time.Duration) SessionConfigOption {
 	return func(c *SessionConfig) { c.TokenRefreshThreshold = threshold }
+}
+
+// WithConnectTimeout splits out the TCP connect timeout from RequestTimeout.
+// When this option is set and the caller has not supplied a custom
+// HTTPClient, NewSession installs a transport with the given dial timeout.
+// Phase 4b §4.1 #16.
+func WithConnectTimeout(d time.Duration) SessionConfigOption {
+	return func(c *SessionConfig) { c.ConnectTimeout = d }
+}
+
+// WithRequestIDFunc registers a callback the SDK invokes for each outbound
+// request; the returned string is sent as the X-Request-ID header and is
+// surfaced on APIError.RequestID when the request fails. Phase 4b §4.1 #3.
+func WithRequestIDFunc(fn func() string) SessionConfigOption {
+	return func(c *SessionConfig) { c.RequestIDFunc = fn }
+}
+
+// FromEnv builds a Session from environment variables, applying any
+// additional options on top. Recognised variables (all optional except
+// CANVUS_API_URL):
+//
+//	CANVUS_API_URL     — Base URL (required).
+//	CANVUS_API_KEY     — Private-Token value; installs WithAPIKey if set.
+//	CANVUS_TIMEOUT_MS  — RequestTimeout, parsed as milliseconds.
+//	CANVUS_VERIFY_TLS  — "0"/"false" disables TLS verification (default: verify).
+//
+// Phase 4b §4.1 #1: parity with python.from_env and ts.fromEnv.
+func FromEnv(opts ...SessionConfigOption) (*Session, error) {
+	baseURL := strings.TrimSpace(os.Getenv("CANVUS_API_URL"))
+	if baseURL == "" {
+		return nil, errors.New("FromEnv: CANVUS_API_URL is required")
+	}
+	cfg := DefaultSessionConfig()
+	cfg.BaseURL = baseURL
+
+	if v := strings.TrimSpace(os.Getenv("CANVUS_TIMEOUT_MS")); v != "" {
+		ms, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("FromEnv: invalid CANVUS_TIMEOUT_MS %q: %w", v, err)
+		}
+		cfg.RequestTimeout = time.Duration(ms) * time.Millisecond
+	}
+
+	verify := true
+	if v := strings.TrimSpace(os.Getenv("CANVUS_VERIFY_TLS")); v != "" {
+		// Accept 1/0/true/false (case-insensitive).
+		switch strings.ToLower(v) {
+		case "0", "false", "no", "off":
+			verify = false
+		case "1", "true", "yes", "on":
+			verify = true
+		default:
+			return nil, fmt.Errorf("FromEnv: invalid CANVUS_VERIFY_TLS %q (expected 1/0/true/false)", v)
+		}
+	}
+	if !verify {
+		cfg.HTTPClient = &http.Client{
+			Timeout: cfg.RequestTimeout,
+			Transport: &http.Transport{
+				//nolint:gosec // explicit opt-out via env var.
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		}
+	}
+
+	prepend := []SessionConfigOption{}
+	if key := strings.TrimSpace(os.Getenv("CANVUS_API_KEY")); key != "" {
+		prepend = append(prepend, WithAPIKey(key))
+	}
+	prepend = append(prepend, opts...)
+	return NewSession(cfg, prepend...), nil
+}
+
+// dialTimeoutTransport wraps an http.Transport with a dial timeout.
+// Returned by buildConnectTimeoutTransport when ConnectTimeout > 0 and no
+// custom HTTPClient is supplied.
+func buildConnectTimeoutTransport(connect time.Duration) http.RoundTripper {
+	t := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   connect,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: connect,
+	}
+	return t
 }
 
 // ListOptions specifies options for list endpoints (pagination, filtering, etc.).

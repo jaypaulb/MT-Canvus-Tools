@@ -290,8 +290,12 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	if cfg.HTTPClient == nil {
 		// Build a fresh http.Client rather than mutating http.DefaultClient,
 		// which would leak our timeout into unrelated code that uses the
-		// default client.
-		cfg.HTTPClient = &http.Client{Timeout: cfg.RequestTimeout}
+		// default client. Phase 4b §4.1 #16: honour ConnectTimeout when set.
+		client := &http.Client{Timeout: cfg.RequestTimeout}
+		if cfg.ConnectTimeout > 0 {
+			client.Transport = buildConnectTimeoutTransport(cfg.ConnectTimeout)
+		}
+		cfg.HTTPClient = client
 	} else if cfg.HTTPClient.Timeout == 0 {
 		cfg.HTTPClient.Timeout = cfg.RequestTimeout
 	}
@@ -393,6 +397,14 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		if s.authenticator != nil {
 			s.authenticator.Authenticate(req)
 		}
+		// Phase 4b §4.1 #3: inject X-Request-ID if configured.
+		var requestID string
+		if s.config.RequestIDFunc != nil {
+			requestID = s.config.RequestIDFunc()
+			if requestID != "" {
+				req.Header.Set("X-Request-ID", requestID)
+			}
+		}
 
 		resp, err = s.HTTPClient.Do(req)
 		if err != nil {
@@ -421,6 +433,9 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 			lastErr = s.handleErrorResponse(resp, respBody, attempt)
 			var apiErr *APIError
 			if errors.As(lastErr, &apiErr) {
+				if requestID != "" && apiErr.RequestID == "" {
+					apiErr.RequestID = requestID
+				}
 				if apiErr.StatusCode == http.StatusUnauthorized && attempt == 0 {
 					if refreshErr := s.refreshAuthToken(ctx); refreshErr == nil {
 						continue
