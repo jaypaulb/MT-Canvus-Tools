@@ -37,10 +37,11 @@ export interface RequestOptions {
 /**
  * Body shapes accepted by the transport.
  *
- * `undefined` sends no body. A plain object is JSON-encoded. `FormData`,
- * `Buffer`, and `Uint8Array` are sent as-is with no content-type override.
+ * `undefined` sends no body. `FormData`, `Buffer`, and `Uint8Array` are
+ * sent as-is with no content-type override. Any other value is treated
+ * as a plain object and JSON-encoded.
  */
-export type RequestBody = undefined | unknown | FormData | Buffer | Uint8Array;
+export type RequestBody = unknown;
 
 /**
  * Module-scoped Agent cache. Re-used across Transport instances that share
@@ -332,12 +333,13 @@ export class Transport {
     if (this.config.apiKey !== undefined) {
       headers.set("private-token", this.config.apiKey);
     }
+    // Node's Buffer extends Uint8Array, so the Uint8Array check below covers
+    // it too. We don't add a content-type header for binary bodies.
     const isPlainObject =
       body !== undefined &&
       typeof body === "object" &&
       body !== null &&
       !(body instanceof FormData) &&
-      !(globalThis.Buffer !== undefined && body instanceof globalThis.Buffer) &&
       !(body instanceof Uint8Array);
     if (isPlainObject) {
       headers.set("content-type", "application/json");
@@ -359,9 +361,7 @@ export class Transport {
   private serialiseBody(body: RequestBody): FormData | Uint8Array | string | undefined {
     if (body === undefined) return undefined;
     if (body instanceof FormData) return body;
-    if (globalThis.Buffer !== undefined && body instanceof globalThis.Buffer) {
-      return body as unknown as Uint8Array;
-    }
+    // Buffer extends Uint8Array — single check covers both.
     if (body instanceof Uint8Array) return body;
     return JSON.stringify(body);
   }

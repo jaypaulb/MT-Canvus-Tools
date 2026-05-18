@@ -243,9 +243,16 @@ def get_widget_union(a: object, b: object) -> Rectangle:
 
 
 def distance_between_widgets(a: object, b: object) -> float:
-    """Return the minimum cartesian gap between two widgets' bounding boxes.
+    """Return the cartesian gap distance between two widgets' bounding boxes.
 
-    Returns ``0.0`` if the widgets overlap.
+    Returns ``0.0`` if the widgets overlap. When the rectangles are separated
+    on both axes, returns the euclidean distance between the nearest corners
+    (``math.hypot(dx, dy)``). When separated on a single axis only, returns
+    that axis's gap directly. Symmetric across Go / Python / TS SDK extras.
+
+    Note: this deliberately differs from the legacy ``CanvusPythonAPI`` helper,
+    which returned ``min(dx, dy)`` in the both-positive case — the legacy
+    answer was a single-axis projection, not a cartesian distance.
     """
     ra = widget_bounding_box(a)
     rb = widget_bounding_box(b)

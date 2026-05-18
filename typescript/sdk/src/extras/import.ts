@@ -1,25 +1,26 @@
 // Phase 4b §4.3 #18: import port (Node-only).
 //
 // Restore widgets exported by {@link WidgetExporter} into a target canvas.
-// Asset re-upload happens via the per-type upload helpers.
+// Reads the canonical `export.json` schema shared with Go and Python SDKs:
+//
+//   <folder>/
+//     export.json       # {widgets, assets, region}
+//     image_<id>.jpg    # flat sibling
+//     pdf_<id>.pdf
+//     video_<id>.mp4
 
 import { Buffer } from "node:buffer";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Session } from "../session.js";
 import type { Uuid } from "../types/common.js";
-import type { ExportManifest, ExportedAsset, ExportedWidget } from "./export.js";
+import type { ExportManifest } from "./export.js";
 
 /** Configuration for {@link WidgetImporter}. */
 export interface ImportConfig {
   readonly importAssets?: boolean;
   readonly restoreSpatialData?: boolean;
-  readonly restoreMetadata?: boolean;
-  /** Target canvas. If undefined, uses the canvas ID embedded in the export. */
-  readonly targetCanvasId?: Uuid;
   readonly spatialOffset?: { readonly x: number; readonly y: number };
-  /** Currently informational only — server always assigns new IDs. */
-  readonly preserveIds?: boolean;
 }
 
 /** Summary returned by {@link WidgetImporter.importWidgetsFromFolder}. */
@@ -31,9 +32,10 @@ export interface ImportSummary {
 }
 
 /**
- * Import a folder previously produced by {@link WidgetExporter}.
+ * Import a folder previously produced by {@link WidgetExporter} (or by the
+ * Go / Python SDKs — the wire shape is shared).
  *
- * Reads `manifest.json`, restores each widget via the matching create
+ * Reads `export.json`, restores each widget via the matching create
  * helper, and re-uploads asset binaries when `importAssets !== false`.
  */
 export class WidgetImporter {
@@ -44,84 +46,99 @@ export class WidgetImporter {
 
   async importWidgetsFromFolder(
     folderPath: string,
-    targetCanvasId?: Uuid,
+    targetCanvasId: Uuid,
   ): Promise<ImportSummary> {
-    const manifestRaw = await fs.readFile(path.join(folderPath, "manifest.json"), "utf8");
+    const manifestRaw = await fs.readFile(path.join(folderPath, "export.json"), "utf8");
     const manifest = JSON.parse(manifestRaw) as ExportManifest;
-    const targetCanvas =
-      targetCanvasId ?? this.config.targetCanvasId ?? Object.keys(manifest.canvases)[0];
-    if (targetCanvas === undefined) {
-      throw new Error("import: no target canvas resolved (manifest has no canvases?)");
-    }
 
     const idMapping: Record<Uuid, Uuid> = {};
     const errors: { widgetId: Uuid; reason: string }[] = [];
     let imported = 0;
     let skipped = 0;
 
-    for (const entry of manifest.widgets) {
+    for (const widgetRaw of manifest.widgets) {
+      const widgetId = typeof widgetRaw.id === "string" ? widgetRaw.id : "<unknown>";
       try {
-        const newId = await this.importOne(entry, folderPath, targetCanvas);
+        const newId = await this.importOne(
+          widgetRaw,
+          manifest.assets,
+          folderPath,
+          targetCanvasId,
+        );
         if (newId === undefined) {
           skipped++;
         } else {
           imported++;
-          idMapping[entry.id] = newId;
+          idMapping[widgetId] = newId;
         }
       } catch (err) {
-        errors.push({ widgetId: entry.id, reason: (err as Error).message });
+        errors.push({ widgetId, reason: (err as Error).message });
       }
     }
     return { imported, skipped, errors, idMapping };
   }
 
   private async importOne(
-    entry: ExportedWidget,
+    widgetRaw: Record<string, unknown>,
+    assetsMap: Readonly<Record<Uuid, string>>,
     folder: string,
     targetCanvas: Uuid,
   ): Promise<Uuid | undefined> {
-    const payload = this.preparePayload(entry);
-    const wType = entry.widget_type.toLowerCase();
+    const widgetId = typeof widgetRaw.id === "string" ? widgetRaw.id : undefined;
+    const widgetType =
+      typeof widgetRaw.widget_type === "string" ? widgetRaw.widget_type : undefined;
+    if (widgetId === undefined || widgetType === undefined) return undefined;
+    const wType = widgetType.toLowerCase();
 
-    // Asset-bearing types: re-upload the binary if available.
-    if (this.config.importAssets !== false && entry.assets && entry.assets.length > 0) {
-      const asset = entry.assets[0];
-      if (asset === undefined) return undefined;
-      const filename = asset.filename;
-      const binPath = await this.resolveAssetPath(folder, asset);
+    const assetFilename =
+      assetsMap[widgetId] !== undefined && this.config.importAssets !== false
+        ? assetsMap[widgetId]
+        : undefined;
+
+    if (assetFilename !== undefined) {
+      const binPath = path.join(folder, assetFilename);
       const buf = await fs.readFile(binPath);
       const blob = new Blob([Buffer.from(buf)]);
-      if (wType === "image") {
-        const created = await this.session.widgets.images.upload(targetCanvas, blob, filename);
-        return created.id;
-      }
-      if (wType === "video") {
-        const created = await this.session.widgets.videos.upload(targetCanvas, blob, filename);
-        return created.id;
-      }
-      if (wType === "pdf") {
-        const created = await this.session.widgets.pdfs.upload(targetCanvas, blob, filename);
-        return created.id;
+      switch (wType) {
+        case "image": {
+          const created = await this.session.widgets.images.upload(
+            targetCanvas,
+            blob,
+            assetFilename,
+          );
+          return created.id;
+        }
+        case "video": {
+          const created = await this.session.widgets.videos.upload(
+            targetCanvas,
+            blob,
+            assetFilename,
+          );
+          return created.id;
+        }
+        case "pdf": {
+          const created = await this.session.widgets.pdfs.upload(
+            targetCanvas,
+            blob,
+            assetFilename,
+          );
+          return created.id;
+        }
       }
     }
 
-    // Non-asset types use generic create.
-    if (
-      wType === "image" ||
-      wType === "video" ||
-      wType === "pdf" ||
-      wType === "ipvideo" ||
-      wType === "rdpconnection"
-    ) {
-      // Cannot recreate without binary / forbidden.
-      return undefined;
-    }
+    // Asset-required types without a binary cannot be recreated.
+    if (wType === "image" || wType === "video" || wType === "pdf") return undefined;
+    // Server rejects IPVideo/RDP creation.
+    if (wType === "ipvideo" || wType === "rdpconnection") return undefined;
+
+    const payload = this.preparePayload(widgetRaw);
     const created = await this.session.widgets.createAny(targetCanvas, payload);
     return created.id;
   }
 
-  private preparePayload(entry: ExportedWidget): Record<string, unknown> {
-    const out: Record<string, unknown> = { ...entry.data, widget_type: entry.widget_type };
+  private preparePayload(widgetRaw: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...widgetRaw };
     if (this.config.restoreSpatialData === false) {
       delete out.location;
       delete out.size;
@@ -139,15 +156,5 @@ export class WidgetImporter {
     delete out.state;
     delete out.depth;
     return out;
-  }
-
-  private async resolveAssetPath(folder: string, asset: ExportedAsset): Promise<string> {
-    // Manifest stores absolute path; fall back to <folder>/assets/<filename>.
-    try {
-      await fs.access(asset.local_path);
-      return asset.local_path;
-    } catch {
-      return path.join(folder, "assets", asset.filename);
-    }
   }
 }

@@ -75,9 +75,18 @@ describe("widget geometry", () => {
     expect(widgetsIntersect(outer, inner)).toBe(true);
   });
 
-  it("distanceBetweenWidgets returns 0 when overlapping, axis distance otherwise", () => {
+  it("distanceBetweenWidgets returns 0 when overlapping", () => {
     expect(distanceBetweenWidgets(W("a", 0, 0, 10, 10), W("b", 5, 5, 10, 10))).toBe(0);
+  });
+
+  it("distanceBetweenWidgets returns axis gap when separated on one axis", () => {
     expect(distanceBetweenWidgets(W("a", 0, 0, 10, 10), W("b", 30, 0, 10, 10))).toBe(20);
+    expect(distanceBetweenWidgets(W("a", 0, 0, 10, 10), W("b", 0, 50, 10, 10))).toBe(40);
+  });
+
+  it("distanceBetweenWidgets returns euclidean hypot when separated on both axes (parity with Go + Python)", () => {
+    // 3-4-5 triangle: horizontal gap 30, vertical gap 40, expected 50.
+    expect(distanceBetweenWidgets(W("a", 0, 0, 10, 10), W("b", 40, 50, 10, 10))).toBe(50);
   });
 
   it("findWidgetsInArea returns intersecting widgets", () => {

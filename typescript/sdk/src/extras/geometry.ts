@@ -167,13 +167,18 @@ export function getWidgetUnion(a: HasBounds | Widget, b: HasBounds | Widget): Re
 }
 
 /**
- * Minimum axis-aligned distance between two widgets.
+ * Cartesian gap distance between two widget bounding rectangles.
  *
- * Returns 0 when they overlap. Matches the Python port's behaviour:
- * when both horizontal and vertical gaps are positive, the helper returns
- * the smaller of the two (diagonal proximity is favoured for the "closest
- * edge" interpretation); when only one axis has a gap, that distance is
- * returned.
+ * Returns 0 when the rectangles overlap. When the rectangles are separated
+ * on both axes, returns the euclidean distance between the nearest corners
+ * (`sqrt(horizGap**2 + vertGap**2)`). When separated on a single axis only,
+ * returns that axis's gap directly. Symmetric and matches the Go + Python
+ * SDK implementations (`go/sdk/canvus/extras/geometry.go` and
+ * `python/sdk/src/canvus_sdk/extras/geometry.py`).
+ *
+ * Note: this deliberately differs from the legacy `CanvusPythonAPI` helper,
+ * which returned `min(horizGap, vertGap)` in the both-positive case — the
+ * legacy answer was a single-axis projection, not a cartesian distance.
  */
 export function distanceBetweenWidgets(
   a: HasBounds | Widget,
@@ -184,7 +189,7 @@ export function distanceBetweenWidgets(
   if (intersects(ra, rb)) return 0;
   const horiz = Math.max(0, Math.max(left(ra) - right(rb), left(rb) - right(ra)));
   const vert = Math.max(0, Math.max(top(ra) - bottom(rb), top(rb) - bottom(ra)));
-  if (horiz > 0 && vert > 0) return Math.min(horiz, vert);
+  if (horiz > 0 && vert > 0) return Math.hypot(horiz, vert);
   return Math.max(horiz, vert);
 }
 

@@ -62,8 +62,17 @@ func GetWidgetUnion(a, b canvus.Widget) canvus.Rectangle {
 	return GetUnion(canvus.WidgetBoundingBox(a), canvus.WidgetBoundingBox(b))
 }
 
-// DistanceBetweenWidgets returns the minimum cartesian distance between
-// two widgets' bounding boxes (0 if they overlap).
+// DistanceBetweenWidgets returns the cartesian gap distance between two
+// widgets' bounding rectangles (0 if they overlap).
+//
+// When the rectangles are separated on both axes, returns the euclidean
+// distance between the nearest corners (math.Hypot(dx, dy)). When
+// separated on a single axis only, returns that axis's gap directly.
+// Symmetric across Go / Python / TS SDK extras packages.
+//
+// Note: this deliberately differs from the legacy CanvusPythonAPI helper,
+// which returned min(dx, dy) in the both-positive case — the legacy answer
+// was a single-axis projection, not a cartesian distance.
 func DistanceBetweenWidgets(a, b canvus.Widget) float64 {
 	r1 := canvus.WidgetBoundingBox(a)
 	r2 := canvus.WidgetBoundingBox(b)

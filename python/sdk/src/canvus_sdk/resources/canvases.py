@@ -282,7 +282,16 @@ class CanvasesResource(Resource):
         *,
         params: dict[str, Any] | None = None,
     ) -> AsyncIterator[CanvasPermissions]:
-        """Subscribe to a canvas's permissions block."""
+        """Subscribe to a canvas's permissions block.
+
+        .. warning::
+           This helper is **not yet live-verified** against the Canvus
+           server. The streaming spec lists ``/canvases/{id}/permissions``
+           as supported but the live behaviour has not been confirmed
+           (parity-matrix §5.5). Callers should detect 404/501 responses
+           and degrade gracefully until the helper is verified in a
+           live-server test pass.
+        """
         return self._typed_subscribe(
             CanvasPermissions,
             f"canvases/{canvas_id}/permissions",
