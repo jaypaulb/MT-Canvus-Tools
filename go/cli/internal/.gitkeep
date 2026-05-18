@@ -1,0 +1,2 @@
+# This file exists to ensure the internal/ directory is tracked by git.
+# Place internal packages here that should not be imported by external projects.
