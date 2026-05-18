@@ -1,5 +1,7 @@
 # CanvusTranslator
 
+_Refreshed in Phase 4c from [https://github.com/jaypaulb/CanvusTranslator](https://github.com/jaypaulb/CanvusTranslator) (now archived)._
+
 A lightweight web service that translates all note widgets on a Canvus canvas into a user-selected language using the Google Gemini API.
 
 The user clicks a flag icon in the web UI to pick a language; the service

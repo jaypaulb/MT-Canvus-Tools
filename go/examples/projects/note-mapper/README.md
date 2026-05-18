@@ -1,5 +1,7 @@
 # note-mapper
 
+_Refreshed in Phase 4c from [https://github.com/jaypaulb/CanvusNoteMapper](https://github.com/jaypaulb/CanvusNoteMapper) (now archived)._
+
 **note-mapper** is a web application that photographs a whiteboard or table covered in
 physical Post-it notes and creates matching digital notes inside a Canvus canvas anchor zone,
 preserving spatial layout from the photo.

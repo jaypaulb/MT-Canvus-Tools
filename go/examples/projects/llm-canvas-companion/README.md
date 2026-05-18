@@ -1,5 +1,7 @@
 # llm-canvas-companion
 
+_Refreshed in Phase 4c from [https://github.com/jaypaulb/CanvusAPI-LLMDemo](https://github.com/jaypaulb/CanvusAPI-LLMDemo) (now archived)._
+
 A live Canvus canvas watcher that dispatches LLM, OCR, and PDF-precis pipelines in response to widget events. When a user places a trigger note (e.g. `{{summarise the canvas}}`), the companion picks it up, calls the configured LLM, and writes the response back as a new note adjacent to the trigger.
 
 This is a port of `CanvusAPI-LLMDemo` into the MT-Canvus-Tools monorepo. The application has been renamed `llm-canvas-companion` throughout (module path, binary name, README headings). All vendored Canvus API code has been replaced by the workspace SDK (`go/sdk/canvus`), and the manual NDJSON polling loop has been replaced by `session.SubscribeWidgets` with a snapshot-drain guard.

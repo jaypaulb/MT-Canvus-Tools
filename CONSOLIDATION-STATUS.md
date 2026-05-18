@@ -1,8 +1,8 @@
 # MT-Canvus-Tools Consolidation Status
 
-**As of:** 2026-05-18 (evening, post-Phase 4b)
-**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes)
-**Next phase:** 4c (per-item refresh) — pending Jaypaul go-ahead
+**As of:** 2026-05-18 (late evening, post-Phase 4c)
+**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes)
+**Next phase:** 4d (cleanup) or 5 (PowerToys port) — pending Jaypaul go-ahead
 **Upstream doc fix tracker:** [`canvus-server#96`](https://gitlab.multitaction.com/swrd/conan/canvus/canvus-server/-/work_items/96)
 
 ---
@@ -33,6 +33,17 @@
 | 4b.3 | TS SDK: extras subpackage + retry/circuit-breaker + verifyTls fix + lifecycle + Rate/Server errors | `3e22b19` |
 | 4b.4 | Go examples 05/06/07 refactored to typed Subscribe helpers | `678dbcf` |
 | 4b.r | Review-driven fixes (export schema parity + hypot alignment + lint regressions + Python warning) | `e50001c` |
+| 4c plan | Phase 4c Per-Item Refresh plan (10 items → 9 items → 8 shipped) | `16242ca`, `8b2590d`, `7540a4b`, `d42ca79` |
+| 4c.audit | Per-item refresh audit (10 items, scope-bounded per item) | `7540a4b` |
+| 4c.1.1 | Go: translator port | `83b233d` |
+| 4c.1.2 | Go: note-mapper port | `1b27679` |
+| 4c.1.3 | Go: llm-canvas-companion port (renamed from CanvusAPI-LLMDemo) | `cbe046b` |
+| 4c.1.4 | Go: db-solver port | `9b35867` |
+| 4c.2.1 | Go: ai-personas port | `bb7f436` |
+| 4c.2.2 | TS: webui rewrite (Hono) | `7573af0` |
+| 4c.3.1 | Go: canvus-cli port | `2e15a32` |
+| 4c.3.2 | Python: mcp-server port | `e51f341` |
+| 4c.r | Review-driven fixes (Round 3: env-var alignment + gofmt sweep + ruff tests) | `34d8965` |
 
 **Repo:** `github.com/jaypaulb/MT-Canvus-Tools` (private)
 
@@ -168,14 +179,53 @@ Live-server verification was NOT re-run in 4b — toolchain coverage + the exist
 
 ---
 
-## Deferred to Phase 4c (per-item refresh)
+## Phase 4c outcome — DONE
 
-11 existing utility/tool repos refreshed against the new SDKs (per spec Phase 4b nomenclature):
-- Go: cli, mcp-server, powertoys, translator, db-solver, ai-personas, llm-canvas-companion, note-mapper (8 items)
-- Python: mcp-server, local-llm (2 items)
-- TypeScript: webui rewrite (1 item — original is JavaScript)
+Per-item refresh of the external Canvus tool/utility/example repos into the monorepo. Original spec listed 11 items; final scope **8 items** after three documented scope reductions.
 
-Batched 4-6 agents per round per spec.
+| Item | Source repo | Destination | Lang | Round |
+|---|---|---|---|---|
+| translator | `CanvusTranslator` | `go/tools/translator/` | Go | 1 |
+| note-mapper | `CanvusNoteMapper` | `go/examples/projects/note-mapper/` | Go | 1 |
+| llm-canvas-companion | `CanvusAPI-LLMDemo` (renamed) | `go/examples/projects/llm-canvas-companion/` | Go | 1 |
+| db-solver | `Canvus-Server-db-solver` | `go/tools/db-solver/` | Go | 1 |
+| ai-personas | `AI-personas` | `go/examples/projects/ai-personas/` | Go | 2 |
+| webui (rewrite) | `CanvusWebUI` | `typescript/examples/webui/` | TS (Hono) | 2 |
+| cli | `canvus-cli` | `go/cli/` | Go | 3 |
+| mcp-server (Python) | `canvus-mcp-server` | `python/tools/mcp-server/` | Python | 3 |
+
+**Scope reductions** (documented during pre-flight + audit + Round 3 dispatch):
+- `CanvusMCP` (Go) → `go/tools/mcp-server/` — dropped (no upstream repo, never built; the Python `canvus-mcp-server` covers the MCP use case).
+- `Canvus-Local-LLM` (Python) → `python/tools/local-llm/` — dropped (superseded by Go `llm-canvas-companion` + Phase 4a's `python/examples/core/06-llm-integration`; three impls of the same Canvus+LLM idea would be redundant).
+- `CanvusPowerToys` (Go) → `go/tools/powertoys/` — **deferred to Phase 5**. The Round 3 implementer agent BLOCKED on architectural decisions: the source is significantly bigger and more wired-up than the audit estimated (1,100-LOC `manager.go` god-organism + local-typed `Widget`/`Location`/`Size` referenced from 10+ files). Two viable paths (pragmatic shim vs full SDK type migration) need a dedicated Phase 5 plan.
+
+Per-language toolchain status (post-Round-3 review fixes):
+
+| Lang | Items | Toolchain |
+|---|---|---|
+| Go | translator, note-mapper, llm-canvas-companion, db-solver, ai-personas, cli (6) | build / vet / test green per-module; `gofmt -s -l` empty across all 4c items. |
+| Python | mcp-server (1) | ruff clean, mypy --strict clean on new code, 42/42 pytest pass. |
+| TS | webui (1) | typecheck clean, build clean, 24/24 vitest pass. |
+
+Three per-round review gates ran (after each batch). Each surfaced 1-5 Critical/Important findings; all addressed inline within the round (Round 1: stray binaries, fake tests, dead-code temp file, test colocation; Round 2: orphan rcu.html, silent error swallow in qa/wait.go, RcuStore extraction; Round 3: env-var alignment `CANVUS_URL`→`CANVUS_API_URL`, gofmt sweep, ruff on Python tests).
+
+Final review gate (`af2ee7df`) verdict: ✅ phase complete with deferrals. Zero Critical. 4 Important + 2 Nice-to-have items all destined for Phase 4d (captured below).
+
+Live-server verification was NOT re-run in 4c — toolchain coverage + per-item unit tests + the existing `.secrets` env cred file from Phase 3.t remain valid.
+
+ARCHIVED.md notes pushed to all 8 source repos (commit `chore: archive — refreshed into MT-Canvus-Tools (Phase 4c)` on each repo's default branch). 4 ported READMEs that lacked source-repo back-links updated in the Task 4c.10 sweep.
+
+mcp-server-python deferrals (preserved as structured `MCPToolExecutionError` stubs at runtime, NOT silent failures):
+- 13 LLM/correlation/brainstorming/reports tool bodies — depend on the legacy 541-LOC Ollama client with module-scoped globals + aiohttp (conflicts with httpx convention). Public surfaces preserved.
+- Custom JWT auth layer (730+523 LOC) — distinct from Canvus API auth.
+- SQLite cache + PDF processing pipelines — paired with the LLM port.
+
+cli behavioural diffs from source (all documented in `go/cli/README.md`):
+- `widget pin/unpin/copy/move` now route through `UpdateWidget`/`CloneWidget`/clone-then-delete because the legacy `/widgets/{id}/{pin,copy,move}` endpoints don't exist on the canvus-server (phantom endpoints in the legacy CLI).
+- `client create/update/delete` hidden + return "Phase 4d gap" — pending API verification.
+- `system send-test-email` and `group add-user/remove-user` adjusted to new SDK signatures.
+
+---
 
 ## Deferred to Phase 4d (cleanup)
 
@@ -194,4 +244,22 @@ Added by Phase 4b review gate:
 - **`createAnyWithAsset(canvasId, payload, blob, contentType)` in TS** for symmetry with Go's `CreateWidget(io.Reader)` — or document the asymmetry permanently in conventions.
 - **CloneWidget per-type wrappers** — all three SDKs implement clone as single method with type-param (matches changelog §1 literal text). Not needed unless callers report friction; parity-matrix §5.2 recommends NOT adding sugar.
 
-Phase 4c (per-item refresh) ready to plan when Jaypaul gives the go-ahead.
+Added by Phase 4c final-review gate:
+- **Align note-mapper Gemini dependency** — migrate `go/examples/projects/note-mapper/go.mod` from deprecated `github.com/google/generative-ai-go v0.19.0` to `google.golang.org/genai v1.34.0`, matching translator + ai-personas.
+- **Extract shared Gemini helper** — three-item duplication (translator, ai-personas, note-mapper) satisfies rule-of-three. Target: `go/examples/internal/llm/gemini.go` (or a new `go/sdk/extras/llm/` if promoted SDK-side).
+- **Add Go SDK `WithVerifyTLS(bool)` option** — four sites worked around the gap via hand-built insecure `*http.Client` (`go/tools/db-solver/internal/commands/session.go:15`, `go/tools/db-solver/internal/commands/lookup_hash.go:242`, `go/cli/internal/session/session.go:42`, `go/cli/internal/commands/login.go:111`). Add a first-class option to `go/sdk/canvus/options.go`; remove the workarounds.
+- **ai-personas `qa/wait.go` Subscribe migration** — replace the 500ms `GetNote` poll loop with `SubscribeWidget` (Phase 4b §4.1 #7). Low priority — currently bounded by 10s error tolerance + documented as deferral.
+- **mcp-server-python LLM tools port** — 13 deferred tools across `python/tools/mcp-server/src/canvus_mcp_server/mcp_tools/{llm,brainstorming,correlation,reports}.py`. Re-implement the legacy 541-LOC Ollama client against monorepo conventions: `httpx` (not `aiohttp`), settings constructor (not module globals), structlog, mypy --strict clean. Also: SQLite cache + PDF processing pipelines paired with the LLM port.
+- **mcp-server-python `/users/current` escape hatch** — `python/tools/mcp-server/src/canvus_mcp_server/mcp_tools/users.py:116` reaches into SDK private `client._transport.request()`. Add typed `client.users.current()` to the Python SDK (one-line mirror of `canvases.py:92`) and update the consumer.
+- **Document cli `FromEnv` deviation** — `go/cli/internal/config/config.go` uses viper flag/file/env precedence instead of the SDK's `FromEnv`. Per `docs/conventions/go.md §11` this should be added as a dated Amendment.
+
+---
+
+## Deferred to Phase 5 (CanvusPowerToys port)
+
+Standalone phase, separate plan to be written when Jaypaul gives the go-ahead. Decisions already locked in (in `docs/superpowers/plans/2026-05-18-mt-canvus-tools-phase4c-per-item-refresh.md` and conversation 2026-05-18):
+
+- **Opt-in TLS insecure mode** via BOTH `--insecure-tls` flag AND `CANVUS_INSECURE_TLS` env var. Will use the new SDK `WithVerifyTLS(bool)` option once Phase 4d ships it.
+- **Split client architecture** — SDK-backed `APIClient` for canvus-server calls + separate `RCUClient` struct targeting `http://127.0.0.1:<webui-port>` with `WEBUI_PWD` Bearer auth (matching the Phase 4c Round 2 webui server's auth gate at `typescript/examples/webui/src/routes/rcu.ts`).
+- **Decompose `manager.go`** (1,100-LOC god-organism) and local-typed `Widget`/`Location`/`Size` (referenced from 10+ files) — the work that caused the Round 3 implementer to BLOCK rather than half-implement.
+- **RCU endpoint reality check** — `docs/api-reference/per-item-refresh-audit.md:423` open question. The webui Round 2 implementer noted source `rcu.html` was actually "Remote Content Upload" (user-facing upload form), NOT an admin API. Phase 5 confirms whether `/api/v1/canvases/{id}/rcu/*` is a real custom server feature before porting both items' RCU handlers.

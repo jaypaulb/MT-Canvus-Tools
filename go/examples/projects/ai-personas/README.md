@@ -1,5 +1,7 @@
 # ai-personas
 
+_Refreshed in Phase 4c from [https://github.com/jaypaulb/AI-personas](https://github.com/jaypaulb/AI-personas) (now archived)._
+
 A long-running companion that turns a Canvus canvas into an interactive
 focus-group studio: it watches for trigger notes, asks Google Gemini to invent
 4 customer personas from a Business Model Canvas, then drives a persona-driven
