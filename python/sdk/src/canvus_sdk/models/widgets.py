@@ -223,6 +223,7 @@ class Widget(BaseWidget):
 
 
 __all__ = [
+    "PDF",
     "Anchor",
     "BaseWidget",
     "Browser",
@@ -231,7 +232,6 @@ __all__ = [
     "IPVideo",
     "Image",
     "Note",
-    "PDF",
     "RDPConnection",
     "Table",
     "TableCell",

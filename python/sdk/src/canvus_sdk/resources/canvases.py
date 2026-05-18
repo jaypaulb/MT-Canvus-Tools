@@ -11,14 +11,17 @@ Covers every endpoint under:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
+from ..errors import ValidationError
 from ..models import (
     Canvas,
     CanvasBackground,
     CanvasFolder,
     CanvasPermissions,
     ColorPresets,
+    User,
 )
 from ._base import Resource
 
@@ -71,6 +74,32 @@ class CanvasesResource(Resource):
             json_body=payload,
         )
         return self._parse(Canvas, data)
+
+    async def trash(self, canvas_id: str) -> Canvas:
+        """Move a canvas to the current user's trash folder.
+
+        Phase 4b §4.2 #5: mirrors Go's ``canvases.go:95 TrashCanvas``. The
+        Canvus server represents each user's trash as the synthetic folder ID
+        ``trash.{user_id}`` (integer user ID per VERIFIED-CORRECTIONS §6).
+        This helper looks up the current user via ``GET /users/current`` and
+        then PATCHes the canvas's ``folder_id``.
+
+        Raises:
+            ValidationError: ``GET /users/current`` returned a user with no
+                integer ID — the session is not associated with a real user
+                (e.g. expired token).
+        """
+        current = await self._transport.request("GET", "users/current")
+        user = User.model_validate(current)
+        if user.id is None:
+            raise ValidationError(
+                "trash: GET /users/current did not return a numeric user id; "
+                "cannot derive the trash folder id.",
+            )
+        # Per Go's TrashCanvas implementation, the move is performed via the
+        # POST /move endpoint (not a bare PATCH) — keeps server-side hooks /
+        # audit-log entries consistent across SDKs.
+        return await self.move(canvas_id, f"trash.{user.id}")
 
     async def save_demo_state(self, canvas_id: str) -> Canvas:
         """Save the current state of a demo canvas."""
@@ -147,6 +176,76 @@ class CanvasesResource(Resource):
             return ColorPresets(presets=data)
         return ColorPresets(presets={})
 
+    # ---- per-preset decomposition (Phase 4b §4.2 #8) -----------------------
+    # The Canvus v1.2 server does NOT expose ``/color-presets/{name}``
+    # endpoints. These five helpers decompose / recompose the bulk presets
+    # object client-side so callers can ergonomically work with one preset at
+    # a time. They all round-trip through GET + PATCH of the bulk endpoint.
+
+    async def list_color_presets(self, canvas_id: str) -> list[str]:
+        """Return the names of every color preset defined on the canvas."""
+        presets = await self.get_color_presets(canvas_id)
+        return sorted(presets.presets.keys())
+
+    async def get_color_preset(
+        self, canvas_id: str, name: str
+    ) -> dict[str, Any]:
+        """Return one color preset as the raw wire dict."""
+        presets = await self.get_color_presets(canvas_id)
+        if name not in presets.presets:
+            raise KeyError(
+                f"color preset {name!r} not found on canvas {canvas_id!r}; "
+                f"defined presets: {sorted(presets.presets.keys())}",
+            )
+        value = presets.presets[name]
+        if not isinstance(value, dict):
+            return {"value": value}
+        return dict(value)
+
+    async def create_color_preset(
+        self,
+        canvas_id: str,
+        name: str,
+        preset: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Add a new color preset. Raises if ``name`` already exists."""
+        presets = await self.get_color_presets(canvas_id)
+        if name in presets.presets:
+            raise ValidationError(
+                f"color preset {name!r} already exists on canvas {canvas_id!r}; "
+                "use update_color_preset() to replace it.",
+            )
+        merged = dict(presets.presets)
+        merged[name] = preset
+        await self.update_color_presets(canvas_id, merged)
+        return dict(preset)
+
+    async def update_color_preset(
+        self,
+        canvas_id: str,
+        name: str,
+        preset: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Replace one preset's value (raises if absent)."""
+        presets = await self.get_color_presets(canvas_id)
+        if name not in presets.presets:
+            raise KeyError(
+                f"color preset {name!r} not found on canvas {canvas_id!r}",
+            )
+        merged = dict(presets.presets)
+        merged[name] = preset
+        await self.update_color_presets(canvas_id, merged)
+        return dict(preset)
+
+    async def delete_color_preset(self, canvas_id: str, name: str) -> None:
+        """Remove one preset by name (no-op if absent)."""
+        presets = await self.get_color_presets(canvas_id)
+        if name not in presets.presets:
+            return
+        merged = dict(presets.presets)
+        del merged[name]
+        await self.update_color_presets(canvas_id, merged)
+
     # ---- permissions --------------------------------------------------------
 
     async def get_permissions(self, canvas_id: str) -> CanvasPermissions:
@@ -155,6 +254,40 @@ class CanvasesResource(Resource):
             "GET", f"canvases/{canvas_id}/permissions"
         )
         return self._parse(CanvasPermissions, data)
+
+    # ---- subscribe helpers (Phase 4b §4.2 #13) -----------------------------
+
+    def subscribe(
+        self,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[Canvas]:
+        """Subscribe to ``/canvases?subscribe=true``."""
+        return self._typed_subscribe(Canvas, "canvases", params=params)
+
+    def subscribe_one(
+        self,
+        canvas_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[Canvas]:
+        """Subscribe to a single canvas."""
+        return self._typed_subscribe(
+            Canvas, f"canvases/{canvas_id}", params=params
+        )
+
+    def subscribe_permissions(
+        self,
+        canvas_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[CanvasPermissions]:
+        """Subscribe to a canvas's permissions block."""
+        return self._typed_subscribe(
+            CanvasPermissions,
+            f"canvases/{canvas_id}/permissions",
+            params=params,
+        )
 
     async def set_permissions(
         self,
@@ -253,6 +386,47 @@ class FoldersResource(Resource):
             json_body=payload,
         )
         return self._parse(CanvasFolder, data)
+
+    async def trash(self, folder_id: str) -> CanvasFolder:
+        """Move a folder to the current user's trash folder.
+
+        Phase 4b §4.2 #6: mirrors Go's ``folders.go:135 TrashFolder``. The
+        synthetic destination folder ID is ``trash.{user_id}`` (integer user
+        id per VERIFIED-CORRECTIONS §6).
+
+        Raises:
+            ValidationError: ``GET /users/current`` returned a user with no
+                integer ID.
+        """
+        current = await self._transport.request("GET", "users/current")
+        user = User.model_validate(current)
+        if user.id is None:
+            raise ValidationError(
+                "trash: GET /users/current did not return a numeric user id; "
+                "cannot derive the trash folder id.",
+            )
+        return await self.move(folder_id, f"trash.{user.id}")
+
+    # ---- subscribe helpers (Phase 4b §4.2 #13) -----------------------------
+
+    def subscribe(
+        self,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[CanvasFolder]:
+        """Subscribe to ``/canvas-folders?subscribe=true``."""
+        return self._typed_subscribe(CanvasFolder, "canvas-folders", params=params)
+
+    def subscribe_one(
+        self,
+        folder_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[CanvasFolder]:
+        """Subscribe to a single folder."""
+        return self._typed_subscribe(
+            CanvasFolder, f"canvas-folders/{folder_id}", params=params
+        )
 
     async def get_permissions(self, folder_id: str) -> dict[str, Any]:
         """Get a folder's permissions (returned as a raw dict)."""

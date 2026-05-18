@@ -7,6 +7,7 @@ and the per-user ``/access-tokens`` CRUD set.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from ..models import (
@@ -20,6 +21,23 @@ from ._base import Resource
 
 class AuthResource(Resource):
     """All authentication / session / token operations."""
+
+    # ---- current user ------------------------------------------------------
+
+    async def get_current_user(self) -> User:
+        """Get the user attached to the current session token.
+
+        Phase 4b §4.2 #7: ``GET /users/current``. Used by the trash helpers
+        on :class:`~canvus_sdk.resources.canvases.CanvasesResource` and
+        :class:`~canvus_sdk.resources.canvases.FoldersResource` to discover
+        the integer user ID needed to build the canonical ``trash.{user_id}``
+        folder ID.
+
+        Returns:
+            :class:`~canvus_sdk.models.User` for the authenticated session.
+        """
+        data = await self._transport.request("GET", "users/current")
+        return self._parse(User, data)
 
     # ---- session -----------------------------------------------------------
 
@@ -189,6 +207,35 @@ class AuthResource(Resource):
         """Revoke an access token."""
         await self._transport.request(
             "DELETE", f"users/{user_id}/access-tokens/{token_id}"
+        )
+
+    # ---- subscribe helpers (Phase 4b §4.2 #13) -----------------------------
+
+    def subscribe_tokens(
+        self,
+        user_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[AccessToken]:
+        """Subscribe to a user's access-token list."""
+        return self._typed_subscribe(
+            AccessToken,
+            f"users/{user_id}/access-tokens",
+            params=params,
+        )
+
+    def subscribe_token(
+        self,
+        user_id: str,
+        token_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[AccessToken]:
+        """Subscribe to one access token."""
+        return self._typed_subscribe(
+            AccessToken,
+            f"users/{user_id}/access-tokens/{token_id}",
+            params=params,
         )
 
 

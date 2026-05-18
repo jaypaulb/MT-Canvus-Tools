@@ -10,6 +10,7 @@ Note:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from ..models import Group, GroupMember, User
@@ -99,6 +100,18 @@ class UsersResource(Resource):
         )
         return data if isinstance(data, dict) else {}
 
+    def subscribe(
+        self, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[User]:
+        """Subscribe to ``/users?subscribe=true`` (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(User, "users", params=params)
+
+    def subscribe_one(
+        self, user_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[User]:
+        """Subscribe to a single user."""
+        return self._typed_subscribe(User, f"users/{user_id}", params=params)
+
     async def force_reset_password(self, user_id: str) -> dict[str, Any]:
         """Force-reset a user's password (admin; Phase 3 Python work item #8).
 
@@ -164,6 +177,28 @@ class GroupsResource(Resource):
         """Remove a user from a group."""
         await self._transport.request(
             "DELETE", f"groups/{group_id}/members/{user_id}"
+        )
+
+    # ---- subscribe helpers (Phase 4b §4.2 #13) -----------------------------
+
+    def subscribe(
+        self, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Group]:
+        """Subscribe to ``/groups?subscribe=true``."""
+        return self._typed_subscribe(Group, "groups", params=params)
+
+    def subscribe_one(
+        self, group_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Group]:
+        """Subscribe to a single group."""
+        return self._typed_subscribe(Group, f"groups/{group_id}", params=params)
+
+    def subscribe_members(
+        self, group_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[GroupMember]:
+        """Subscribe to a group's member list."""
+        return self._typed_subscribe(
+            GroupMember, f"groups/{group_id}/members", params=params
         )
 
 

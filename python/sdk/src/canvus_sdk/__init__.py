@@ -36,6 +36,7 @@ from .errors import (
 )
 from .logging_config import configure_logging
 from .models import (
+    PDF,
     AccessToken,
     AccessTokenWithSecret,
     Anchor,
@@ -52,12 +53,11 @@ from .models import (
     ConnectorEndpoint,
     Group,
     GroupMember,
-    IPVideo,
     Image,
+    IPVideo,
     LicenseInfo,
     Location,
     Note,
-    PDF,
     RDPConnection,
     ServerConfig,
     ServerInfo,
@@ -76,6 +76,7 @@ from .models import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "PDF",
     "APIError",
     "AccessToken",
     "AccessTokenWithSecret",
@@ -102,7 +103,6 @@ __all__ = [
     "Location",
     "NotFoundError",
     "Note",
-    "PDF",
     "RDPConnection",
     "RateLimitError",
     "ServerConfig",

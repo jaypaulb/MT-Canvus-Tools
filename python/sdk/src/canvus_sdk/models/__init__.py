@@ -9,8 +9,8 @@ To serialise back to the wire format, use ``model.model_dump(by_alias=True)``.
 
 from __future__ import annotations
 
-from .auth import AccessToken, AccessTokenWithSecret, LoginResponse
 from .audit import AuditLogEntry, AuditLogPage
+from .auth import AccessToken, AccessTokenWithSecret, LoginResponse
 from .canvases import (
     Canvas,
     CanvasBackground,
@@ -32,15 +32,15 @@ from .server import (
 )
 from .users import Group, GroupMember, User
 from .widgets import (
+    PDF,
     Anchor,
     BaseWidget,
     Browser,
     Connector,
     ConnectorEndpoint,
-    IPVideo,
     Image,
+    IPVideo,
     Note,
-    PDF,
     RDPConnection,
     Table,
     TableCell,
@@ -51,6 +51,7 @@ from .widgets import (
 )
 
 __all__ = [
+    "PDF",
     "AccessToken",
     "AccessTokenWithSecret",
     "Anchor",
@@ -78,7 +79,6 @@ __all__ = [
     "LoginResponse",
     "MipmapInfo",
     "Note",
-    "PDF",
     "RDPConnection",
     "RelativeLocation",
     "ServerConfig",

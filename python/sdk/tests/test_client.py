@@ -219,8 +219,10 @@ async def test_send_test_email_sends_recipient_body(client: Client) -> None:
 
 
 @pytest.mark.asyncio
-async def test_install_offline_license_uses_hyphenated_key(client: Client) -> None:
-    """Phase 3 #16: body shape is ``{"license-data": ...}``."""
+async def test_install_offline_license_uses_license_key(client: Client) -> None:
+    """Body shape is ``{"license": ...}`` per VERIFIED-CORRECTIONS §1 — the
+    spec's ``license-data`` field name was rejected by the live server; the
+    server accepts ``license``."""
     with respx.mock(base_url=client.base_url, assert_all_called=True) as mock:
         route = mock.post("license").mock(
             return_value=Response(200, json={"status": "valid", "is_valid": True})
@@ -230,7 +232,7 @@ async def test_install_offline_license_uses_hyphenated_key(client: Client) -> No
     import json as _json
 
     body = _json.loads(route.calls[0].request.content)
-    assert body == {"license-data": "license-blob"}
+    assert body == {"license": "license-blob"}
 
 
 @pytest.mark.asyncio

@@ -20,7 +20,7 @@ class Size(CanvusModel):
 
 
 class RelativeLocation(CanvusModel):
-    """A normalised attachment point inside a widget (0.0–1.0 on each axis)."""
+    """A normalised attachment point inside a widget (0.0-1.0 on each axis)."""
 
     x: float = 0.5
     y: float = 0.5

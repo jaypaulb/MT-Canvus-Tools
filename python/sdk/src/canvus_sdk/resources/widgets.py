@@ -25,13 +25,13 @@ from typing import Any, ClassVar
 
 from ..errors import UnsupportedOperationError
 from ..models import (
+    PDF,
     Anchor,
     Browser,
     Connector,
-    IPVideo,
     Image,
+    IPVideo,
     Note,
-    PDF,
     RDPConnection,
     Table,
     TableCell,
@@ -60,6 +60,61 @@ CLONE_WIDGET_PATHS: dict[str, str] = {
     "table": "tables",
     "tables": "tables",
 }
+
+# ---- Phase 4b §4.2 #1-#3: widget_type → URL path segment for create/update/delete
+# Covers every widget family the server exposes per /widget-types/. The
+# IPVideo and RDP-Connection entries are present so ``update_any`` and
+# ``delete_any`` work; ``create_any`` rejects them via UnsupportedOperationError
+# before dispatching.
+
+WIDGET_TYPE_TO_PATH: dict[str, str] = {
+    "note": "notes",
+    "notes": "notes",
+    "image": "images",
+    "images": "images",
+    "video": "videos",
+    "videos": "videos",
+    "pdf": "pdfs",
+    "pdfs": "pdfs",
+    "browser": "browsers",
+    "browsers": "browsers",
+    "anchor": "anchors",
+    "anchors": "anchors",
+    "connector": "connectors",
+    "connectors": "connectors",
+    "table": "tables",
+    "tables": "tables",
+    "videoinput": "video-inputs",
+    "video-input": "video-inputs",
+    "video-inputs": "video-inputs",
+    "video_input": "video-inputs",
+    "ipvideo": "ip-videos",
+    "ip-video": "ip-videos",
+    "ip-videos": "ip-videos",
+    "ip_video": "ip-videos",
+    "rdpconnection": "rdp-connections",
+    "rdp-connection": "rdp-connections",
+    "rdp-connections": "rdp-connections",
+    "rdp_connection": "rdp-connections",
+}
+
+# Widget types the server's createElement whitelist rejects (per changelog §2).
+UNCREATABLE_WIDGET_TYPES: frozenset[str] = frozenset({
+    "ipvideo", "ip-video", "ip-videos", "ip_video",
+    "rdpconnection", "rdp-connection", "rdp-connections", "rdp_connection",
+})
+
+
+def _resolve_widget_path(widget_type: str) -> str:
+    """Map a widget_type string (singular or plural, hyphen or underscore) to its URL segment."""
+    key = widget_type.lower()
+    path = WIDGET_TYPE_TO_PATH.get(key)
+    if path is None:
+        raise ValueError(
+            f"widget_type {widget_type!r} is not recognised. "
+            f"Allowed: {sorted(set(WIDGET_TYPE_TO_PATH.values()))}",
+        )
+    return path
 
 
 class _TypedSubResource(Resource):
@@ -141,6 +196,22 @@ class NotesResource(_TypedSubResource):
     async def delete(self, canvas_id: str, note_id: str) -> None:
         await self._delete_impl(canvas_id, note_id)
 
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Note]:
+        """Subscribe to all notes on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Note, f"canvases/{canvas_id}/notes", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, note_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Note]:
+        """Subscribe to one note (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Note, f"canvases/{canvas_id}/notes/{note_id}", params=params
+        )
+
 
 # ---- images / videos / pdfs (multipart-capable) ----------------------------
 
@@ -197,6 +268,22 @@ class ImagesResource(_AssetWidgetMixin):
     async def download(self, canvas_id: str, image_id: str) -> bytes:
         return await self._download_impl(canvas_id, image_id)
 
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Image]:
+        """Subscribe to all images on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Image, f"canvases/{canvas_id}/images", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, image_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Image]:
+        """Subscribe to one image."""
+        return self._typed_subscribe(
+            Image, f"canvases/{canvas_id}/images/{image_id}", params=params
+        )
+
 
 class VideosResource(_AssetWidgetMixin):
     _path = "videos"
@@ -223,6 +310,22 @@ class VideosResource(_AssetWidgetMixin):
 
     async def download(self, canvas_id: str, video_id: str) -> bytes:
         return await self._download_impl(canvas_id, video_id)
+
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Video]:
+        """Subscribe to all videos on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Video, f"canvases/{canvas_id}/videos", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, video_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Video]:
+        """Subscribe to one video."""
+        return self._typed_subscribe(
+            Video, f"canvases/{canvas_id}/videos/{video_id}", params=params
+        )
 
 
 class PDFsResource(_AssetWidgetMixin):
@@ -251,6 +354,22 @@ class PDFsResource(_AssetWidgetMixin):
     async def download(self, canvas_id: str, pdf_id: str) -> bytes:
         return await self._download_impl(canvas_id, pdf_id)
 
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[PDF]:
+        """Subscribe to all PDFs on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            PDF, f"canvases/{canvas_id}/pdfs", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, pdf_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[PDF]:
+        """Subscribe to one PDF."""
+        return self._typed_subscribe(
+            PDF, f"canvases/{canvas_id}/pdfs/{pdf_id}", params=params
+        )
+
 
 # ---- browsers / anchors / connectors --------------------------------------
 
@@ -278,6 +397,22 @@ class BrowsersResource(_TypedSubResource):
     async def delete(self, canvas_id: str, browser_id: str) -> None:
         await self._delete_impl(canvas_id, browser_id)
 
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Browser]:
+        """Subscribe to all browsers on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Browser, f"canvases/{canvas_id}/browsers", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, browser_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Browser]:
+        """Subscribe to one browser."""
+        return self._typed_subscribe(
+            Browser, f"canvases/{canvas_id}/browsers/{browser_id}", params=params
+        )
+
 
 class AnchorsResource(_TypedSubResource):
     _path = "anchors"
@@ -302,6 +437,22 @@ class AnchorsResource(_TypedSubResource):
     async def delete(self, canvas_id: str, anchor_id: str) -> None:
         await self._delete_impl(canvas_id, anchor_id)
 
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Anchor]:
+        """Subscribe to all anchors on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Anchor, f"canvases/{canvas_id}/anchors", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, anchor_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Anchor]:
+        """Subscribe to one anchor."""
+        return self._typed_subscribe(
+            Anchor, f"canvases/{canvas_id}/anchors/{anchor_id}", params=params
+        )
+
 
 class ConnectorsResource(_TypedSubResource):
     _path = "connectors"
@@ -325,6 +476,24 @@ class ConnectorsResource(_TypedSubResource):
 
     async def delete(self, canvas_id: str, connector_id: str) -> None:
         await self._delete_impl(canvas_id, connector_id)
+
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Connector]:
+        """Subscribe to all connectors on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Connector, f"canvases/{canvas_id}/connectors", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, connector_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Connector]:
+        """Subscribe to one connector."""
+        return self._typed_subscribe(
+            Connector,
+            f"canvases/{canvas_id}/connectors/{connector_id}",
+            params=params,
+        )
 
 
 # ---- tables ---------------------------------------------------------------
@@ -376,6 +545,36 @@ class TablesResource(_TypedSubResource):
         )
         return self._parse_list(TableCell, data)
 
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Table]:
+        """Subscribe to all tables on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            Table, f"canvases/{canvas_id}/tables", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, table_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[Table]:
+        """Subscribe to one table."""
+        return self._typed_subscribe(
+            Table, f"canvases/{canvas_id}/tables/{table_id}", params=params
+        )
+
+    def subscribe_cells(
+        self,
+        canvas_id: str,
+        table_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[TableCell]:
+        """Subscribe to a table's cells (Phase 4b §4.2 #14)."""
+        return self._typed_subscribe(
+            TableCell,
+            f"canvases/{canvas_id}/tables/{table_id}/cells",
+            params=params,
+        )
+
 
 # ---- video inputs (canvas-scoped) ------------------------------------------
 
@@ -404,6 +603,24 @@ class VideoInputsResource(_TypedSubResource):
 
     async def delete(self, canvas_id: str, widget_id: str) -> None:
         await self._delete_impl(canvas_id, widget_id)
+
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[VideoInput]:
+        """Subscribe to all video-inputs on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            VideoInput, f"canvases/{canvas_id}/video-inputs", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, widget_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[VideoInput]:
+        """Subscribe to one video-input."""
+        return self._typed_subscribe(
+            VideoInput,
+            f"canvases/{canvas_id}/video-inputs/{widget_id}",
+            params=params,
+        )
 
 
 # ---- ip-videos -------------------------------------------------------------
@@ -440,6 +657,24 @@ class IPVideosResource(_TypedSubResource):
             "IP Video widgets can only be created from the Canvus desktop "
             "client; the REST API does not support POST on /ip-videos "
             "(see API changelog §2).",
+        )
+
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[IPVideo]:
+        """Subscribe to all IP videos on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            IPVideo, f"canvases/{canvas_id}/ip-videos", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, widget_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[IPVideo]:
+        """Subscribe to one IP video."""
+        return self._typed_subscribe(
+            IPVideo,
+            f"canvases/{canvas_id}/ip-videos/{widget_id}",
+            params=params,
         )
 
 
@@ -479,6 +714,26 @@ class RDPConnectionsResource(_TypedSubResource):
             "RDP Connection widgets can only be created from the Canvus "
             "desktop client; the REST API does not support POST on "
             "/rdp-connections (see API changelog §2).",
+        )
+
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[RDPConnection]:
+        """Subscribe to all RDP connections on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            RDPConnection,
+            f"canvases/{canvas_id}/rdp-connections",
+            params=params,
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, widget_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[RDPConnection]:
+        """Subscribe to one RDP connection."""
+        return self._typed_subscribe(
+            RDPConnection,
+            f"canvases/{canvas_id}/rdp-connections/{widget_id}",
+            params=params,
         )
 
 
@@ -539,6 +794,144 @@ class WidgetsResource(Resource):
         """Get one widget by ID via the generic endpoint."""
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/widgets/{widget_id}"
+        )
+        return self._parse(Widget, data)
+
+    # ---- generic create/update/delete (Phase 4b §4.2 #1-#3) ----------------
+
+    async def create_any(
+        self,
+        canvas_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create a widget when the caller already has a wire-shape payload.
+
+        Phase 4b §4.2 #1: generic dispatcher mirroring Go's
+        ``widgets.go:53 CreateWidget``. The typed per-type APIs
+        (``widgets.notes.create`` etc.) remain the recommended surface; this
+        method exists for callers that already hold a ``payload`` containing
+        ``widget_type`` and want the SDK to route it for them.
+
+        Args:
+            canvas_id: ID of the destination canvas.
+            payload: Wire-shape body. Must contain ``widget_type``.
+
+        Returns:
+            Raw decoded response dict (type-specific; callers may validate
+            against the matching :mod:`canvus_sdk.models` class).
+
+        Raises:
+            ValueError: ``payload`` lacks ``widget_type`` or it is unknown.
+            UnsupportedOperationError: ``widget_type`` is IP Video or RDP
+                Connection — these can only be created from the Canvus
+                desktop client (changelog §2).
+        """
+        widget_type_obj = payload.get("widget_type") or payload.get("widget-type")
+        if not isinstance(widget_type_obj, str):
+            raise ValueError(
+                "create_any: payload must include a string 'widget_type' field",
+            )
+        widget_type = widget_type_obj
+        key = widget_type.lower()
+        if key in UNCREATABLE_WIDGET_TYPES:
+            raise UnsupportedOperationError(
+                f"widget_type {widget_type!r} cannot be created via the REST API "
+                "(see API changelog §2).",
+            )
+        path = _resolve_widget_path(widget_type)
+        data = await self._transport.request(
+            "POST",
+            f"canvases/{canvas_id}/{path}",
+            json_body=payload,
+        )
+        return data if isinstance(data, dict) else {"raw": data}
+
+    async def update_any(
+        self,
+        canvas_id: str,
+        widget_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Update a widget when the caller already has a wire-shape payload.
+
+        Phase 4b §4.2 #2: generic dispatcher mirroring Go's
+        ``widgets.go:120 UpdateWidget``. The payload must include
+        ``widget_type`` so this method knows which type-specific endpoint to
+        hit. For tables, ``grid_size`` is stripped before sending (silently
+        ignored by the server per changelog §5).
+
+        Args:
+            canvas_id: Owning canvas ID.
+            widget_id: Widget ID to update.
+            payload: Wire-shape body. Must contain ``widget_type``.
+
+        Returns:
+            Raw decoded response dict.
+
+        Raises:
+            ValueError: ``payload`` lacks ``widget_type`` or it is unknown.
+        """
+        widget_type_obj = payload.get("widget_type") or payload.get("widget-type")
+        if not isinstance(widget_type_obj, str):
+            raise ValueError(
+                "update_any: payload must include a string 'widget_type' field",
+            )
+        widget_type = widget_type_obj
+        path = _resolve_widget_path(widget_type)
+        body: dict[str, Any] = dict(payload)
+        if path == "tables":
+            for stripped in ("grid_size", "grid-size"):
+                if stripped in body:
+                    warnings.warn(
+                        "grid_size cannot be modified after creation and will be "
+                        "silently ignored by the server (see API changelog §5).",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    body.pop(stripped, None)
+        data = await self._transport.request(
+            "PATCH",
+            f"canvases/{canvas_id}/{path}/{widget_id}",
+            json_body=body,
+        )
+        return data if isinstance(data, dict) else {"raw": data}
+
+    async def delete_any(
+        self,
+        canvas_id: str,
+        widget_id: str,
+        widget_type: str,
+    ) -> None:
+        """Delete a widget by ID + widget_type.
+
+        Phase 4b §4.2 #3: generic dispatcher mirroring Go's
+        ``widgets.go:193 DeleteWidget``. ``widget_type`` must be supplied by
+        the caller (the server response is empty so we cannot infer it).
+        """
+        path = _resolve_widget_path(widget_type)
+        await self._transport.request(
+            "DELETE",
+            f"canvases/{canvas_id}/{path}/{widget_id}",
+        )
+
+    async def patch_parent_id(
+        self,
+        canvas_id: str,
+        widget_id: str,
+        parent_id: str,
+    ) -> Widget:
+        """Re-parent a widget by PATCHing its parent_id.
+
+        Phase 4b §4.2 #4: mirrors Go's ``widgets.go:224 PatchParentID``. The
+        server accepts ``PATCH /canvases/{cid}/widgets/{wid}`` as a generic
+        shortcut even though the read-only ``/widgets`` path doesn't formally
+        document this. Prefer the typed per-type ``update`` helpers where
+        feasible.
+        """
+        data = await self._transport.request(
+            "PATCH",
+            f"canvases/{canvas_id}/widgets/{widget_id}",
+            json_body={"parent_id": parent_id},
         )
         return self._parse(Widget, data)
 
@@ -662,11 +1055,39 @@ class WidgetsResource(Resource):
             except json.JSONDecodeError:
                 continue
 
+    def subscribe_one(
+        self,
+        canvas_id: str,
+        widget_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[Widget]:
+        """Subscribe to one widget via the generic ``/widgets/{id}`` endpoint.
+
+        Phase 4b §4.2 #13.
+        """
+        return self._typed_subscribe(
+            Widget, f"canvases/{canvas_id}/widgets/{widget_id}", params=params
+        )
+
+    def subscribe_uploads_folder(
+        self,
+        canvas_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[UploadItem]:
+        """Subscribe to a canvas's uploads-folder (Phase 4b §4.2 #14)."""
+        return self._typed_subscribe(
+            UploadItem,
+            f"canvases/{canvas_id}/uploads-folder",
+            params=params,
+        )
+
 
 __all__ = [
+    "CLONE_WIDGET_PATHS",
     "AnchorsResource",
     "BrowsersResource",
-    "CLONE_WIDGET_PATHS",
     "ConnectorsResource",
     "IPVideosResource",
     "ImagesResource",

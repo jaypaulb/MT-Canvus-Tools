@@ -8,6 +8,9 @@ directly from :class:`CanvusError`.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 
 class CanvusError(Exception):
     """Base class for every error raised by ``canvus_sdk``."""
@@ -70,7 +73,26 @@ class ServerError(APIError):
 
 
 class ValidationError(CanvusError):
-    """Local payload validation failed before the request was sent."""
+    """Local payload validation failed before the request was sent.
+
+    Phase 4b §4.2 #15: carries an optional ``issues`` list — a structured
+    field-level breakdown of every validation problem detected, mirroring the
+    TypeScript SDK's ``ValidationError.issues`` shape. Each issue is a small
+    mapping with the keys ``path`` (dotted field path), ``message`` (human
+    readable), and optionally ``code`` (machine readable identifier).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        issues: Sequence[Mapping[str, Any]] | None = None,
+    ) -> None:
+        super().__init__(message)
+        # Copy into a stable list-of-dicts so callers cannot mutate our state.
+        self.issues: list[dict[str, Any]] = (
+            [dict(issue) for issue in issues] if issues else []
+        )
 
 
 class TransportError(CanvusError):
