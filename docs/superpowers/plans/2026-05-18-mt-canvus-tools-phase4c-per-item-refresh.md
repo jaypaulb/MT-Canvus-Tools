@@ -27,18 +27,24 @@
 | 6 | `CanvusAPI-LLMDemo` | `go/examples/projects/llm-canvas-companion/` | Go | 4,466 | 11 | Medium; **rename**. |
 | 7 | `CanvusNoteMapper` | `go/examples/projects/note-mapper/` | Go | 2,999 | 17 | Medium. |
 | 8 | `canvus-mcp-server` | `python/tools/mcp-server/` | Python | ~5-10k real | many | Large; full MCP server. |
-| 9 | `Canvus-Local-LLM` | `python/tools/local-llm/` | Python | 772 | 8 | Tiny. |
+| ~~9~~ | ~~`Canvus-Local-LLM`~~ | ~~`python/tools/local-llm/`~~ | ~~Python~~ | ~~772~~ | ~~8~~ | **Dropped 2026-05-18**: superseded by Go `llm-canvas-companion` (item #6) + `python/examples/core/06-llm-integration` (already shipped in 4a). Three implementations of the same Canvus+LLM idea would be redundant. |
 | 10 | `CanvusWebUI` | `typescript/examples/webui/` | TS | 6,521 | 15 | **Rewrite** — source is JavaScript. |
 
-**Original spec listed an 11th item, `CanvusMCP` → `go/tools/mcp-server/`. Confirmed during Task 4c.0: no `CanvusMCP` repo exists upstream (no local copy, no GitHub repo under that name or alternates). Python `canvus-mcp-server` (item #8) covers the MCP use case. Phase 4c scope is therefore 10 items, not 11.**
+**Scope reductions** (confirmed during pre-flight + audit 2026-05-18):
+- Item #2 `CanvusMCP` → `go/tools/mcp-server/`: dropped (no upstream repo, never built).
+- Item #9 `Canvus-Local-LLM` → `python/tools/local-llm/`: dropped (superseded by item #6 `llm-canvas-companion` and Phase 4a's `python/examples/core/06-llm-integration`).
 
-**Batch allocation** (mixed sizes per round so each round produces a meaningful slice):
+**Final scope: 9 items.**
 
-- **Round 1 (small validators, 4 items):** #3 translator (Go), #9 local-llm (Python), #7 note-mapper (Go), #6 llm-canvas-companion (Go).
-- **Round 2 (medium + rewrites, 3 items):** #5 ai-personas (Go), #10 webui (TS rewrite), #8 mcp-server-python.
-- **Round 3 (large items, 3 items):** #1 cli (Go), #4 db-solver (Go), #2 powertoys (Go).
+**RCU endpoints clarification:** PowerToys' `rcu_handler.go` and CanvusWebUI's RCU pages call `/api/v1/canvases/{id}/rcu/*`. These are NOT canvus-server endpoints — they are the WebUI's OWN admin endpoints. PowerToys runs an embedded WebUI and calls into it locally. Porters preserve RCU as-is in both items: the WebUI item rebuilds the RCU routes server-side in Hono; the PowerToys item keeps the RCU client calls (they don't go through the Canvus SDK).
 
-Total: 10 items, 3 rounds, 4 + 3 + 3 agents (max parallel = 4, under the runaway-guard threshold).
+**Batch allocation** (final, post-audit reshuffle):
+
+- **Round 1 (4 items, sonnet-default):** #3 translator (Go), #7 note-mapper (Go), #6 llm-canvas-companion (Go), #4 db-solver (Go). All four are SDK-swap-plus-localized-cleanup with effective LOC ≤5k each (db-solver's 10k total is 6k vendored SDK that disappears in the port).
+- **Round 2 (2 items, opus):** #5 ai-personas (Go), #10 webui (TS rewrite). Both architecturally heavy; webui is a full JS→TS rewrite to Hono.
+- **Round 3 (3 items, opus):** #1 cli (Go, ~13k LOC, mechanical), #2 powertoys (Go, ~20k LOC + RCU), #8 mcp-server-python (Python, ~5-10k effective + 3.2k-LOC `canvas.py` decomposition).
+
+Total: 9 items, 3 rounds, 4 + 2 + 3 agents.
 
 ---
 
