@@ -17,6 +17,8 @@ The SDK source code in `go/sdk/`, `python/sdk/`, `typescript/sdk/` reflects the 
 
 ## 1. `POST /api/v1/license` — path and field name
 
+**Back-applied to:** `endpoints/server.md` ✅ (2026-05-18)
+
 **Spec (`endpoints/server.md`):** `POST /api/v1/license/install` with body `{"key": "..."}` (or `{"license-data": "..."}` in some places).
 
 **Verified truth:** `POST /api/v1/license` with body `{"license": "..."}`.
@@ -34,6 +36,8 @@ $ curl -X POST .../license -d '{"license":"PROBE"}'   # would attempt install
 ---
 
 ## 2. `GET /api/v1/license` — response shape
+
+**Back-applied to:** `endpoints/server.md` ✅ (2026-05-18)
 
 **Spec:**
 ```json
@@ -57,6 +61,8 @@ Differences:
 ---
 
 ## 3. `GET /api/v1/server-config` — response shape
+
+**Back-applied to:** `endpoints/server.md` ✅ (2026-05-18)
 
 **Spec (`endpoints/server.md`):** "JSON array of configuration elements" with `{setting-key, setting-value, setting-type}` triples.
 
@@ -83,6 +89,8 @@ The `PATCH /api/v1/server-config` write API still uses the `{settings: [{setting
 
 ## 4. `POST /api/v1/users/login` — strict field validation
 
+**Back-applied to:** `endpoints/auth.md` ✅ (2026-05-18)
+
 **Spec:** body is `{"email": "...", "password": "...", "remember": true}`.
 
 **Verified:** the documented body works. **But** the server rejects requests containing **unknown** fields:
@@ -96,6 +104,8 @@ $ curl -X POST .../users/login -d '{"email":"x@y","username":"x@y","password":"w
 ```
 
 SDKs that defensively double-key `email` and `username` will fail. Send only the documented fields.
+
+**Also back-applied:** The login response `user` object field names. The spec showed `user-id` (UUID), `full-name`, `is-admin`, `is-blocked`. The verified wire shape uses `id` (integer), `name`, `admin`, `blocked` — all underscored.
 
 ---
 

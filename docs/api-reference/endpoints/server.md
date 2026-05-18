@@ -39,47 +39,36 @@ Retrieve server version and runtime information. No authentication required.
 
 ### `GET /api/v1/server-config`
 
+> Verified against dev-mtcs.multitaction.com 2026-05-18
+
 **Auth:** login-token | api-key | none (guest access for reading)  
 **Streaming:** yes (subscribe=true)  
 **Status:** implemented
 
-Retrieve server configuration settings as an element list. Guest access allowed (without auth).
+Retrieve server configuration settings. Guest access allowed (without auth).
 
 **Query parameters:**
 | Name | Type | Required | Default | Description |
 |---|---|---|---|---|
 | subscribe | boolean | no | false | Enable streaming updates |
 
-**Response (200):** JSON array of configuration elements
+**Response (200):** Deeply nested JSON object with underscore-separated keys. The flat element-array form (`[{setting-key, setting-value, setting-type}]`) documented in earlier spec drafts is **not** served by v1.2.
 
 ```json
-[
-  {
-    "setting-key": "smtp.enabled",
-    "setting-value": "true",
-    "setting-type": "boolean"
+{
+  "access": "rw",
+  "authentication": {
+    "domain_allow_list": ["*"],
+    "password": { "enabled": true, "min_length": 8 },
+    "saml": { "acs_url": "...", "enabled": true }
   },
-  {
-    "setting-key": "smtp.host",
-    "setting-value": "mail.example.com",
-    "setting-type": "string"
-  },
-  {
-    "setting-key": "max-users",
-    "setting-value": "100",
-    "setting-type": "integer"
-  }
-]
+  "email": { "smtp_host": "", "smtp_port": 25 },
+  "external_url": "https://your-server.example.com",
+  "server_name": "My Canvus Server"
+}
 ```
 
-**Common Settings:**
-- `smtp.enabled` — SMTP email enabled
-- `smtp.host` — Email server hostname
-- `smtp.port` — Email server port
-- `saml.enabled` — SAML authentication enabled
-- `self-registration.enabled` — Allow users to self-register
-- `license.expiry-date` — License expiration date
-- `keepalive-interval` — WebSocket/subscribe keepalive ping interval (seconds)
+Keys use **underscores** throughout the GET response.
 
 **Errors:**
 - 500: Server error
@@ -188,6 +177,8 @@ Send a test email to verify SMTP configuration.
 
 ### `GET /api/v1/license`
 
+> Verified against dev-mtcs.multitaction.com 2026-05-18
+
 **Auth:** login-token (admin required) | api-key (admin required)  
 **Streaming:** yes (subscribe=true)  
 **Status:** implemented
@@ -203,27 +194,25 @@ Retrieve current license information and usage statistics.
 
 ```json
 {
-  "status": "valid|expired|invalid",
-  "clients": 5,
-  "max-clients": 10,
-  "valid": true,
-  "message": "License valid until 2026-12-31",
-  "expiry-date": "2026-12-31T23:59:59Z",
-  "seat-model": "usage_reported|fixed_seats|none",
-  "activation-required": false
+  "edition": "",
+  "has_expired": false,
+  "is_valid": true,
+  "max_clients": -1,
+  "seat_model": "fixed_seats",
+  "type": "lifetime"
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| status | string | License status: valid, expired, or invalid |
-| clients | integer | Current active clients (connected Canvus apps) |
-| max-clients | integer | Maximum allowed clients under license |
-| valid | boolean | Is the license currently valid |
-| message | string | Human-readable license status |
-| expiry-date | string (ISO 8601) | License expiration date |
-| seat-model | string | Seat model: usage_reported, fixed_seats, or none |
-| activation-required | boolean | Is license activation required |
+| edition | string | License edition string |
+| has_expired | boolean | Whether the license has expired |
+| is_valid | boolean | Whether the license is currently valid |
+| max_clients | integer | Maximum allowed clients (-1 = unlimited) |
+| seat_model | string | Seat model: usage_reported, fixed_seats, or none |
+| type | string | License type (e.g. "lifetime") |
+
+**Note:** Keys use **underscores**. The fields `status`, `clients`, `valid`, `message`, `expiry-date`, `max-clients`, `activation-required`, and `seat-model` (hyphenated) documented in earlier spec drafts do not appear in the v1.2 response. `expiry-date` and `activation-required` may appear on non-lifetime license types.
 
 **Errors:**
 - 401: Unauthorized
@@ -258,6 +247,8 @@ Get the activation request payload for offline license activation.
 
 ### `POST /api/v1/license`
 
+> Verified against dev-mtcs.multitaction.com 2026-05-18
+
 **Auth:** login-token (admin required) | api-key (admin required)  
 **Streaming:** no  
 **Status:** implemented
@@ -268,13 +259,15 @@ Install a new license file (typically from offline activation).
 
 ```json
 {
-  "license-data": "base64-encoded-license-file"
+  "license": "<license-key-string>"
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| license-data | string (base64) | yes | License file data (base64-encoded) |
+| license | string | yes | License key or file content |
+
+**Note:** The field is `"license"` (not `"license-data"` or `"key"` as shown in earlier spec drafts). Sending `"key"` returns `{"msg":"license parameter is missing"}`; sending `"license-data"` returns `{"msg":"Unknown action ..."}`. The endpoint is `POST /api/v1/license` — the path `/api/v1/license/install` returns `{"msg":"Unknown action install"}`.
 
 **Response (200):** License installed
 

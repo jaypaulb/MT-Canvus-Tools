@@ -4,6 +4,8 @@
 
 ### `POST /api/v1/users/login`
 
+> Verified against dev-mtcs.multitaction.com 2026-05-18
+
 **Auth:** none  
 **Streaming:** no  
 **Status:** implemented
@@ -26,18 +28,19 @@ Authenticate with email and password to obtain a session token.
 | password | string | yes | User password (plaintext; TLS required) |
 | remember | boolean | no | Extend session lifetime (persistent login) |
 
+**Important:** The server performs **strict field validation** on this body. Sending any unknown field (e.g. `username`) causes the server to reject the request with `{"msg":"Login request must have either email and password or token"}` rather than attempting authentication. Send only the documented fields above.
+
 **Response (200):**
 
 ```json
 {
   "token": "session-token-string",
   "user": {
-    "user-id": "uuid",
+    "id": 1000,
     "email": "user@example.com",
-    "full-name": "John Doe",
-    "is-admin": false,
-    "is-blocked": false,
-    "avatar-color": "#FF0000"
+    "name": "John Doe",
+    "admin": false,
+    "blocked": false
   }
 }
 ```
@@ -47,8 +50,20 @@ Authenticate with email and password to obtain a session token.
 | token | string | Session token for subsequent API requests (use in `Private-Token` header or `CanvusSession` cookie) |
 | user | object | Authenticated user details |
 
+**User object fields** — keys use **underscores**; `id` is an **integer** (not a UUID):
+
+| Field | Type | Description |
+|---|---|---|
+| id | integer | User identifier (integer, not UUID) |
+| email | string | User email address |
+| name | string | User's display name |
+| admin | boolean | Whether the user has admin privileges |
+| blocked | boolean | Whether the user account is blocked |
+
+**Note:** The fields `user-id`, `full-name`, `is-admin`, `is-blocked`, and `avatar-color` shown in earlier spec drafts do not exist on the v1.2 wire shape.
+
 **Errors:**
-- 400: Bad request (missing email or password)
+- 400: Bad request (missing email or password, or unexpected fields in body)
 - 401: Unauthorized (invalid credentials or user blocked)
 - 402: Payment Required (license seat limit reached)
 - 500: Server error
