@@ -206,3 +206,51 @@ func TestSubscribeStream_PropagatesAPIErrorOnNon2xx(t *testing.T) {
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, http.StatusForbidden, apiErr.StatusCode)
 }
+
+// TestWithSubscribeBuffer verifies that WithSubscribeBuffer sets the channel
+// capacity used by subscribeStream. Phase 4d Round B.
+func TestWithSubscribeBuffer_CustomSize(t *testing.T) {
+	// A server that sends one canvas and then blocks so we can inspect the
+	// channel without draining it.
+	ready := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		require.True(t, ok)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"c1","name":"buf-test"}` + "\n"))
+		flusher.Flush()
+		<-ready // hold the connection open so the goroutine stays alive
+	}))
+	defer func() {
+		close(ready)
+		srv.Close()
+	}()
+
+	t.Run("buffer=16", func(t *testing.T) {
+		cfg := DefaultSessionConfig()
+		cfg.BaseURL = srv.URL + "/api/v1"
+		s := NewSession(cfg, WithSubscribeBuffer(16))
+		assert.Equal(t, 16, s.config.SubscribeBuffer, "config field should reflect option")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		ch, err := s.SubscribeCanvases(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, 16, cap(ch), "channel capacity should be 16")
+		cancel()
+	})
+
+	t.Run("default=4", func(t *testing.T) {
+		cfg := DefaultSessionConfig()
+		cfg.BaseURL = srv.URL + "/api/v1"
+		s := NewSession(cfg)
+		assert.Equal(t, 4, s.config.SubscribeBuffer, "default SubscribeBuffer should be 4")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		ch, err := s.SubscribeCanvases(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, 4, cap(ch), "channel capacity should be 4")
+		cancel()
+	})
+}

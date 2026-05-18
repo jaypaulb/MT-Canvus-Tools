@@ -377,3 +377,54 @@ async def test_users_current_returns_user(client: Client) -> None:
     assert isinstance(user, User)
     assert user.id == 42
     assert user.email == "alice@example.com"
+
+
+# ---- subscribe_buffer option (Phase 4d Round B) ----------------------------
+
+
+def test_subscribe_buffer_default_is_4() -> None:
+    """Client with no explicit subscribe_buffer stores 4 on the transport."""
+    c = Client(base_url="https://x.invalid", api_key="k")
+    assert c._transport.subscribe_buffer == 4
+
+
+def test_subscribe_buffer_custom_value() -> None:
+    """Client constructed with subscribe_buffer=16 propagates it to transport."""
+    c = Client(base_url="https://x.invalid", api_key="k", subscribe_buffer=16)
+    assert c._transport.subscribe_buffer == 16
+
+
+def test_subscribe_buffer_rejects_zero() -> None:
+    """subscribe_buffer < 1 must raise ValueError."""
+    with pytest.raises(ValueError, match="subscribe_buffer must be >= 1"):
+        Client(base_url="https://x.invalid", api_key="k", subscribe_buffer=0)
+
+
+def test_subscribe_buffer_rejects_negative() -> None:
+    """Negative subscribe_buffer must raise ValueError."""
+    with pytest.raises(ValueError, match="subscribe_buffer must be >= 1"):
+        Client(base_url="https://x.invalid", api_key="k", subscribe_buffer=-5)
+
+
+def test_settings_subscribe_buffer_default() -> None:
+    """Settings.subscribe_buffer defaults to 4 per Phase 4d Round B spec."""
+    import os
+
+    from canvus_sdk.config import Settings
+
+    # Patch env to satisfy required fields without touching the real env.
+    env_backup = {
+        "CANVUS_API_URL": os.environ.get("CANVUS_API_URL"),
+        "CANVUS_API_KEY": os.environ.get("CANVUS_API_KEY"),
+    }
+    os.environ["CANVUS_API_URL"] = "https://settings.test.invalid"
+    os.environ["CANVUS_API_KEY"] = "test-key"
+    try:
+        s = Settings()  # type: ignore[call-arg]
+        assert s.subscribe_buffer == 4
+    finally:
+        for k, v in env_backup.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

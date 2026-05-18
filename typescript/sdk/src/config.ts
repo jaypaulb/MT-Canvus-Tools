@@ -18,6 +18,7 @@ const ConfigSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  subscribeBuffer: z.coerce.number().int().min(1).default(4),
 });
 
 /**
@@ -75,6 +76,18 @@ export interface SessionOptions {
    * correlating SDK calls with server-side logs and traces.
    */
   readonly requestIdProvider?: () => string | undefined;
+  /**
+   * Channel capacity for buffered subscribe helpers. High-throughput consumers
+   * (live dashboards, ai-personas) can raise this value to absorb bursts
+   * without applying backpressure to the HTTP response body. Must be >= 1.
+   * Defaults to 4. Phase 4d Round B.
+   *
+   * Note: the SDK's subscribe primitives are async generators (pull-based).
+   * This value is exposed on {@link Config.subscribeBuffer} so that wrappers
+   * (e.g. `BufferedSubscriber`) can read it. Callers who write their own queue
+   * wrapper SHOULD read from `session.config.subscribeBuffer`.
+   */
+  readonly subscribeBuffer?: number;
 }
 
 /**
@@ -89,6 +102,7 @@ export function buildConfig(opts: SessionOptions): Config {
     apiKey: opts.apiKey,
     timeoutMs: opts.timeoutMs?.toString(),
     verifyTls: opts.verifyTls === undefined ? undefined : opts.verifyTls ? "true" : "false",
+    subscribeBuffer: opts.subscribeBuffer,
   });
 
   if (!parsed.success) {

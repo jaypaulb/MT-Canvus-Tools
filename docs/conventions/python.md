@@ -876,6 +876,14 @@ async def update_note(
 
 Append entries here when a Phase 4b refresh, an SDK design decision, or a downstream tool surfaces something the locked defaults do not cover, or when an existing default is consciously overridden. Format mirrors `docs/conventions/go.md`. Do not edit historical entries; supersede with a new one.
 
+### 2026-05-18 — subscribe_buffer adds asyncio.Queue capacity control (Phase 4d Round B)
+
+**Item:** `python/sdk/src/canvus_sdk/client.py`, `_http.py`, `config.py`, `resources/_base.py`
+**Decision:** `subscribe_buffer: int = 4` is added to `Client.__init__`, `Settings`, and `Transport`. `_typed_subscribe` now wraps the raw async-generator in an `asyncio.Queue(maxsize=subscribe_buffer)` backed by a background reader task. This converts the subscribe primitive from a pure pull-model generator to a push-buffered queue without changing the public `AsyncIterator[T]` return type.
+**Rationale:** The Python subscribe was previously a pure async generator (pull-based, no internal buffer). High-throughput consumers that do slow per-item processing held back the HTTP read loop. Adding the queue decouples stream reading from item consumption. Storing `subscribe_buffer` on `Transport` (rather than threading it through every `Resource` subclass) minimises the change surface.
+
+---
+
 ### YYYY-MM-DD — \<one-line summary>
 
 **Item:** \<tool or example being refreshed>

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 from collections.abc import AsyncIterator, Iterable, Mapping
 from typing import Any, TypeVar
@@ -56,6 +58,12 @@ class Resource:
         lines that decode to a list (server may batch updates) are yielded
         one item at a time.
 
+        Phase 4d Round B: uses an ``asyncio.Queue`` of capacity
+        ``transport.subscribe_buffer`` (default 4) to decouple the stream
+        reader from the consumer. High-throughput callers (live dashboards,
+        ai-personas) can raise ``subscribe_buffer`` on the :class:`Client` to
+        absorb bursts without applying backpressure to the HTTP response body.
+
         Args:
             model_cls: pydantic model class for each yielded item.
             path: API path (without leading ``/``).
@@ -65,18 +73,39 @@ class Resource:
         Yields:
             Validated ``model_cls`` instances.
         """
+        _sentinel = object()
+        queue: asyncio.Queue[ModelT | object] = asyncio.Queue(
+            maxsize=self._transport.subscribe_buffer
+        )
         query: dict[str, Any] = dict(params) if params else {}
         query.setdefault("subscribe", "true")
-        async for line in self._transport.stream_lines("GET", path, params=query):
+
+        async def _reader() -> None:
             try:
-                payload = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(payload, list):
-                for item in payload:
-                    yield model_cls.model_validate(item)
-            else:
-                yield model_cls.model_validate(payload)
+                async for line in self._transport.stream_lines("GET", path, params=query):
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, list):
+                        for item in payload:
+                            await queue.put(model_cls.model_validate(item))
+                    else:
+                        await queue.put(model_cls.model_validate(payload))
+            finally:
+                await queue.put(_sentinel)
+
+        task = asyncio.ensure_future(_reader())
+        try:
+            while True:
+                item = await queue.get()
+                if item is _sentinel:
+                    break
+                yield item  # type: ignore[misc]
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     async def _raw_subscribe(
         self,

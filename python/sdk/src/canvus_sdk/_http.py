@@ -99,12 +99,14 @@ class Transport:
         max_retries: int = 3,
         retry_initial_delay_seconds: float = 1.0,
         retry_backoff_factor: float = 2.0,
+        subscribe_buffer: int = 4,
     ) -> None:
         self._base_url = normalise_base_url(base_url)
         self._api_key = api_key
         self._max_retries = max_retries
         self._retry_initial_delay = retry_initial_delay_seconds
         self._retry_backoff = retry_backoff_factor
+        self.subscribe_buffer: int = subscribe_buffer
 
         timeout = httpx.Timeout(
             connect=connect_timeout_seconds,

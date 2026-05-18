@@ -71,7 +71,11 @@ class Client:
         max_retries: int = 3,
         retry_initial_delay_seconds: float = 1.0,
         retry_backoff_factor: float = 2.0,
+        subscribe_buffer: int = 4,
     ) -> None:
+        if subscribe_buffer < 1:
+            raise ValueError(f"subscribe_buffer must be >= 1, got {subscribe_buffer}")
+        self._subscribe_buffer = subscribe_buffer
         self._transport = Transport(
             base_url,
             api_key,
@@ -81,6 +85,7 @@ class Client:
             max_retries=max_retries,
             retry_initial_delay_seconds=retry_initial_delay_seconds,
             retry_backoff_factor=retry_backoff_factor,
+            subscribe_buffer=subscribe_buffer,
         )
         self.canvases = CanvasesResource(self._transport)
         self.folders = FoldersResource(self._transport)
@@ -107,6 +112,7 @@ class Client:
             max_retries=cfg.max_retries,
             retry_initial_delay_seconds=cfg.retry_initial_delay_seconds,
             retry_backoff_factor=cfg.retry_backoff_factor,
+            subscribe_buffer=cfg.subscribe_buffer,
         )
 
     # ---- async lifecycle --------------------------------------------------

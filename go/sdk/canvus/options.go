@@ -86,6 +86,7 @@ func DefaultSessionConfig() *SessionConfig {
 			MaxFailures:  5,
 			ResetTimeout: 30 * time.Second,
 		},
+		SubscribeBuffer: 4,
 	}
 }
 

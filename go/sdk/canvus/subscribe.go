@@ -32,8 +32,9 @@ import (
 // `keepalive` blank line (empty string after trim) is silently skipped.
 //
 // Callers SHOULD drain the channel or cancel ctx; leaking the channel will
-// leak the underlying response body. The buffer size is intentionally small
-// (4) — backpressure is desirable in streaming consumers.
+// leak the underlying response body. The channel capacity is controlled by
+// SessionConfig.SubscribeBuffer (default 4, set via WithSubscribeBuffer).
+// Phase 4d Round B: configurable via SessionConfig.SubscribeBuffer.
 func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<-chan T, error) {
 	if s == nil {
 		return nil, fmt.Errorf("subscribeStream: nil session")
@@ -72,7 +73,11 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 		return nil, &APIError{StatusCode: resp.StatusCode, Message: string(body)}
 	}
 
-	ch := make(chan T, 4)
+	bufSize := s.config.SubscribeBuffer
+	if bufSize < 1 {
+		bufSize = 4 // defensive default if config was not built via DefaultSessionConfig.
+	}
+	ch := make(chan T, bufSize)
 	go func() {
 		defer close(ch)
 		defer resp.Body.Close()

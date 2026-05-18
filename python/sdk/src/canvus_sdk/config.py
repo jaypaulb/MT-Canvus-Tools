@@ -61,6 +61,16 @@ class Settings(BaseSettings):
         2.0,
         description="Multiplier applied to the backoff delay after each retry.",
     )
+    subscribe_buffer: int = Field(
+        4,
+        ge=1,
+        description=(
+            "asyncio.Queue capacity for buffered subscribe helpers. "
+            "Raise this value for high-throughput consumers (live dashboards, ai-personas) "
+            "to absorb bursts without blocking the streaming coroutine. "
+            "Must be >= 1. Phase 4d Round B."
+        ),
+    )
 
 
 __all__ = ["Settings"]

@@ -918,6 +918,14 @@ When a Phase 4b refresh agent encounters a decision not covered above, it **must
 
 <!-- New amendments are appended below this line in reverse chronological order. -->
 
+### 2026-05-18 — WithSubscribeBuffer adds configurable channel capacity (Phase 4d Round B)
+
+**Item:** `go/sdk/canvus/subscribe.go` + `options_subscribe.go` + `options.go`
+**Decision:** `SessionConfig.SubscribeBuffer int` (default 4) controls the `make(chan T, N)` capacity in `subscribeStream`. `WithSubscribeBuffer(n int)` sets it; panics if n < 1. The `WithSubscribeBuffer` function lives in the new `options_subscribe.go` to avoid conflicts with parallel B1 work on `options.go`.
+**Rationale:** High-throughput consumers (live dashboards, ai-personas) hit backpressure with buffer=4 when the stream produces faster than the consumer drains. Exposing the size as a `SessionConfigOption` keeps defaults unchanged and lets performance-sensitive callers raise it without forking the session type.
+
+---
+
 ### 2026-05-18 — CLI tools may use viper precedence instead of FromEnv (Phase 4d)
 
 **Item:** `go/cli` configuration loading (`go/cli/internal/config/config.go`)

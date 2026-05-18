@@ -938,6 +938,12 @@ Phase 4b refresh agents append to this section whenever they deviate from the lo
 **Decision:** `listAuditLog()` returns `Promise<AuditEntry[]>` (flat array). The Go SDK initially shipped a `*AuditLogResponse` envelope wrapper; live-server testing (see `docs/api-reference/VERIFIED-CORRECTIONS.md` §8) confirmed the server returns a flat array with no pagination metadata. All three SDKs are now aligned on the flat-array contract.
 **Rationale:** Match the wire reality. If pagination metadata is added by the server in a future version, the SDK contract will widen at that point.
 
+### 2026-05-18 — subscribeBuffer stored on Config; wrappers read from session.config (Phase 4d Round B)
+
+**Item:** `typescript/sdk/src/config.ts` — `SessionOptions.subscribeBuffer`, `Config.subscribeBuffer`
+**Decision:** `subscribeBuffer?: number` (default 4, validated >= 1 via Zod `min(1)`) is added to `SessionOptions` and parsed into `Config`. The field is accessible as `session.config.subscribeBuffer`. The subscribe primitives (`streamNdjson`) remain pure async generators (pull-based); buffering is caller's responsibility via a queue wrapper that reads `session.config.subscribeBuffer`.
+**Rationale:** TypeScript's `streamNdjson` is already backpressure-aware via `undici`'s native stream; converting it to a push-queue inside the SDK would break consumers that rely on pull semantics. Exposing the buffer size on `Config` gives wrapper authors a consistent place to read it without requiring each caller to hard-code 4.
+
 ### 2026-05-18 — `createAnyWithAsset` asymmetry documented as permanent (Phase 4d Round B)
 
 **Item:** typescript/sdk/src/resources/widgets.ts — `WidgetsResource.createAny`

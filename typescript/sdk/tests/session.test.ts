@@ -240,3 +240,29 @@ describe("AssetsResource", () => {
     expect(headers.get("canvas-id")).toBe("canvas-uuid");
   });
 });
+
+// ---- subscribeBuffer option (Phase 4d Round B) --------------------------------
+
+describe("subscribeBuffer option", () => {
+  it("defaults to 4 when not supplied", () => {
+    const session = createSession({ baseUrl: BASE, apiKey: KEY });
+    expect(session.config.subscribeBuffer).toBe(4);
+  });
+
+  it("stores custom value=16 on session.config", () => {
+    const session = createSession({ baseUrl: BASE, apiKey: KEY, subscribeBuffer: 16 });
+    expect(session.config.subscribeBuffer).toBe(16);
+  });
+
+  it("rejects subscribeBuffer < 1 with ValidationError", () => {
+    expect(() =>
+      createSession({ baseUrl: BASE, apiKey: KEY, subscribeBuffer: 0 }),
+    ).toThrow(ValidationError);
+  });
+
+  it("rejects subscribeBuffer = -1 with ValidationError", () => {
+    expect(() =>
+      createSession({ baseUrl: BASE, apiKey: KEY, subscribeBuffer: -1 }),
+    ).toThrow(ValidationError);
+  });
+});
