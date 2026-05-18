@@ -1,0 +1,176 @@
+<!-- /public/admin.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Page</title>
+  
+  <!-- External CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/navbar.css">
+</head>
+<body>
+  <!-- Navbar Placeholder -->
+  <div id="navbar-placeholder"></div>
+
+  <!-- Environment Variables Form Section -->
+  <div id="env-form-container" class="container">
+    <h2>Manage Environment Variables</h2>
+    <!-- Form to Edit Environment Variables -->
+    <form id="env-form">
+      <input type="hidden" name="password" value="">
+      <div id="env-variables" class="form-group"></div>
+      <div class="button-group">
+        <button type="submit">Save Changes</button>
+      </div>
+    </form>
+    <div id="env-message" class="message"></div>
+  </div>
+
+  <!-- Theme Selection Section -->
+  <div id="theme-section" class="container">
+    <h2>Theme Selection</h2>
+    <div class="theme-select-container">
+      <div class="form-group">
+        <label for="theme-select">Select Theme:</label>
+        <select id="theme-select" class="theme-select">
+          <option value="default">Default Theme</option>
+          <option value="kpmg-light">KPMG Theme</option>
+        </select>
+      </div>
+      <button id="apply-theme" class="btn-primary">Apply Theme</button>
+    </div>
+    
+    <div class="theme-preview-section">
+      <div class="preview-header">
+        <h3>Theme Preview</h3>
+        <div class="theme-actions">
+            <button id="save-theme-changes" class="btn-primary" style="display: none;">Save Changes</button>
+            <button id="create-theme" class="btn-secondary">Create Theme</button>
+            <button id="edit-theme" class="btn-secondary">Edit Theme</button>
+        </div>
+      </div>
+      <div id="preview-frame" class="preview-frame" data-editable="false">
+        <div class="preview-elements">
+          <button class="btn-primary preview-element" data-element="primary-button">Primary Button</button>
+          <button class="btn-secondary preview-element" data-element="secondary-button">Secondary Button</button>
+          <button class="btn-danger preview-element" data-element="danger-button">Danger Button</button>
+          <div class="preview-text">
+            <p class="preview-element" data-element="text">Regular text in a paragraph</p>
+            <p class="preview-element text-light" data-element="text-light">Light variant text</p>
+          </div>
+          <div class="preview-input">
+            <label class="preview-element" data-element="label">Input Field:</label>
+            <input type="text" class="preview-element" data-element="input" placeholder="Example input">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Picker Panel -->
+    <div id="color-picker-panel" class="color-picker-panel">
+        <div class="picker-header">
+            <span id="selected-element">Select an element to edit</span>
+            <button id="close-picker" class="close-btn">&times;</button>
+        </div>
+        <div class="picker-content">
+            <button id="apply-color" class="btn-primary">Apply</button>
+            <div class="color-group">
+                <label>Color:</label>
+                <input type="color" id="element-color">
+            </div>
+            <div class="color-group">
+                <label>Background:</label>
+                <input type="color" id="element-background">
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- Theme Editor Modal -->
+  <div id="theme-editor-modal" class="modal">
+    <div class="modal-content">
+      <h3>Theme Editor</h3>
+      <div class="theme-editor">
+        <div class="editor-sidebar">
+          <h4>Elements</h4>
+          <ul id="element-list">
+            <li data-element="background">Background</li>
+            <li data-element="text">Text</li>
+            <li data-element="primary-button">Primary Button</li>
+            <li data-element="secondary-button">Secondary Button</li>
+            <li data-element="danger-button">Danger Button</li>
+            <li data-element="input">Input Field</li>
+          </ul>
+        </div>
+        <div class="editor-main">
+          <div id="editor-preview" class="preview-frame">
+            <!-- Same content as preview-frame -->
+          </div>
+          <div class="color-picker-container">
+            <label>Selected Element Color:</label>
+            <input type="color" id="element-color" />
+            <button id="apply-color" class="btn-primary">Apply Color</button>
+          </div>
+        </div>
+      </div>
+      <div class="button-group">
+        <button id="save-theme" class="btn-primary">Save Theme</button>
+        <button id="cancel-theme" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirm-modal" class="modal">
+    <div class="modal-content">
+      <h3>Confirm Changes</h3>
+      <p>Are you sure you want to save these changes?</p>
+      <div class="button-group">
+        <button id="confirm-save" class="confirm-button">Yes</button>
+        <button id="cancel-save" class="cancel-button">No</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal -->
+  <div id="adminModal" class="modal">
+    <div class="modal-content">
+      <h3>Admin Authentication</h3>
+      <div class="form-group">
+        <label for="adminPassword">Enter Admin Password:</label>
+        <input type="password" id="adminPassword" placeholder="Password">
+      </div>
+      <div class="button-group">
+        <button id="adminConfirm" class="btn-primary">Confirm</button>
+        <button id="adminCancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Notification -->
+  <div id="successNotification" class="success-notification"></div>
+
+  <!-- Create Theme Modal -->
+  <div id="create-theme-modal" class="modal">
+    <div class="modal-content">
+      <h3>Create New Theme</h3>
+      <div class="form-group">
+        <label for="new-theme-name">Theme Name:</label>
+        <input type="text" id="new-theme-name" placeholder="Enter theme name">
+      </div>
+      <div class="button-group">
+        <button id="confirm-create-theme" class="btn-primary">Create</button>
+        <button id="cancel-create-theme" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- External JavaScript -->
+  <script src="js/common.js"></script>
+  <script src="js/navbar.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

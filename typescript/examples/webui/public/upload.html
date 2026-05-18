@@ -1,0 +1,108 @@
+<!-- /public/upload.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Page</title>
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/navbar.css">
+</head>
+<body>
+    <!-- Navbar Placeholder -->
+    <div id="navbar-placeholder"></div>
+
+    <!-- User Identification Section -->
+    <div id="user-identification" class="container">
+        <h2>User Testing</h2>
+        <div class="form-group">
+            <label for="username">Your Name:</label>
+            <input type="text" id="username" required placeholder="Enter your name">
+        </div>
+
+        <div class="team-selection">
+            <h3>Select Your Team:</h3>
+            <div class="team-buttons">
+                <button class="team-button" data-team="1">Team 1</button>
+                <button class="team-button" data-team="2">Team 2</button>
+                <button class="team-button" data-team="3">Team 3</button>
+                <button class="team-button" data-team="4">Team 4</button>
+                <button class="team-button" data-team="5">Team 5</button>
+                <button class="team-button" data-team="6">Team 6</button>
+                <button class="team-button" data-team="7">Team 7</button>
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <!-- User Dashboard Section (Hidden initially) -->
+    <div id="user-dashboard" class="container" style="display: none;">
+        <div class="button-group" style="justify-content: flex-start;">
+            <button id="backButton" class="btn-secondary">Back to Testing</button>
+        </div>
+        <h2 id="welcomeMessage"></h2>
+        
+        <div class="note-section">
+            <div id="noteSquare" class="note-square" contenteditable="true" placeholder="Enter your note here..."></div>
+            <div class="button-group">
+                <button id="postNoteButton">Post Note</button>
+                <button id="uploadItemButton">Upload File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Section -->
+    <div id="admin-section" class="container">
+        <h2>Admin Actions</h2>
+        <div class="button-group">
+            <button id="createTargetsBtn" class="btn btn-primary">Create Target Notes</button>
+            <button id="deleteTargetsBtn" class="btn btn-danger">Delete Target Notes</button>
+            <button id="listUsersBtn" class="btn btn-info">List Users</button>
+            <button id="deleteUsersBtn" class="btn btn-warning">Delete Users</button>
+        </div>
+    </div>
+
+    <!-- User List Section -->
+    <div class="user-list-section-container">
+        <h2>User List</h2>
+        <div class="user-list-container">
+            <table id="userListTable">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Name</th>
+                        <th>Color</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- User rows will be populated here -->
+                </tbody>
+            </table>
+            <div id="userListMessage" class="message">No users to display. Click "List Users" to refresh.</div>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <h3>Admin Authentication</h3>
+            <div class="form-group">
+                <label for="adminPassword">Enter Admin Password:</label>
+                <input type="password" id="adminPassword" placeholder="Password">
+            </div>
+            <div class="button-group">
+                <button id="adminConfirm" class="btn btn-primary">Confirm</button>
+                <button id="adminCancel" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="js/common.js"></script>
+    <script src="js/navbar.js"></script>
+    <script src="js/upload.js"></script>
+</body>
+</html>

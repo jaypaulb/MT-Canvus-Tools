@@ -1,0 +1,92 @@
+<!-- /public/main.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="Canvus Web UI - Main Page">
+    <title>Main Page</title>
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/navbar.css">
+</head>
+<body>
+    <!-- Navbar Placeholder -->
+    <div id="navbar-placeholder"></div>
+      
+    <div class="container">
+        <h1>Welcome to Canvus WebUI</h1>
+
+        <div class="action-container">
+            <div class="form-group">
+                <label for="clientSelect">Select a Display Client</label>
+                <select id="clientSelect" class="form-select" disabled>
+                    <option value="">Loading clients...</option>
+                </select>
+            </div>
+
+            <div id="canvasInfo" class="canvas-info" style="display: none;">
+                <div class="canvas-details">
+                    <span class="label">Active Canvas:</span>
+                    <span id="canvasName" class="value">-</span>
+                </div>
+                <div class="status-indicator">
+                    <span id="connectionStatus" class="status connected">Monitoring</span>
+                </div>
+            </div>
+
+            <button id="continueButton" class="primary-button" disabled style="display: none;">
+                <span class="button-content">
+                    <span class="button-text">Continue to WebUI</span>
+                </span>
+            </button>
+        </div>
+
+        <div class="messages-container">
+            <span id="confirmation" class="message success" role="alert" aria-live="polite"></span>
+            <span id="error" class="message error" role="alert" aria-live="assertive"></span>
+        </div>
+    </div>
+
+    <!-- Admin Authentication Modal -->
+    <div id="adminModal" class="modal" role="dialog" aria-labelledby="adminModalTitle">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2 id="adminModalTitle">Admin Authentication Required</h2>
+                <button id="adminCancel" class="close" aria-label="Close modal">&times;</button>
+            </header>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <input type="password" 
+                           id="adminPassword" 
+                           placeholder="Enter admin password" 
+                           required 
+                           aria-required="true"
+                           autocomplete="current-password" />
+                </div>
+                <p id="modalError" class="error" style="display: none;" role="alert"></p>
+            </div>
+
+            <footer class="modal-footer">
+                <button id="adminConfirm" class="primary-button">
+                    <span class="button-content">
+                        <span class="loading-spinner" style="display: none;"></span>
+                        <span class="button-text">Submit</span>
+                    </span>
+                </button>
+            </footer>
+        </div>
+    </div>
+      
+    <!-- External JavaScript -->
+    <script src="js/sort-utils.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/navbar.js"></script>
+    <script src="js/main-page.js"></script>
+</body>
+</html>

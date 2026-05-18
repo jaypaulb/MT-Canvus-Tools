@@ -1,0 +1,36 @@
+{
+  "name": "@mt-canvus-tools/webui-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hono/TS rewrite of the legacy CanvusWebUI Express demo: admin/operator UI built on the TypeScript SDK.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@hono/zod-validator": "^0.4.1",
+    "@mt-canvus-tools/sdk": "workspace:*",
+    "cookie": "^1.0.1",
+    "hono": "^4.6.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.13",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

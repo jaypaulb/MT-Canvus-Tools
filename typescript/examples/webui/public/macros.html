@@ -1,0 +1,548 @@
+<!-- macros.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="Canvus Web UI - Macros Management">
+    <title>Macros Management</title>
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/navbar.css">
+
+    <style>
+        .macros-container {
+            display: flex;
+            height: calc(100vh - 60px);
+            margin: 0;
+            padding: 0;
+        }
+
+        .sidebar {
+            width: 200px;
+            background-color: var(--color-background-dark);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem 0;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .tab-button {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--color-text);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .tab-button:hover {
+            background-color: var(--color-background);
+        }
+
+        .tab-button.active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            margin-bottom: 2rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .action-section {
+            margin-bottom: 2rem;
+        }
+
+        .action-section h3 {
+            margin-bottom: 1rem;
+            color: var(--color-text);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group select {
+            width: 100%;
+            max-width: 300px;
+            padding: 0.5rem;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+        }
+
+        .button-group {
+            margin-top: 1rem;
+        }
+
+        .action-button {
+            padding: 0.5rem 1rem;
+            margin-right: 0.5rem;
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .action-button:hover {
+            background-color: var(--color-primary-dark);
+        }
+
+        /* Container for entire macros interface */
+        .admin-container {
+            margin-top: var(--spacing-xl);
+            padding: var(--spacing-md);
+        }
+
+        .admin-frame {
+            display: flex;
+            flex-direction: column;
+            border: 2px dashed var(--color-border);
+            border-radius: var(--border-radius-md);
+            background-color: var(--color-background);
+            min-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .admin-frame {
+                flex-direction: row;
+            }
+        }
+
+        .admin-frame-left {
+            width: 100%;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .admin-frame-right {
+            width: 100%;
+            padding: var(--spacing-md);
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .admin-frame-left {
+                width: 25%;
+                border-right: 1px solid var(--color-border);
+                border-bottom: none;
+            }
+
+            .admin-frame-right {
+                width: 75%;
+                padding: var(--spacing-lg);
+            }
+        }
+
+        .action-panel {
+            display: none;
+        }
+
+        .action-panel.active {
+            display: block;
+        }
+
+        .message {
+            margin-top: var(--spacing-md);
+            color: var(--color-text);
+        }
+
+        /* Left Nav styling */
+        .admin-frame-left .navbar {
+            background-color: var(--color-text);
+            position: relative;
+            height: auto;
+            box-shadow: none;
+        }
+
+        .admin-frame-left .nav-tabs {
+            display: flex;
+            flex-direction: row;
+            padding: 0;
+            margin: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (min-width: 768px) {
+            .admin-frame-left .nav-tabs {
+                flex-direction: column;
+            }
+        }
+
+        .admin-frame-left .nav-item {
+            flex: 1 0 auto;
+        }
+
+        .admin-frame-left .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-white);
+            padding: var(--spacing-md);
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+            min-height: 44px;
+        }
+
+        .admin-frame-left .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .admin-frame-left .nav-link.active {
+            background-color: var(--color-primary);
+            color: var(--color-white);
+        }
+
+        /* Form elements */
+        .panel-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .panel-section label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text-light);
+            font-weight: 500;
+        }
+
+        @media (min-width: 768px) {
+            .panel-section label {
+                display: inline-block;
+                margin-right: var(--spacing-md);
+                min-width: 120px;
+                margin-bottom: 0;
+            }
+        }
+
+        .panel-section select,
+        .panel-section input[type="range"] {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* Deletion list */
+        .deletion-list {
+            margin: var(--spacing-md) 0;
+            padding: var(--spacing-md);
+            background: var(--color-white);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius-sm);
+            max-height: 300px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .deletion-record {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+            transition: background-color 0.2s ease;
+        }
+
+        .deletion-record:last-child {
+            border-bottom: none;
+        }
+
+        .deletion-record:hover {
+            background: var(--color-background);
+            cursor: pointer;
+        }
+
+        /* Modal styling */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-content {
+            background: var(--color-white);
+            width: 90%;
+            max-width: 600px;
+            margin: var(--spacing-xl) auto;
+            padding: var(--spacing-lg);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-content h4 {
+            margin-top: 0;
+            color: var(--color-text);
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-lg);
+        }
+
+        @media (min-width: 480px) {
+            .modal-actions {
+                flex-direction: row;
+                justify-content: flex-end;
+            }
+        }
+
+        .confirm-action,
+        .close-modal {
+            flex: 1;
+            min-height: 44px;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: none;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+
+        @media (min-width: 480px) {
+            .confirm-action,
+            .close-modal {
+                flex: 0 1 auto;
+                min-width: 120px;
+            }
+        }
+
+        .confirm-action {
+            background-color: var(--color-primary);
+            color: var(--color-white);
+        }
+
+        .confirm-action:hover {
+            background-color: var(--color-primary-dark);
+        }
+
+        .close-modal {
+            background-color: var(--color-danger);
+            color: var(--color-white);
+        }
+
+        .close-modal:hover {
+            background-color: var(--color-danger-dark);
+        }
+
+        /* Button groups */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+
+        @media (min-width: 480px) {
+            .button-group {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .button-group button {
+                flex: 0 1 auto;
+            }
+        }
+
+        /* Range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--color-border);
+            outline: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            cursor: pointer;
+            transition: background .15s ease-in-out;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border: 0;
+            border-radius: 50%;
+            background: var(--color-primary);
+            cursor: pointer;
+            transition: background .15s ease-in-out;
+        }
+
+        /* Loading states */
+        .loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--color-white);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+    
+    <div class="macros-container">
+        <!-- Add page title -->
+        <h1 style="position: absolute; top: 1rem; left: 2rem; margin: 0;">Macros</h1>
+        
+        <div class="sidebar">
+            <button class="tab-button active" data-tab="manage">Manage</button>
+            <button class="tab-button" data-tab="undelete">Undelete</button>
+            <button class="tab-button" data-tab="grouping">Grouping</button>
+            <button class="tab-button" data-tab="pinning">Pinning</button>
+        </div>
+
+        <div class="main-content">
+            <!-- Manage Tab -->
+            <div id="manage-content" class="tab-content active">
+                <div class="action-section">
+                    <h3>Manage Widgets (Move / Copy / Delete)</h3>
+                    <div class="form-group">
+                        <label for="manageSourceZone">Source Zone:</label>
+                        <select id="manageSourceZone"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="manageTargetZone">Target Zone:</label>
+                        <select id="manageTargetZone"></select>
+                    </div>
+                    <div class="button-group">
+                        <button id="moveButton" class="action-button">Move</button>
+                        <button id="copyButton" class="action-button">Copy</button>
+                        <button id="deleteButton" class="action-button">Delete</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Undelete Tab -->
+            <div id="undelete-content" class="tab-content">
+                <div class="action-section">
+                    <h3>Undelete Widgets</h3>
+                    <p>Select a previously deleted record below, then pick a target zone for restoration.</p>
+                    
+                    <div class="form-group">
+                        <label for="undeleteTargetZone">Target Zone:</label>
+                        <select id="undeleteTargetZone"></select>
+                    </div>
+
+                    <button id="refreshDeletedRecordsBtn" class="action-button">Refresh Deleted Records</button>
+                    
+                    <div class="deletion-list" id="deletedRecordsList">
+                        <!-- Records will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grouping Tab -->
+            <div id="grouping-content" class="tab-content">
+                <div class="action-section">
+                    <h3>Group Widgets</h3>
+                    <div class="form-group">
+                        <label for="groupingSourceZone">Source Zone:</label>
+                        <select id="groupingSourceZone"></select>
+                    </div>
+                    
+                    <!-- Add color tolerance section -->
+                    <div class="form-group">
+                        <label for="colorToleranceSlider">Color Tolerance:</label>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <input type="range" 
+                                   id="colorToleranceSlider" 
+                                   min="0" 
+                                   max="100" 
+                                   value="10"
+                                   style="flex: 1; max-width: 200px;">
+                            <span id="colorToleranceValue">10%</span>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="autoGridButton" class="action-button">Auto Grid</button>
+                        <button id="groupColorButton" class="action-button">Group by Color</button>
+                        <button id="groupTitleButton" class="action-button">Group by Title</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pinning Tab -->
+            <div id="pinning-content" class="tab-content">
+                <div class="action-section">
+                    <h3>Pin/Unpin Widgets in Zone</h3>
+                    <div class="form-group">
+                        <label for="pinningSourceZone">Source Zone:</label>
+                        <select id="pinningSourceZone"></select>
+                    </div>
+                    <div class="button-group">
+                        <button id="pinAllButton" class="action-button">Pin ALL</button>
+                        <button id="unpinAllButton" class="action-button">Unpin ALL</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Undelete Confirmation Modal -->
+    <div id="undeleteConfirmOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <h4>Confirm Undelete</h4>
+            <div id="undeleteConfirmMessage"></div>
+            <div id="undeleteWidgetList"></div>
+            <div class="modal-actions">
+                <button id="undeleteConfirmBtn" class="confirm-action">Confirm</button>
+                <button id="undeleteCancelBtn" class="close-modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="js/common.js"></script>
+    <script src="js/navbar.js"></script>
+    <script src="js/macros.js"></script>
+</body>
+</html>

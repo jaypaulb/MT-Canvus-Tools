@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Resolution</title>
+    <style>
+        body {
+            background-color: black;
+            color: white; /* Changed to white for visibility on black background */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            text-align: center;
+        }
+        .resolution-text {
+            font-size: 2em; /* This will be overridden by JS for the first line */
+            margin: 10px 0;
+        }
+        #first-line-text {
+            white-space: nowrap; /* Prevent text from wrapping */
+            box-sizing: border-box; /* Include padding and border in the element's total width */
+        }
+    </style>
+</head>
+<body>
+    <div id="first-line-text" class="resolution-text">This Browser Resolution is</div>
+    <div id="resolution" class="resolution-text"></div>
+
+    <script>
+        function displayResolution() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            document.getElementById('resolution').innerText = `${width} px\nby\n${height} px`;
+            adjustFontSize();
+        }
+
+        function adjustFontSize() {
+            const textElement = document.getElementById('first-line-text');
+            const resolutionElement = document.getElementById('resolution');
+            const targetWidth = window.innerWidth * 0.9; // 90% of page width
+            let fontSize = 100; // Start with a large font size and decrease
+            textElement.style.fontSize = fontSize + 'px';
+
+            // Reduce font size until the text fits within 90% of the viewport width
+            while (textElement.scrollWidth > targetWidth && fontSize > 1) {
+                fontSize--;
+                textElement.style.fontSize = fontSize + 'px';
+            }
+            // Apply the same font size to the resolution text
+            resolutionElement.style.fontSize = fontSize + 'px';
+        }
+
+        window.onload = displayResolution;
+        window.onresize = displayResolution;
+    </script>
+</body>
+</html> 
