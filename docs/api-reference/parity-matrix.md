@@ -74,7 +74,7 @@ Legend: ✅ = present (with file:line); ❌ = absent; ⚠ = present with caveat.
 |---|---|---|---|---|
 | List widgets (mixed) | `GET /canvases/{id}/widgets` | ✅ `widgets.go:23 ListWidgets` (with `includeAnnotations`, Filter) | ✅ `resources/widgets.py:521 WidgetsResource.list` | ✅ `resources/widgets.ts:112 list` |
 | Get widget (generic) | `GET /canvases/{id}/widgets/{wid}` | ✅ `widgets.go:39 GetWidget` | ✅ `resources/widgets.py:538 get` | ✅ `resources/widgets.ts:122 get` |
-| Create widget (generic, dispatch on widget_type) | `POST /canvases/{id}/{type-plural}` | ✅ `widgets.go:53 CreateWidget` (multipart-aware, rejects IPVideo/RDP) | ❌ (only per-type create) | ❌ (only per-type create) |
+| Create widget (generic, dispatch on widget_type) | `POST /canvases/{id}/{type-plural}` | ✅ `widgets.go:53 CreateWidget` (multipart-aware, rejects IPVideo/RDP) | ❌ (only per-type create) | ⚠ `resources/widgets.ts:236 createAny` (JSON types only; image/video/pdf redirect to typed upload methods — see Phase 4d Round B amendment in `docs/conventions/typescript.md`) |
 | Update widget (generic, dispatch on widget_type) | `PATCH /canvases/{id}/{type-plural}/{wid}` | ✅ `widgets.go:120 UpdateWidget` | ❌ | ❌ |
 | Delete widget (generic, dispatch on widget_type) | `DELETE /canvases/{id}/{type-plural}/{wid}` | ✅ `widgets.go:193 DeleteWidget` | ❌ | ❌ |
 | Patch parent_id (re-parent widget) | helper around PATCH | ✅ `widgets.go:224 PatchParentID` | ❌ | ❌ |
