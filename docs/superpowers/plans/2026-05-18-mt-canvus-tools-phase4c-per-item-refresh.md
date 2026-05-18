@@ -20,24 +20,25 @@
 | # | Source repo | Destination | Lang | Source LOC | Source files | Notes |
 |---|---|---|---|---|---|---|
 | 1 | `canvus-cli` | `go/cli/` | Go | 13,440 | 187 | Large; many subcommands. |
-| 2 | `CanvusMCP` | `go/tools/mcp-server/` | Go | ? | ? | **Not present locally** — Task 4c.1 confirms upstream + clones. |
-| 3 | `CanvusPowerToys` | `go/tools/powertoys/` | Go | 20,173 | 87 | Largest item; many utilities. |
-| 4 | `CanvusTranslator` | `go/tools/translator/` | Go | 890 | 6 | Tiny. |
-| 5 | `Canvus-Server-db-solver` | `go/tools/db-solver/` | Go | 9,906 | 67 | Large; DB-heavy. |
-| 6 | `AI-personas` | `go/examples/projects/ai-personas/` | Go | 5,206 | 21 | Medium; LLM-driven. |
-| 7 | `CanvusAPI-LLMDemo` | `go/examples/projects/llm-canvas-companion/` | Go | 4,466 | 11 | Medium; **rename**. |
-| 8 | `CanvusNoteMapper` | `go/examples/projects/note-mapper/` | Go | 2,999 | 17 | Medium. |
-| 9 | `canvus-mcp-server` | `python/tools/mcp-server/` | Python | ~5-10k real | many | Large; full MCP server. |
-| 10 | `Canvus-Local-LLM` | `python/tools/local-llm/` | Python | 772 | 8 | Tiny. |
-| 11 | `CanvusWebUI` | `typescript/examples/webui/` | TS | 6,521 | 15 | **Rewrite** — source is JavaScript. |
+| 2 | `CanvusPowerToys` | `go/tools/powertoys/` | Go | 20,173 | 87 | Largest item; many utilities. |
+| 3 | `CanvusTranslator` | `go/tools/translator/` | Go | 890 | 6 | Tiny. |
+| 4 | `Canvus-Server-db-solver` | `go/tools/db-solver/` | Go | 9,906 | 67 | Large; DB-heavy. |
+| 5 | `AI-personas` | `go/examples/projects/ai-personas/` | Go | 5,206 | 21 | Medium; LLM-driven. |
+| 6 | `CanvusAPI-LLMDemo` | `go/examples/projects/llm-canvas-companion/` | Go | 4,466 | 11 | Medium; **rename**. |
+| 7 | `CanvusNoteMapper` | `go/examples/projects/note-mapper/` | Go | 2,999 | 17 | Medium. |
+| 8 | `canvus-mcp-server` | `python/tools/mcp-server/` | Python | ~5-10k real | many | Large; full MCP server. |
+| 9 | `Canvus-Local-LLM` | `python/tools/local-llm/` | Python | 772 | 8 | Tiny. |
+| 10 | `CanvusWebUI` | `typescript/examples/webui/` | TS | 6,521 | 15 | **Rewrite** — source is JavaScript. |
 
-**Batch allocation** (4-item rounds, mixed sizes so each round produces a meaningful slice):
+**Original spec listed an 11th item, `CanvusMCP` → `go/tools/mcp-server/`. Confirmed during Task 4c.0: no `CanvusMCP` repo exists upstream (no local copy, no GitHub repo under that name or alternates). Python `canvus-mcp-server` (item #8) covers the MCP use case. Phase 4c scope is therefore 10 items, not 11.**
 
-- **Round 1 (small validators):** #4 translator (Go), #10 local-llm (Python), #8 note-mapper (Go), #7 llm-canvas-companion (Go).
-- **Round 2 (medium + rewrites):** #6 ai-personas (Go), #11 webui (TS rewrite), #2 mcp-server-go (clone + port), #9 mcp-server-python.
-- **Round 3 (large items):** #1 cli (Go), #5 db-solver (Go), #3 powertoys (Go). 3 items — Round 3 is smaller because items are larger.
+**Batch allocation** (mixed sizes per round so each round produces a meaningful slice):
 
-Total: 11 items, 3 rounds, 4 + 4 + 3 agents (max parallel = 4, under the runaway-guard threshold).
+- **Round 1 (small validators, 4 items):** #3 translator (Go), #9 local-llm (Python), #7 note-mapper (Go), #6 llm-canvas-companion (Go).
+- **Round 2 (medium + rewrites, 3 items):** #5 ai-personas (Go), #10 webui (TS rewrite), #8 mcp-server-python.
+- **Round 3 (large items, 3 items):** #1 cli (Go), #4 db-solver (Go), #2 powertoys (Go).
+
+Total: 10 items, 3 rounds, 4 + 3 + 3 agents (max parallel = 4, under the runaway-guard threshold).
 
 ---
 
@@ -53,15 +54,9 @@ git log --oneline | head -5
 
 Expected: HEAD at least at `e1aaf55` ("docs: Phase 4b completion update + Phase 4d cleanup tracker refresh"), working tree clean.
 
-- [ ] **Step 2: Confirm `CanvusMCP` Go source availability**
+- [ ] **Step 2: Confirm `CanvusMCP` Go source availability — RESOLVED 2026-05-18**
 
-Not present in `/home/jaypaulb/Projects/gh/`. Check GitHub:
-
-```bash
-gh repo view jaypaulb/CanvusMCP 2>&1 | head -5
-```
-
-If exists: clone it to `/home/jaypaulb/Projects/gh/CanvusMCP/`. If not: surface to Jaypaul — the spec lists it, so either the name is wrong or the repo was archived. Either way the assessment audit (Task 4c.1) will handle it.
+Not present locally. Searched `gh repo view jaypaulb/CanvusMCP` (404) and `gh search repos --owner jaypaulb mcp` (empty). The original consolidation spec listed it speculatively but no such repo was ever built. Python `canvus-mcp-server` (item #8) covers the MCP use case. **Item dropped from scope; Phase 4c is 10 items.**
 
 - [ ] **Step 3: Scaffold destination directories**
 
@@ -316,20 +311,17 @@ If any major design question came out of Round 1, surface to Jaypaul before Roun
 
 ---
 
-## Task 4c.5: Batch 2 — medium items + TS rewrite (4 items in parallel)
+## Task 4c.5: Batch 2 — medium items + TS rewrite (3 items in parallel)
 
-Items: `ai-personas` (Go), `webui` (TS rewrite), `mcp-server` (Go, requires clone first), `mcp-server` (Python).
+Items: `ai-personas` (Go), `webui` (TS rewrite), `mcp-server` (Python).
 
-**Why this batch:** webui is the only TS item and the only rewrite (source is JavaScript) — runs solo for its language so it doesn't conflict. Go mcp-server requires upstream clone (handled in 4c.0 Step 2). Python mcp-server is the largest Python item.
+**Why this batch:** webui is the only TS item and the only rewrite (source is JavaScript) — runs solo for its language so it doesn't conflict. Python mcp-server is the largest Python item. (The originally-planned Go mcp-server item was dropped — see 4c.0 Step 2.)
 
-- [ ] **Step 1: If `CanvusMCP` clone happened in 4c.0 Step 2, proceed. If not, surface to Jaypaul before dispatching this round.**
-
-- [ ] **Step 2: Dispatch 4 implementer agents in parallel**
+- [ ] **Step 1: Dispatch 3 implementer agents in parallel**
 
 Use the same per-item implementer contract as Task 4c.3 Step 1. Per-item model:
 - `ai-personas`: `opus` (LLM orchestration architecture)
 - `webui` (TS rewrite): `opus` (full rewrite, architectural judgement)
-- `mcp-server-go`: `sonnet` or `opus` per audit
 - `mcp-server-python`: `opus` (large, full MCP server)
 
 - [ ] **Step 3: Wait + per-item toolchain re-verify (orchestrator)**
