@@ -1,6 +1,7 @@
 import type { Transport } from "../transport.js";
 import { streamNdjson, type StreamOptions } from "../streaming.js";
 import { logger } from "../logging.js";
+import { UnsupportedOperationError } from "../errors.js";
 import type { Uuid } from "../types/common.js";
 import type {
   Anchor,
@@ -83,6 +84,61 @@ const SEGMENT: Record<CloneWidgetArgs["widgetType"], string> = {
 };
 
 /**
+ * Phase 4b §4.3 #1: full URL-segment map for every widget type known to the
+ * server, used by the generic `createAny`/`updateAny`/`deleteAny` helpers.
+ *
+ * Keys are accepted in any of the spellings the server emits / accepts:
+ * `Note` (capitalised, the canonical wire form), `note` (lower), or
+ * `ip_video` / `ip-video` (snake/kebab variants). Values are the lowercase
+ * URL plural segment.
+ */
+const GENERIC_SEGMENT: Record<string, string> = {
+  note: "notes",
+  image: "images",
+  video: "videos",
+  pdf: "pdfs",
+  browser: "browsers",
+  anchor: "anchors",
+  connector: "connectors",
+  table: "tables",
+  videoinput: "video-inputs",
+  video_input: "video-inputs",
+  "video-input": "video-inputs",
+  ipvideo: "ip-videos",
+  ip_video: "ip-videos",
+  "ip-video": "ip-videos",
+  rdpconnection: "rdp-connections",
+  rdp_connection: "rdp-connections",
+  "rdp-connection": "rdp-connections",
+};
+
+/** Normalise a widget type to its URL segment. Throws on unknown types. */
+function segmentFor(widgetType: string, op: string): string {
+  const key = widgetType.toLowerCase();
+  const segment = GENERIC_SEGMENT[key];
+  if (segment === undefined) {
+    throw new UnsupportedOperationError(
+      op,
+      `${op}: unsupported widget_type ${JSON.stringify(widgetType)}`,
+    );
+  }
+  return segment;
+}
+
+/** Returns true if the widget type cannot be created via the API. */
+function isCreateForbidden(widgetType: string): boolean {
+  const k = widgetType.toLowerCase();
+  return (
+    k === "ipvideo" ||
+    k === "ip_video" ||
+    k === "ip-video" ||
+    k === "rdpconnection" ||
+    k === "rdp_connection" ||
+    k === "rdp-connection"
+  );
+}
+
+/**
  * Construct a multipart body for asset uploads (image/video/pdf/background).
  */
 function buildUploadForm(
@@ -158,6 +214,113 @@ export class WidgetsResource {
     };
     if (args.location) body.location = args.location;
     return this.transport.request<T>("POST", `canvases/${args.destCanvasId}/${segment}`, body);
+  }
+
+  /**
+   * Phase 4b §4.3 #1: generic create that dispatches to the per-type
+   * endpoint based on `widget_type` in the payload. Use the typed
+   * per-type creators (e.g. `widgets.notes.create`) whenever possible;
+   * this helper exists for callers (CLIs, MCP servers, MCP tool-call
+   * marshallers) that only know widgets generically.
+   *
+   * @throws {UnsupportedOperationError}
+   *   If `widget_type` is `IpVideo` or `RdpConnection` — these types
+   *   cannot be created via the API (changelog §2).
+   * @throws {UnsupportedOperationError}
+   *   If `widget_type` is missing or unrecognised.
+   * @throws {UnsupportedOperationError}
+   *   If `widget_type` is one of `Image`, `Video`, `Pdf` — those require
+   *   multipart upload via the typed `widgets.{images,videos,pdfs}.upload`
+   *   helpers, not a JSON `createAny` call.
+   */
+  async createAny(canvasId: Uuid, payload: Record<string, unknown>): Promise<Widget> {
+    const widgetType = payload.widget_type;
+    if (typeof widgetType !== "string" || widgetType === "") {
+      throw new UnsupportedOperationError(
+        "createAny",
+        "createAny: payload must contain a non-empty string widget_type",
+      );
+    }
+    if (isCreateForbidden(widgetType)) {
+      throw new UnsupportedOperationError(
+        "createAny",
+        `createAny: widget_type ${JSON.stringify(widgetType)} cannot be created via the API`,
+      );
+    }
+    const lower = widgetType.toLowerCase();
+    if (lower === "image" || lower === "video" || lower === "pdf") {
+      throw new UnsupportedOperationError(
+        "createAny",
+        `createAny: widget_type ${JSON.stringify(widgetType)} requires multipart upload — use widgets.${lower}s.upload`,
+      );
+    }
+    const segment = segmentFor(widgetType, "createAny");
+    return this.transport.request<Widget>("POST", `canvases/${canvasId}/${segment}`, payload);
+  }
+
+  /**
+   * Phase 4b §4.3 #1: generic update that dispatches to the per-type
+   * endpoint based on `widget_type` in the payload.
+   *
+   * Per changelog §4, `grid_size` is silently dropped from PATCH bodies on
+   * `Table` widgets; this helper performs the same filtering as the typed
+   * `widgets.tables.update` method and emits a logger.warn.
+   *
+   * @throws {UnsupportedOperationError}
+   *   If `widget_type` is missing or unrecognised.
+   */
+  async updateAny(
+    canvasId: Uuid,
+    widgetId: Uuid,
+    payload: Record<string, unknown>,
+  ): Promise<Widget> {
+    const widgetType = payload.widget_type;
+    if (typeof widgetType !== "string" || widgetType === "") {
+      throw new UnsupportedOperationError(
+        "updateAny",
+        "updateAny: payload must contain a non-empty string widget_type",
+      );
+    }
+    const segment = segmentFor(widgetType, "updateAny");
+    let body = payload;
+    if (widgetType.toLowerCase() === "table" && "grid_size" in payload) {
+      logger.warn(
+        { canvasId, widgetId },
+        "ignoring grid_size in updateAny table PATCH (server silently drops it)",
+      );
+      const { ["grid_size"]: _omit, ...rest } = payload;
+      void _omit;
+      body = rest;
+    }
+    return this.transport.request<Widget>(
+      "PATCH",
+      `canvases/${canvasId}/${segment}/${widgetId}`,
+      body,
+    );
+  }
+
+  /**
+   * Phase 4b §4.3 #1: generic delete that dispatches to the per-type
+   * endpoint. `widgetType` must be supplied explicitly because the
+   * server's read-only `/widgets/{id}` endpoint does not accept DELETE.
+   */
+  async deleteAny(canvasId: Uuid, widgetId: Uuid, widgetType: string): Promise<void> {
+    const segment = segmentFor(widgetType, "deleteAny");
+    await this.transport.request<void>("DELETE", `canvases/${canvasId}/${segment}/${widgetId}`);
+  }
+
+  /**
+   * Phase 4b §4.3 #2: re-parent a widget by patching its `parent_id`.
+   *
+   * Uses the generic `/widgets/{id}` route which accepts a PATCH containing
+   * just `{ parent_id }`. Returns the updated widget echoed by the server.
+   */
+  async patchParentId(canvasId: Uuid, widgetId: Uuid, parentId: Uuid): Promise<Widget> {
+    return this.transport.request<Widget>(
+      "PATCH",
+      `canvases/${canvasId}/widgets/${widgetId}`,
+      { parent_id: parentId },
+    );
   }
 
   // -----------------------------------------------------------------------

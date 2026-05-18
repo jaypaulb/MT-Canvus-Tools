@@ -25,8 +25,12 @@ export {
   CanvusError,
   NetworkError,
   NotFoundError,
+  RateLimitError,
+  ServerError,
+  UnsupportedOperationError,
   ValidationError,
   isCanvusError,
+  parseRetryAfter,
 } from "./errors.js";
 export type { CanvusErrorKind, ValidationIssue } from "./errors.js";
 
@@ -39,7 +43,8 @@ export { UsersResource } from "./resources/users.js";
 export { FoldersResource } from "./resources/folders.js";
 export { AssetsResource } from "./resources/assets.js";
 export type { MipmapOptions } from "./resources/assets.js";
-export { ServerResource } from "./resources/server.js";
+export { ServerResource, flattenServerConfig } from "./resources/server.js";
+export type { SetWorkspaceViewportOptions } from "./resources/server.js";
 
 // All data-model types
 export * from "./types/index.js";

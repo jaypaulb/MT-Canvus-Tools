@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./extras": {
+      "types": "./dist/extras/index.d.ts",
+      "import": "./dist/extras/index.js",
+      "require": "./dist/extras/index.cjs"
     }
   },
   "files": ["dist", "README.md", "LICENSE"],

@@ -22,8 +22,14 @@ const ConfigSchema = z.object({
 
 /**
  * Frozen, typed runtime configuration produced by {@link loadConfig}.
+ *
+ * Phase 4b §4.3 #12: `requestIdProvider`, if set, is invoked once per request
+ * to generate the `X-Request-ID` header value. Returning `""` or `undefined`
+ * suppresses the header for that call.
  */
-export type Config = z.infer<typeof ConfigSchema>;
+export type Config = z.infer<typeof ConfigSchema> & {
+  readonly requestIdProvider?: () => string | undefined;
+};
 
 /**
  * Parse and freeze the SDK runtime configuration from environment variables.
@@ -63,6 +69,12 @@ export interface SessionOptions {
   readonly timeoutMs?: number;
   /** Verify TLS certificates. Defaults to true. */
   readonly verifyTls?: boolean;
+  /**
+   * Phase 4b §4.3 #12: optional callback that returns a per-request
+   * identifier injected as the `X-Request-ID` header. Useful for
+   * correlating SDK calls with server-side logs and traces.
+   */
+  readonly requestIdProvider?: () => string | undefined;
 }
 
 /**
@@ -85,5 +97,9 @@ export function buildConfig(opts: SessionOptions): Config {
       "invalid SessionOptions",
     );
   }
-  return Object.freeze(parsed.data);
+  const merged: Config = {
+    ...parsed.data,
+    ...(opts.requestIdProvider !== undefined && { requestIdProvider: opts.requestIdProvider }),
+  };
+  return Object.freeze(merged);
 }

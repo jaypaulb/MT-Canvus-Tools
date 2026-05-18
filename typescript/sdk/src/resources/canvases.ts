@@ -1,5 +1,6 @@
 import type { Transport } from "../transport.js";
 import { streamNdjson, type StreamOptions } from "../streaming.js";
+import { AuthError } from "../errors.js";
 import type {
   Canvas,
   CanvasBackground,
@@ -14,6 +15,7 @@ import type {
   UpdateCanvasRequest,
 } from "../types/canvas.js";
 import type { Uuid } from "../types/common.js";
+import type { User } from "../types/user.js";
 
 /**
  * Canvas-document management.
@@ -62,6 +64,28 @@ export class CanvasesResource {
   /** `POST /api/v1/canvases/{id}/move`. */
   async move(canvasId: Uuid, body: MoveCanvasRequest): Promise<Canvas> {
     return this.transport.request<Canvas>("POST", `canvases/${canvasId}/move`, body);
+  }
+
+  /**
+   * Phase 4b §4.3 #3: move a canvas into the current user's trash folder.
+   *
+   * Implements the same client-side pattern as Go's `TrashCanvas`
+   * (`canvases.go:95`): look up the calling user, then PATCH the canvas
+   * `folder_id` to the magic `trash.{userId}` folder.
+   *
+   * Requires an authenticated session — calls `GET /users/current` to
+   * resolve the user ID. Throws {@link AuthError} if the server replies
+   * with no user (e.g. an unauthenticated API key).
+   */
+  async trash(canvasId: Uuid): Promise<Canvas> {
+    const user = await this.transport.request<User>("GET", "users/current");
+    if (user.id === 0) {
+      throw new AuthError(
+        "missing-token",
+        "canvases.trash: cannot resolve current user — login required",
+      );
+    }
+    return this.move(canvasId, { folder_id: `trash.${user.id.toString()}` });
   }
 
   /** `POST /api/v1/canvases/{id}/copy`. */
@@ -137,6 +161,88 @@ export class CanvasesResource {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Phase 4b §4.3 #6 — single color-preset CRUD (client-side decomposition).
+  //
+  // The server exposes only the bulk `GET/PATCH /color-presets` object. These
+  // helpers split it into per-name views so callers don't have to manage the
+  // four parallel arrays. Mirrors Go's `colorpresets.go:38-79`.
+  // -------------------------------------------------------------------------
+
+  /**
+   * List every (preset-group, color) pair on the canvas.
+   *
+   * Each entry's `name` encodes the group + index, e.g.
+   * `note_background.0`, `connector.3`. Callers reuse the same name on
+   * subsequent get/update/delete calls.
+   */
+  async listColorPresets(canvasId: Uuid): Promise<readonly { name: string; color: string }[]> {
+    const all = await this.getColorPresets(canvasId);
+    return flattenColorPresets(all);
+  }
+
+  /**
+   * Look up a single preset by encoded name (e.g. `connector.2`).
+   * Returns `undefined` if the name doesn't exist.
+   */
+  async getColorPreset(
+    canvasId: Uuid,
+    name: string,
+  ): Promise<{ name: string; color: string } | undefined> {
+    const list = await this.listColorPresets(canvasId);
+    return list.find((p) => p.name === name);
+  }
+
+  /**
+   * Append a colour to a preset group.
+   *
+   * `group` must be one of the four preset groups
+   * (`annotation`, `connector`, `note_background`, `note_text`).
+   */
+  async createColorPreset(
+    canvasId: Uuid,
+    group: keyof CanvasColorPresets,
+    color: string,
+  ): Promise<CanvasColorPresets> {
+    const current = await this.getColorPresets(canvasId);
+    const next = { ...current, [group]: [...current[group], color] };
+    return this.updateColorPresets(canvasId, { [group]: next[group] });
+  }
+
+  /**
+   * Replace the colour at the encoded preset name (`group.index`).
+   *
+   * Throws if the name doesn't decode to a valid group + index.
+   */
+  async updateColorPreset(
+    canvasId: Uuid,
+    name: string,
+    color: string,
+  ): Promise<CanvasColorPresets> {
+    const { group, index } = decodePresetName(name);
+    const current = await this.getColorPresets(canvasId);
+    const arr = [...current[group]];
+    if (index < 0 || index >= arr.length) {
+      throw new Error(`updateColorPreset: index out of range for ${name}`);
+    }
+    arr[index] = color;
+    return this.updateColorPresets(canvasId, { [group]: arr });
+  }
+
+  /**
+   * Remove the colour at the encoded preset name (`group.index`).
+   */
+  async deleteColorPreset(canvasId: Uuid, name: string): Promise<CanvasColorPresets> {
+    const { group, index } = decodePresetName(name);
+    const current = await this.getColorPresets(canvasId);
+    const arr = [...current[group]];
+    if (index < 0 || index >= arr.length) {
+      throw new Error(`deleteColorPreset: index out of range for ${name}`);
+    }
+    arr.splice(index, 1);
+    return this.updateColorPresets(canvasId, { [group]: arr });
+  }
+
   /**
    * `GET /api/v1/canvases/{id}/preview` — download the canvas thumbnail.
    *
@@ -179,4 +285,54 @@ export class CanvasesResource {
       body,
     );
   }
+}
+
+/** Encoded preset name → `{ group, index }`. */
+function decodePresetName(name: string): {
+  group: keyof CanvasColorPresets;
+  index: number;
+} {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) {
+    throw new Error(`invalid preset name ${JSON.stringify(name)}: expected "group.index"`);
+  }
+  const group = name.slice(0, dot);
+  const index = Number.parseInt(name.slice(dot + 1), 10);
+  if (Number.isNaN(index) || index < 0) {
+    throw new Error(`invalid preset name ${JSON.stringify(name)}: index is not a non-negative integer`);
+  }
+  if (
+    group !== "annotation" &&
+    group !== "connector" &&
+    group !== "note_background" &&
+    group !== "note_text"
+  ) {
+    throw new Error(
+      `invalid preset name ${JSON.stringify(name)}: unknown group ${JSON.stringify(group)}`,
+    );
+  }
+  return { group, index };
+}
+
+/** Flatten a CanvasColorPresets object into a per-name list. */
+function flattenColorPresets(
+  presets: CanvasColorPresets,
+): readonly { name: string; color: string }[] {
+  const out: { name: string; color: string }[] = [];
+  const groups: (keyof CanvasColorPresets)[] = [
+    "annotation",
+    "connector",
+    "note_background",
+    "note_text",
+  ];
+  for (const group of groups) {
+    const arr = presets[group];
+    for (let i = 0; i < arr.length; i++) {
+      const color = arr[i];
+      if (color !== undefined) {
+        out.push({ name: `${group}.${i.toString()}`, color });
+      }
+    }
+  }
+  return out;
 }

@@ -1,6 +1,8 @@
 import type { Transport } from "../transport.js";
 import { streamNdjson, type StreamOptions } from "../streaming.js";
+import { AuthError } from "../errors.js";
 import type { Uuid } from "../types/common.js";
+import type { User } from "../types/user.js";
 import type {
   CopyFolderRequest,
   CreateFolderRequest,
@@ -63,6 +65,23 @@ export class FoldersResource {
   /** `POST /api/v1/canvas-folders/{id}/move`. */
   async move(folderId: Uuid, body: MoveFolderRequest): Promise<Folder> {
     return this.transport.request<Folder>("POST", `canvas-folders/${folderId}/move`, body);
+  }
+
+  /**
+   * Phase 4b §4.3 #4: move a folder into the current user's trash folder.
+   *
+   * Mirrors Go's `TrashFolder` (`folders.go:135`). Throws {@link AuthError}
+   * if the calling credential doesn't resolve to a real user.
+   */
+  async trash(folderId: Uuid): Promise<Folder> {
+    const user = await this.transport.request<User>("GET", "users/current");
+    if (user.id === 0) {
+      throw new AuthError(
+        "missing-token",
+        "folders.trash: cannot resolve current user — login required",
+      );
+    }
+    return this.move(folderId, { folder_id: `trash.${user.id.toString()}` });
   }
 
   /** `PATCH /api/v1/canvas-folders/{id}/move` — alternative to POST /move. */

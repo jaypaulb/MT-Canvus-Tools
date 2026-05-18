@@ -49,6 +49,17 @@ export class AuthResource {
     return this.transport.request<{ readonly msg: string }>("POST", "users/logout", {});
   }
 
+  /**
+   * Phase 4b §4.3 #5: `GET /api/v1/users/current` — fetch the user the
+   * configured credential resolves to.
+   *
+   * Useful for trash helpers (`canvases.trash`, `folders.trash`) that need
+   * the calling user's ID to compose the trash folder path.
+   */
+  async currentUser(): Promise<User> {
+    return this.transport.request<User>("GET", "users/current");
+  }
+
   // ---- Password reset (unauthenticated) -----------------------------------
 
   /** `POST /api/v1/users/password/create-reset-token`. */

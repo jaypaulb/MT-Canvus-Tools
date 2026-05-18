@@ -58,6 +58,19 @@ export class Session {
     this.assets = new AssetsResource(this.transport);
     this.server = new ServerResource(this.transport);
   }
+
+  /**
+   * Phase 4b §4.3 #22: release any retained network resources (the
+   * undici `Agent` used when `verifyTls === false`, keepalive sockets,
+   * etc.). Safe to call multiple times.
+   *
+   * Calling resource methods after `close()` will lazily re-create the
+   * underlying transport state if needed, but consumers should treat a
+   * closed Session as terminal.
+   */
+  async close(): Promise<void> {
+    await this.transport.close();
+  }
 }
 
 /**

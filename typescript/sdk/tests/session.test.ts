@@ -17,7 +17,14 @@ interface MockResponseInit {
   headers?: Record<string, string>;
 }
 
-function mockFetchOnce(init: MockResponseInit): ReturnType<typeof vi.fn> {
+function makeFakeResp(init: MockResponseInit): {
+  ok: boolean;
+  status: number;
+  headers: Headers;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+  blob: () => Promise<Blob>;
+} {
   const status = init.status ?? 200;
   const headers = new Headers(init.headers ?? { "content-type": "application/json" });
   const bodyText =
@@ -26,15 +33,22 @@ function mockFetchOnce(init: MockResponseInit): ReturnType<typeof vi.fn> {
       : typeof init.body === "string"
         ? init.body
         : JSON.stringify(init.body);
-  const fakeResp = {
+  return {
     ok: status >= 200 && status < 300,
     status,
     headers,
-    json: async (): Promise<unknown> => JSON.parse(bodyText) as unknown,
-    text: async (): Promise<string> => bodyText,
-    blob: async (): Promise<Blob> => new Blob([bodyText]),
+    json: async () => JSON.parse(bodyText) as unknown,
+    text: async () => bodyText,
+    blob: async () => new Blob([bodyText]),
   };
-  const spy = vi.fn().mockResolvedValueOnce(fakeResp as unknown as Response);
+}
+
+function mockFetchOnce(init: MockResponseInit): ReturnType<typeof vi.fn> {
+  const fakeResp = makeFakeResp(init);
+  // Phase 4b §4.3 #10: transport now retries 5xx/429 up to 3 times. Use
+  // `mockResolvedValue` so subsequent fetch calls re-return the same response
+  // (preserving test intent that "every call returns 500" → final error).
+  const spy = vi.fn().mockResolvedValue(fakeResp as unknown as Response);
   globalThis.fetch = spy as unknown as typeof fetch;
   return spy;
 }
@@ -135,7 +149,8 @@ describe("Transport (via Session)", () => {
     await expect(session.canvases.get("does-not-exist")).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("maps generic HTTP 500 to APIError", async () => {
+  // Phase 4b §4.3 #10 changed transport to retry 5xx — extended timeout.
+  it("maps generic HTTP 500 to APIError", { timeout: 15_000 }, async () => {
     mockFetchOnce({ status: 500, body: { msg: "boom" } });
     const session = createSession({ baseUrl: BASE, apiKey: KEY });
     await expect(session.canvases.list()).rejects.toSatisfy(
@@ -169,7 +184,7 @@ describe("WidgetsResource cross-cutting behaviour", () => {
       destCanvasId: "dest",
       sourceCanvasId: "src",
       sourceWidgetId: "wid",
-      widgetType: "note",
+      widgetType: "Note",
     });
     const [url, init] = spy.mock.calls[0] as [URL, RequestInit];
     expect(url.pathname.endsWith("/canvases/dest/notes")).toBe(true);
@@ -189,17 +204,17 @@ describe("WidgetsResource cross-cutting behaviour", () => {
     expect("create" in session.widgets.rdpConnections).toBe(false);
   });
 
-  it("tables.update strips grid-size before sending (changelog §4)", async () => {
-    const spy = mockFetchOnce({ body: { "table-id": "t1", "grid-size": { columns: 2, rows: 2 } } });
+  it("tables.update strips grid_size before sending (changelog §4)", async () => {
+    const spy = mockFetchOnce({ body: { id: "t1", grid_size: { columns: 2, rows: 2 } } });
     const session = createSession({ baseUrl: BASE, apiKey: KEY });
     await session.widgets.tables.update("c1", "t1", {
       title: "updated",
-      // @ts-expect-error grid-size intentionally not in UpdateTableRequest
-      "grid-size": { columns: 99, rows: 99 },
+      // @ts-expect-error grid_size intentionally not in UpdateTableRequest
+      grid_size: { columns: 99, rows: 99 },
     });
     const [, init] = spy.mock.calls[0] as [URL, RequestInit];
     const sentBody = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect("grid-size" in sentBody).toBe(false);
+    expect("grid_size" in sentBody).toBe(false);
     expect(sentBody.title).toBe("updated");
   });
 });

@@ -42,6 +42,19 @@ export class ServerResource {
     return this.transport.request<readonly ServerConfigEntry[]>("GET", "server-config");
   }
 
+  /**
+   * Phase 4b §4.3 #7: `GET /api/v1/server-config` flattened into the spec's
+   * documented element-array form `[{key, value, type}, ...]`.
+   *
+   * The live server returns a nested config object (see VERIFIED-CORRECTIONS §3);
+   * this helper converts it to the flat shape the spec describes, by depth-first
+   * walking nested keys joined with `.`.
+   */
+  async configRaw(): Promise<readonly ServerConfigEntry[]> {
+    const nested = await this.transport.request<Record<string, unknown>>("GET", "server-config");
+    return flattenServerConfig(nested);
+  }
+
   /** Subscribe to server-config updates. */
   subscribeConfig(opts?: StreamOptions): AsyncGenerator<ServerConfigEntry, void, void> {
     return streamNdjson<ServerConfigEntry>(this.transport, "server-config", opts);
@@ -272,6 +285,90 @@ export class ServerResource {
     );
   }
 
+  /**
+   * Phase 4b §4.3 #8: set the source for the Nth video output on a client.
+   *
+   * Mirrors Go's `videooutputs.go:28 SetVideoOutputSource`. Uses the ordinal
+   * index rather than the opaque output ID — convenient when the operator
+   * knows "the first output" but not the server-assigned UUID.
+   */
+  async setVideoOutputSourceByIndex(
+    clientId: Uuid,
+    index: number,
+    body: UpdateClientVideoOutputRequest,
+  ): Promise<ClientVideoOutput> {
+    return this.transport.request<ClientVideoOutput>(
+      "PATCH",
+      `clients/${clientId}/video-outputs/${index.toString()}`,
+      body,
+    );
+  }
+
+  // ---- Phase 4b §4.3 #9 — workspace orchestration helpers ----------------
+
+  /**
+   * Toggle the `info_panel_visible` flag on a workspace.
+   *
+   * Fetches current state, flips the bit, PATCHes back. Mirrors Go's
+   * `workspaces.go:79 ToggleWorkspaceInfoPanel`.
+   */
+  async toggleWorkspaceInfoPanel(
+    clientId: Uuid,
+    workspaceId: Uuid,
+  ): Promise<ClientWorkspace> {
+    const ws = await this.workspace(clientId, workspaceId);
+    return this.updateWorkspace(clientId, workspaceId, {
+      info_panel_visible: !(ws.info_panel_visible ?? false),
+    });
+  }
+
+  /**
+   * Toggle the `pinned` flag on a workspace. Mirrors Go's
+   * `workspaces.go:90 ToggleWorkspacePinned`.
+   */
+  async toggleWorkspacePinned(
+    clientId: Uuid,
+    workspaceId: Uuid,
+  ): Promise<ClientWorkspace> {
+    const ws = await this.workspace(clientId, workspaceId);
+    return this.updateWorkspace(clientId, workspaceId, { pinned: !ws.pinned });
+  }
+
+  /**
+   * Set the workspace viewport.
+   *
+   * Two modes — pass `{ widgetId, margin? }` to center on a widget
+   * (the helper fetches the widget to compute its bounding rectangle plus
+   * margin), or pass `{ rect }` to set an explicit view rectangle. Mirrors
+   * Go's `workspaces.go:102 SetWorkspaceViewport`.
+   */
+  async setWorkspaceViewport(
+    clientId: Uuid,
+    workspaceId: Uuid,
+    opts: SetWorkspaceViewportOptions,
+  ): Promise<ClientWorkspace> {
+    let rect: NonNullable<UpdateWorkspaceRequest["view_rectangle"]>;
+    if ("rect" in opts) {
+      rect = opts.rect;
+    } else {
+      const widget = await this.transport.request<{
+        location: { x: number; y: number };
+        size: { width: number; height: number };
+      }>(
+        "GET",
+        `canvases/${opts.canvasId}/widgets/${opts.widgetId}`,
+      );
+      const margin = opts.margin ?? 20;
+      rect = {
+        x: widget.location.x - margin,
+        y: widget.location.y - margin,
+        width: widget.size.width + 2 * margin,
+        height: widget.size.height + 2 * margin,
+      };
+    }
+    return this.updateWorkspace(clientId, workspaceId, { view_rectangle: rect });
+  }
+
   /** `GET /api/v1/clients/{cid}/video-inputs`. */
   async videoInputs(clientId: Uuid): Promise<readonly ClientVideoInput[]> {
     return this.transport.request<readonly ClientVideoInput[]>(
@@ -312,4 +409,46 @@ export class ServerResource {
       opts,
     );
   }
+}
+
+/**
+ * Phase 4b §4.3 #9: options for {@link ServerResource.setWorkspaceViewport}.
+ *
+ * Pass `{ rect }` to set an explicit view rectangle. Pass
+ * `{ canvasId, widgetId, margin? }` to center the viewport on a widget;
+ * the helper looks up the widget to compute the bounding rectangle.
+ */
+export type SetWorkspaceViewportOptions =
+  | { readonly rect: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } }
+  | { readonly canvasId: Uuid; readonly widgetId: Uuid; readonly margin?: number };
+
+/**
+ * Phase 4b §4.3 #7: flatten a nested server-config object into the spec's
+ * documented `[{key, value, type}, ...]` element-array form.
+ *
+ * Nested objects produce dotted keys (e.g. `authentication.password.enabled`).
+ * Leaf values (primitives, arrays) become entries directly.
+ */
+export function flattenServerConfig(nested: Record<string, unknown>): readonly ServerConfigEntry[] {
+  const out: ServerConfigEntry[] = [];
+  const walk = (prefix: string, value: unknown): void => {
+    if (value === null || value === undefined) {
+      out.push({ key: prefix, value, type: typeof value });
+      return;
+    }
+    if (Array.isArray(value)) {
+      out.push({ key: prefix, value, type: "array" });
+      return;
+    }
+    if (typeof value === "object") {
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        const nextKey = prefix === "" ? k : `${prefix}.${k}`;
+        walk(nextKey, v);
+      }
+      return;
+    }
+    out.push({ key: prefix, value, type: typeof value });
+  };
+  walk("", nested);
+  return out;
 }
