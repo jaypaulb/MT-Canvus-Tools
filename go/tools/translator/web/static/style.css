@@ -1,0 +1,93 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: transparent; /* FR.1.1 */
+}
+
+#flag-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Use vmin for the container to ensure it's a large, responsive square that fits the viewport */
+    width: 95vmin; /* Using 95vmin to give some margin around the circle */
+    height: 95vmin; /* Ensure it's a square */
+    border-radius: 50%; /* Make the container a perfect circle */
+    overflow: hidden; /* Hide any image overflow beyond the circle */
+    position: absolute; /* Position centrally */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.1); /* Light background for visibility of empty space */
+}
+
+#flag-image {
+    width: 100%; /* Fill the circular container */
+    height: 100%; /* Fill the circular container */
+    object-fit: contain; /* Ensure the entire image is visible, maintaining its aspect ratio */
+    cursor: pointer;
+    display: block;
+}
+
+#language-dropdown {
+    position: absolute;
+    top: 50%; /* Center vertically on the page */
+    left: 50%; /* Center horizontally on the page */
+    transform: translate(-50%, -50%); /* Adjust for element's own size to truly center */
+    background-color: rgba(255, 255, 255, 0.9); /* Slightly transparent background */
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000; /* Ensure it appears on top of the flag */
+    padding: 10px 0;
+    min-width: 200px;
+    text-align: center;
+}
+
+#language-dropdown.hidden {
+    display: none;
+}
+
+#language-dropdown ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#language-dropdown li {
+    padding: 10px 15px;
+    cursor: pointer;
+}
+
+#language-dropdown li:hover {
+    background-color: #f0f0f0;
+}
+
+#message-area {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    z-index: 1001;
+    text-align: center;
+    min-width: 250px;
+}
+
+#message-area.hidden {
+    display: none;
+}
+
+#message-area.info {
+    background-color: #007bff; /* Blue for info */
+}
+
+#message-area.success {
+    background-color: #28a745; /* Green for success */
+}
+
+#message-area.error {
+    background-color: #dc3545; /* Red for error */
+} 
