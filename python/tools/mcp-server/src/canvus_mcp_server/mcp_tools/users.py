@@ -94,8 +94,7 @@ class UserLogoutTool(BaseMCPTool):
 class GetCurrentUserTool(BaseMCPTool):
     """Return the user record for the credentials in use.
 
-    Backed by ``GET /users/current``; the SDK does not yet expose a typed
-    helper (parity-matrix §1.1.6 — current state ❌). Use the raw transport.
+    Backed by ``GET /users/current`` via ``client.users.current()``.
     """
 
     def __init__(self, client: Client) -> None:
@@ -107,15 +106,12 @@ class GetCurrentUserTool(BaseMCPTool):
 
     async def execute(self, **kwargs: Any) -> dict[str, Any]:
         self.logger.info("get_current_user")
-        # The transport is a private attribute on the Client — using it
-        # here is a documented escape hatch; the audit calls this out as a
-        # Phase 4d SDK gap ("Get current user (`GET /users/current`)").
-        raw = await run_with_api_error_translation(
+        user = await run_with_api_error_translation(
             self.name,
             "Get current user",
-            lambda: self.client._transport.request("GET", "users/current"),
+            lambda: self.client.users.current(),
         )
-        return {"success": True, "user": dump_model(raw)}
+        return {"success": True, "user": dump_model(user)}
 
 
 class UserListTool(BaseMCPTool):

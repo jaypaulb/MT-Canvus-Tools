@@ -124,6 +124,14 @@ class UsersResource(Resource):
         )
         return data if isinstance(data, dict) else {}
 
+    async def current(self) -> User:
+        """Return the user record for the active session credentials.
+
+        Calls ``GET /users/current``.
+        """
+        data = await self._transport.request("GET", "users/current")
+        return self._parse(User, data)
+
 
 class GroupsResource(Resource):
     """Operations on ``/groups``."""

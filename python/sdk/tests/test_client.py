@@ -14,6 +14,7 @@ from canvus_sdk import (
     ServerError,
     Settings,
     UnsupportedOperationError,
+    User,
 )
 from canvus_sdk._http import classify_error, is_retryable, normalise_base_url
 
@@ -352,3 +353,27 @@ async def test_request_id_propagated_to_exception(client: Client) -> None:
 async def test_aclose_is_idempotent(client: Client) -> None:
     await client.aclose()
     await client.aclose()  # second call must not raise
+
+
+@pytest.mark.asyncio
+async def test_users_current_returns_user(client: Client) -> None:
+    """``client.users.current()`` calls ``GET /users/current`` and returns a User."""
+    with respx.mock(base_url=client.base_url, assert_all_called=True) as mock:
+        mock.get("users/current").mock(
+            return_value=Response(
+                200,
+                json={
+                    "id": 42,
+                    "email": "alice@example.com",
+                    "name": "Alice",
+                    "admin": False,
+                    "approved": True,
+                    "blocked": False,
+                },
+            )
+        )
+        user = await client.users.current()
+
+    assert isinstance(user, User)
+    assert user.id == 42
+    assert user.email == "alice@example.com"
