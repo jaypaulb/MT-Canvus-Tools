@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link
+        rel="stylesheet"
+        as="style"
+        onload="this.rel='stylesheet'"
+        href="https://fonts.googleapis.com/css2?display=swap&family=Manrope:wght@400;500;700;800&family=Noto+Sans:wght@400;500;700;900"
+    />
+    <title>Stitch Design</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," /> <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+</head>
+<body>
+    <div
+        class="relative flex size-full min-h-screen flex-col bg-[#131612] dark justify-between group/design-root overflow-x-hidden"
+        style='font-family: Manrope, "Noto Sans", sans-serif;'
+    >
+        <div> <div class="flex items-center bg-[#131612] p-4 pb-2 justify-between">
+                <h2 class="text-white text-xl font-bold leading-tight tracking-[-0.015em] flex-1 text-center pl-12 pr-12">Ask a Question</h2>
+            </div>
+
+            <form id="questionForm" class="flex max-w-[480px] flex-col gap-4 px-4 py-3 mx-auto w-full" method="POST" action="/">
+                <label class="flex flex-col flex-1">
+                    <textarea
+                        id="questionInput"
+                        name="question"
+                        placeholder="Type your question here"
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-white focus:outline-0 focus:ring-0 border-none bg-[#2e352c] focus:border-none min-h-48 placeholder:text-[#a6b3a2] p-4 text-base font-normal leading-normal"
+                        required
+                    ></textarea>
+                </label>
+            </form>
+
+            <div class="flex px-4 py-3 max-w-[480px] w-full mx-auto">
+                <button
+                    id="submitBtn"
+                    form="questionForm"
+                    type="submit"
+                    class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 px-5 flex-1 bg-[#8cd279] text-[#131612] text-lg font-bold leading-normal tracking-[0.015em]"
+                >
+                    <span class="truncate">Ask Question!</span>
+                </button>
+            </div>
+
+            <p id="submittedMsg" class="text-[#a6b3a2] text-md font-normal leading-normal pb-3 pt-1 px-4 text-center hidden max-w-[480px] mx-auto w-full">Submitted!</p>
+        </div>
+
+        <div class="mt-auto">
+            <div
+                class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-none group-[:not(.dark)]/design-root:hidden"
+                style='background-image: url("/dark.svg"); aspect-ratio: 390 / 320;'
+            ></div>
+            <div
+                class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-none group-[.dark]/design-root:hidden"
+                style='background-image: url("/light.svg"); aspect-ratio: 390 / 320;'
+            ></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('questionForm');
+        const input = document.getElementById('questionInput');
+        const msg = document.getElementById('submittedMsg');
+        const btn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.classList.add('opacity-60');
+            msg.classList.add('hidden'); // Hide message initially or on new submit
+
+            try {
+                const res = await fetch('/', { // Ensure this endpoint is correct for your backend
+                    method: 'POST',
+                    body: new URLSearchParams(new FormData(form)),
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                });
+
+                if (res.ok) {
+                    input.value = ''; // Clear input on successful submission
+                    msg.textContent = 'Submitted!'; // Reset message text
+                    msg.classList.remove('hidden');
+                } else {
+                    // Handle server-side errors more specifically if possible
+                    const errorData = await res.text(); // Or res.json() if your server sends JSON errors
+                    console.error('Submission error:', res.status, errorData);
+                    msg.textContent = `Error submitting question. Status: ${res.status}`;
+                    msg.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Network or other error:', error);
+                msg.textContent = 'Network error. Please try again.';
+                msg.classList.remove('hidden');
+            }
+
+            btn.disabled = false;
+            btn.classList.remove('opacity-60');
+        });
+    </script>
+</body>
+</html>
