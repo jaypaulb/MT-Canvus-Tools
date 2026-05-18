@@ -13,6 +13,9 @@
 *.out
 vendor/
 
+# Go workspace sum file (per docs/conventions/go.md §1)
+go/go.work.sum
+
 # Go example binaries (produced by `go build ./...` inside each example dir)
 go/examples/core/01-auth-and-list/01-auth-and-list
 go/examples/core/02-auth-flows/02-auth-flows
@@ -24,6 +27,24 @@ go/examples/core/06-llm-integration/cmd/watcher/watcher
 go/examples/core/06-llm-integration/cmd/responder/responder
 go/examples/core/07-webhooks-notifications/07-webhooks-notifications
 go/examples/core/08-cross-canvas-clone/08-cross-canvas-clone
+
+# Go binaries that land at the workspace root when `go build` is run from go/
+# (with a package path that resolves to a single module)
+go/01-auth-and-list
+go/02-auth-flows
+go/03-widget-crud
+go/04-file-upload
+go/05-streaming
+go/06-llm-integration
+go/07-webhooks-notifications
+go/08-cross-canvas-clone
+
+# Phase 4c per-item binaries
+go/examples/projects/note-mapper/note-mapper
+go/examples/projects/llm-canvas-companion/llm-canvas-companion
+go/tools/translator/translator
+go/tools/translator/server
+go/tools/db-solver/db-solver
 
 # Python
 __pycache__/
