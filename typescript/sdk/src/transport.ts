@@ -98,13 +98,14 @@ export class Transport {
       opts.timeoutMs ?? this.config.timeoutMs,
     );
 
+    const serialised = this.serialiseBody(body);
     let response: Response;
     try {
       response = await fetch(url, {
         method,
         headers,
-        body: this.serialiseBody(body),
         signal,
+        ...(serialised !== undefined && { body: serialised }),
       });
     } catch (err) {
       const aborted = signal.aborted;
@@ -163,11 +164,11 @@ export class Transport {
     return headers;
   }
 
-  private serialiseBody(body: RequestBody): BodyInit | undefined {
+  private serialiseBody(body: RequestBody): FormData | Uint8Array | string | undefined {
     if (body === undefined) return undefined;
     if (body instanceof FormData) return body;
     if (globalThis.Buffer !== undefined && body instanceof globalThis.Buffer) {
-      return body as unknown as BodyInit;
+      return body as unknown as Uint8Array;
     }
     if (body instanceof Uint8Array) return body;
     return JSON.stringify(body);

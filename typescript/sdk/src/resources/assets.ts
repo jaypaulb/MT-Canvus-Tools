@@ -37,7 +37,7 @@ export class AssetsResource {
   async mipmap(hash: AssetHash, canvasId: Uuid, opts?: MipmapOptions): Promise<MipmapInfo> {
     return this.transport.request<MipmapInfo>("GET", `mipmaps/${hash}`, undefined, {
       headers: { "canvas-id": canvasId },
-      query: opts?.page === undefined ? undefined : { page: opts.page },
+      ...(opts?.page !== undefined && { query: { page: opts.page } }),
     });
   }
 
@@ -59,7 +59,7 @@ export class AssetsResource {
       {
         headers: { "canvas-id": canvasId },
         accept: "application/octet-stream",
-        query: opts?.page === undefined ? undefined : { page: opts.page },
+        ...(opts?.page !== undefined && { query: { page: opts.page } }),
       },
     );
     return response.blob();

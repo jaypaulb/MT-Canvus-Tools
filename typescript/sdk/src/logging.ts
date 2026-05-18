@@ -15,12 +15,12 @@ const isPretty = process.env.LOG_FORMAT === "pretty";
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
   base: { component: "sdk" },
-  transport: isPretty
-    ? {
-        target: "pino-pretty",
-        options: { colorize: true, translateTime: "SYS:HH:MM:ss.l" },
-      }
-    : undefined,
+  ...(isPretty && {
+    transport: {
+      target: "pino-pretty",
+      options: { colorize: true, translateTime: "SYS:HH:MM:ss.l" },
+    },
+  }),
 });
 
 /**
