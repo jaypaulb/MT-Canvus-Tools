@@ -82,7 +82,7 @@ func resizeDimensions(w, h int) (int, int) {
 		return w, h
 	}
 	if w > h {
-		return MaxDimension, int(float64(h)*float64(MaxDimension)/float64(w))
+		return MaxDimension, int(float64(h) * float64(MaxDimension) / float64(w))
 	}
 	return int(float64(w) * float64(MaxDimension) / float64(h)), MaxDimension
 }

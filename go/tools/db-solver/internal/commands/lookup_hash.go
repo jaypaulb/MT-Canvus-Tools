@@ -8,13 +8,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	canvussdk "github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/db-solver/internal/backup"
 	canvusinternal "github.com/jaypaulb/MT-Canvus-Tools/go/tools/db-solver/internal/canvus"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/db-solver/internal/config"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/db-solver/internal/database"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/db-solver/internal/filesystem"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/db-solver/internal/logging"
-	canvussdk "github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 )
 
 // LookupHashCommand processes assets that have no hash by querying the Postgres
@@ -33,16 +33,16 @@ func NewLookupHashCommand(cfg *config.Config) *LookupHashCommand {
 }
 
 // SetDryRun enables or disables dry-run mode.
-func (cmd *LookupHashCommand) SetDryRun(v bool)       { cmd.dryRun = v }
+func (cmd *LookupHashCommand) SetDryRun(v bool) { cmd.dryRun = v }
 
 // SetINIPath overrides the auto-detected INI path.
-func (cmd *LookupHashCommand) SetINIPath(v string)    { cmd.iniPath = v }
+func (cmd *LookupHashCommand) SetINIPath(v string) { cmd.iniPath = v }
 
 // SetSkipArchived controls whether archived canvases are skipped.
 func (cmd *LookupHashCommand) SetSkipArchived(v bool) { cmd.skipArchived = v }
 
 // SetLowMemory enables low-memory mode (on-demand search instead of pre-built catalogs).
-func (cmd *LookupHashCommand) SetLowMemory(v bool)    { cmd.lowMemory = v }
+func (cmd *LookupHashCommand) SetLowMemory(v bool) { cmd.lowMemory = v }
 
 // Execute runs the lookup-hash workflow.
 func (cmd *LookupHashCommand) Execute(cobraCmd *cobra.Command, args []string) error {

@@ -64,7 +64,8 @@ next to `go.work`. Either build into `cli/` as above, or use `-o /dev/null`.
 
 | Variable           | Description                                                  | Default |
 |--------------------|--------------------------------------------------------------|---------|
-| `CANVUS_URL`       | Canvus server URL                                            | —       |
+| `CANVUS_API_URL`   | Canvus server URL (canonical; matches SDK + monorepo standard) | —     |
+| `CANVUS_URL`       | Deprecated alias for `CANVUS_API_URL` (kept for back-compat) | —       |
 | `CANVUS_API_KEY`   | Private-Token value (preferred auth)                         | —       |
 | `CANVUS_USERNAME`  | Username for login-based auth                                | —       |
 | `CANVUS_PASSWORD`  | Password for login-based auth                                | —       |

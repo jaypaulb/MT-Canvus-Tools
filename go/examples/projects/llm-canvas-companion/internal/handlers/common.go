@@ -39,7 +39,7 @@ var Metrics struct {
 	ProcessedPDFs   int64
 	Errors          int64
 
-	mu                sync.Mutex
+	mu                 sync.Mutex
 	ProcessingDuration time.Duration
 }
 

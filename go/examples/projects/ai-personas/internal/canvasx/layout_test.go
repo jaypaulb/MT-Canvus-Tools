@@ -36,7 +36,7 @@ func TestPersonaColumnLayout_FourColumns(t *testing.T) {
 	// note 200 tall, image 50 tall.
 	x0, _, _, colW, imgH, noteH := PersonaColumnLayout(0, 0, 0, 1000, 500)
 	x1, _, _, _, _, _ := PersonaColumnLayout(1, 0, 0, 1000, 500)
-	assert.InDelta(t, 20.0, x0, 1e-9)   // border 2% * 1000
+	assert.InDelta(t, 20.0, x0, 1e-9)    // border 2% * 1000
 	assert.InDelta(t, 230.0, colW, 1e-9) // 23% * 1000
 	assert.InDelta(t, 50.0, imgH, 1e-9)  // 10% * 500
 	assert.InDelta(t, 200.0, noteH, 1e-9)
@@ -53,8 +53,8 @@ func TestBoundingBox(t *testing.T) {
 
 func TestHelperNotePosition(t *testing.T) {
 	hX, hY, hW, hH := HelperNotePosition(100, 200, 50, 80)
-	assert.InDelta(t, 40.0, hX, 1e-9)   // 100 - 1.2*50
-	assert.InDelta(t, 173.6, hY, 1e-9)  // 200 - 0.33*80
+	assert.InDelta(t, 40.0, hX, 1e-9)  // 100 - 1.2*50
+	assert.InDelta(t, 173.6, hY, 1e-9) // 200 - 0.33*80
 	assert.InDelta(t, 50.0, hW, 1e-9)
-	assert.InDelta(t, 56.0, hH, 1e-9)   // 80 * 0.7
+	assert.InDelta(t, 56.0, hH, 1e-9) // 80 * 0.7
 }

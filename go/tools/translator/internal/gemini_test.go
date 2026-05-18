@@ -26,10 +26,10 @@ func TestTranslateTextPromptFormat(t *testing.T) {
 // behaviour and must not change silently.
 func TestTranslateTextOutputFormat(t *testing.T) {
 	tests := []struct {
-		name     string
-		lang     string
-		raw      string
-		wantPfx  string
+		name    string
+		lang    string
+		raw     string
+		wantPfx string
 	}{
 		{
 			name:    "standard translation",
@@ -57,4 +57,3 @@ func TestTranslateTextOutputFormat(t *testing.T) {
 		})
 	}
 }
-

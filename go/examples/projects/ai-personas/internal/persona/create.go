@@ -256,4 +256,3 @@ func CountFromCanvas(ctx context.Context, s *canvus.Session, canvasID string) (i
 	}
 	return n, nil
 }
-

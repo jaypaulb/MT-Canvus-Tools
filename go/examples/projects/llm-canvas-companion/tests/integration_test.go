@@ -49,10 +49,10 @@ func TestIntegration_NoteCreateUpdateDelete(t *testing.T) {
 	ctx := context.Background()
 
 	note, err := integSession.CreateNote(ctx, integCanvasID, map[string]any{
-		"text": "integration test note",
-		"location": map[string]any{"x": 500.0, "y": 500.0},
-		"size": map[string]any{"width": 200.0, "height": 150.0},
-		"state": "normal",
+		"text":        "integration test note",
+		"location":    map[string]any{"x": 500.0, "y": 500.0},
+		"size":        map[string]any{"width": 200.0, "height": 150.0},
+		"state":       "normal",
 		"widget_type": "Note",
 	})
 	if err != nil {

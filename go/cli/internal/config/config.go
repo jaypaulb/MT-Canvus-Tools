@@ -57,6 +57,16 @@ func Load() (*Config, error) {
 	viper.SetDefault("insecure", false)
 	viper.SetDefault("verbose", false)
 
+	// Explicit env binding for the canonical CANVUS_API_URL name (matches
+	// the SDK, monorepo conventions, and the .secrets file). Viper's
+	// AutomaticEnv() in main.go would otherwise only map `url` to
+	// CANVUS_URL (the legacy CLI default). Listing both names here makes
+	// CANVUS_API_URL win while keeping CANVUS_URL working as a deprecated
+	// alias. Safe to call repeatedly (BindEnv is idempotent).
+	if err := viper.BindEnv("url", "CANVUS_API_URL", "CANVUS_URL"); err != nil {
+		return nil, fmt.Errorf("Load: BindEnv(url): %w", err)
+	}
+
 	// Set up config file path
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -99,7 +109,7 @@ func Load() (*Config, error) {
 func (c *Config) Validate() error {
 	// URL is required
 	if c.URL == "" {
-		return fmt.Errorf("server URL is required (set via --url flag, CANVUS_URL env var, or url in config file)")
+		return fmt.Errorf("server URL is required (set via --url flag, CANVUS_API_URL env var, or url in config file)")
 	}
 
 	// Either API key or username/password is required

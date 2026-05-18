@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from canvus_mcp_server.mcp_tools.base import (
     BaseMCPTool,
     MCPToolError,

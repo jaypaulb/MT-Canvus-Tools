@@ -65,7 +65,7 @@ Configuration can be provided via command-line flags, environment variables,
 or a configuration file at ~/.canvus/config.yaml.
 
 Environment variables:
-  CANVUS_URL        Server URL (e.g. https://canvus.example.com)
+  CANVUS_API_URL    Server URL (e.g. https://canvus.example.com). CANVUS_URL accepted as deprecated alias.
   CANVUS_API_KEY    Private-Token value (preferred auth method)
   CANVUS_USERNAME   Username for login-based auth (alternative to API key)
   CANVUS_PASSWORD   Password for login-based auth
@@ -117,7 +117,7 @@ func init() {
 	commands.Date = date
 
 	// Global flags
-	rootCmd.PersistentFlags().String("url", "", "Canvus server URL (env: CANVUS_URL)")
+	rootCmd.PersistentFlags().String("url", "", "Canvus server URL (env: CANVUS_API_URL)")
 	rootCmd.PersistentFlags().String("api-key", "", "API key for authentication (env: CANVUS_API_KEY)")
 	rootCmd.PersistentFlags().String("username", "", "Username for login authentication (env: CANVUS_USERNAME)")
 	rootCmd.PersistentFlags().String("password", "", "Password for login authentication (env: CANVUS_PASSWORD)")
@@ -142,6 +142,10 @@ func init() {
 
 	viper.SetEnvPrefix("CANVUS")
 	viper.AutomaticEnv()
+	// Note: the explicit BindEnv for `url` (canonical CANVUS_API_URL +
+	// CANVUS_URL alias) lives in config.Load() so it applies to test
+	// processes that call Load() directly without going through this
+	// init.
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 

@@ -80,8 +80,8 @@ func TestYAMLFormatter_Format(t *testing.T) {
 			},
 		},
 		{
-			name: "empty slice",
-			data: []string{},
+			name:    "empty slice",
+			data:    []string{},
 			wantErr: false,
 			check: func(output string) bool {
 				return strings.TrimSpace(output) == "[]"

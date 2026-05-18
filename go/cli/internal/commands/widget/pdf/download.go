@@ -3,9 +3,9 @@ package pdf
 import (
 	"context"
 	"fmt"
-	"os"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/output"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var downloadCmd = &cobra.Command{

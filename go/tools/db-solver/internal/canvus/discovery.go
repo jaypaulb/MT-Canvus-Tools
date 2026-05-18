@@ -26,14 +26,14 @@ type AssetInfo struct {
 
 // DiscoveryResult holds the complete outcome of an asset-discovery run.
 type DiscoveryResult struct {
-	Assets            []AssetInfo              `json:"assets"`
-	AssetsWithoutHash []AssetInfo              `json:"assets_without_hash"`
-	Canvases          []canvussdk.Canvas       `json:"canvases"`
-	StartTime         time.Time                `json:"start_time"`
-	EndTime           time.Time                `json:"end_time"`
-	Duration          time.Duration            `json:"duration"`
-	Errors            []string                 `json:"errors"`
-	ServerValidation  *ServerValidationResult  `json:"server_validation,omitempty"`
+	Assets            []AssetInfo             `json:"assets"`
+	AssetsWithoutHash []AssetInfo             `json:"assets_without_hash"`
+	Canvases          []canvussdk.Canvas      `json:"canvases"`
+	StartTime         time.Time               `json:"start_time"`
+	EndTime           time.Time               `json:"end_time"`
+	Duration          time.Duration           `json:"duration"`
+	Errors            []string                `json:"errors"`
+	ServerValidation  *ServerValidationResult `json:"server_validation,omitempty"`
 }
 
 // ServerValidationResult is a lightweight summary of unique-asset counts.

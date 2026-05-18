@@ -9,9 +9,9 @@ import (
 
 func TestNewSession(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  *config.Config
-		wantErr bool
+		name       string
+		config     *config.Config
+		wantErr    bool
 		skipReason string
 	}{
 		{
@@ -31,7 +31,7 @@ func TestNewSession(t *testing.T) {
 				Password: "testpass",
 				Timeout:  30,
 			},
-			wantErr: false,
+			wantErr:    false,
 			skipReason: "requires actual server connection for Login()",
 		},
 		{

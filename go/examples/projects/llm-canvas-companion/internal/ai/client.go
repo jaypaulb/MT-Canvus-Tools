@@ -174,7 +174,6 @@ func isLocal(u string) bool {
 		strings.Contains(lower, "localhost")
 }
 
-
 // extractAIResponse extracts the first {...} JSON object from raw and parses it.
 func extractAIResponse(raw string) (*AIResponse, error) {
 	start := strings.Index(raw, "{")

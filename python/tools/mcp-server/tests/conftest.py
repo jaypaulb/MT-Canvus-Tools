@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator
 import pytest
 import pytest_asyncio
 import respx
+
 from canvus_sdk import Client
 
 API_URL = "https://canvus.test.invalid/api/v1"

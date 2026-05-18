@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/session"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/spf13/cobra"
 )
 

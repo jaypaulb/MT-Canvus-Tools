@@ -53,7 +53,7 @@ func TestJSONFormatter_Format(t *testing.T) {
 			name: "nested structures",
 			data: map[string]interface{}{
 				"canvas": map[string]interface{}{
-					"id":   "123",
+					"id": "123",
 					"meta": map[string]interface{}{
 						"created": "2024-01-01",
 						"author":  "user1",

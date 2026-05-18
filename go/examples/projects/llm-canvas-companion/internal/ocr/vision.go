@@ -28,7 +28,7 @@ type visionRequest struct {
 }
 
 type visionReqItem struct {
-	Image    visionImage    `json:"image"`
+	Image    visionImage     `json:"image"`
 	Features []visionFeature `json:"features"`
 }
 

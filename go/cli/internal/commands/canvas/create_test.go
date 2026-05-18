@@ -6,20 +6,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
+	cmdtest "github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/commands/testing"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/config"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/session"
-	cmdtest "github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/commands/testing"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 )
 
 func TestCreateCmd_SuccessfulCreation(t *testing.T) {
 	tests := []struct {
-		name           string
-		args           []string
-		folderID       string
-		expectedReq    canvus.CreateCanvasRequest
-		mockResponse   *canvus.Canvas
-		mockError      error
+		name         string
+		args         []string
+		folderID     string
+		expectedReq  canvus.CreateCanvasRequest
+		mockResponse *canvus.Canvas
+		mockError    error
 	}{
 		{
 			name: "create canvas with name only",
@@ -319,16 +319,16 @@ func TestCreateCmd_FlagParsing(t *testing.T) {
 func TestCreateCmd_SDKInteraction(t *testing.T) {
 	// Test that verifies proper SDK interaction patterns
 	tests := []struct {
-		name            string
-		args            []string
-		mockResponse    *canvus.Canvas
-		mockError       error
-		expectSDKCall   bool
-		expectError     bool
+		name          string
+		args          []string
+		mockResponse  *canvus.Canvas
+		mockError     error
+		expectSDKCall bool
+		expectError   bool
 	}{
 		{
-			name:  "successful SDK call returns canvas",
-			args:  []string{"Test Canvas"},
+			name: "successful SDK call returns canvas",
+			args: []string{"Test Canvas"},
 			mockResponse: &canvus.Canvas{
 				ID:   "canvas-123",
 				Name: "Test Canvas",

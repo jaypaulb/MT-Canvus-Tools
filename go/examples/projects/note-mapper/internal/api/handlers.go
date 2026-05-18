@@ -1,13 +1,14 @@
 // Package api implements the HTTP handler layer for note-mapper.
 //
 // Routes (all under /api/):
-//   POST   /api/upload-image       — Upload photo; trigger LLM extraction; return detected notes.
-//   POST   /api/scan-notes         — Re-scan the last uploaded image with updated zone params.
-//   POST   /api/create-notes       — Place notes into a Canvus anchor zone.
-//   POST   /api/set-credentials    — Update Canvus server URL and API key in-session.
-//   GET    /api/get-canvases       — List accessible Canvus canvases.
-//   GET    /api/get-anchors        — List anchors for a canvas.
-//   GET    /api/get-anchor-info    — Get geometry of a specific anchor.
+//
+//	POST   /api/upload-image       — Upload photo; trigger LLM extraction; return detected notes.
+//	POST   /api/scan-notes         — Re-scan the last uploaded image with updated zone params.
+//	POST   /api/create-notes       — Place notes into a Canvus anchor zone.
+//	POST   /api/set-credentials    — Update Canvus server URL and API key in-session.
+//	GET    /api/get-canvases       — List accessible Canvus canvases.
+//	GET    /api/get-anchors        — List anchors for a canvas.
+//	GET    /api/get-anchor-info    — Get geometry of a specific anchor.
 //
 // Global image state:
 // The handler stores the last uploaded (and preprocessed) image in process
@@ -124,11 +125,11 @@ func ScanNotesHandler(w http.ResponseWriter, r *http.Request) {
 
 // createNotesRequest is the request body for POST /api/create-notes.
 type createNotesRequest struct {
-	CanvasID    string          `json:"canvasID"`
+	CanvasID    string           `json:"canvasID"`
 	Notes       []map[string]any `json:"notes"`
-	ZoneID      string          `json:"zoneID"`
-	ImageWidth  float64         `json:"imageWidth"`
-	ImageHeight float64         `json:"imageHeight"`
+	ZoneID      string           `json:"zoneID"`
+	ImageWidth  float64          `json:"imageWidth"`
+	ImageHeight float64          `json:"imageHeight"`
 }
 
 // CreateNotesHandler handles POST /api/create-notes.

@@ -61,7 +61,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 			URL: cmd.Flag("url").Value.String(),
 		}
 		if cfg.URL == "" {
-			return fmt.Errorf("server URL is required: use --url flag or set CANVUS_URL environment variable")
+			return fmt.Errorf("server URL is required: use --url flag or set CANVUS_API_URL environment variable")
 		}
 	}
 

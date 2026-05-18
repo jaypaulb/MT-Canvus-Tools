@@ -47,7 +47,7 @@ type PathsConfig struct {
 
 // LoggingConfig contains logging settings.
 type LoggingConfig struct {
-	Level     string `yaml:"level"`     // debug | info | warn | error
+	Level     string `yaml:"level"` // debug | info | warn | error
 	Verbose   bool   `yaml:"verbose"`
 	LogToFile bool   `yaml:"logtofile"`
 	LogFile   string `yaml:"logfile"`

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/output"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 var setSourceCmd = &cobra.Command{

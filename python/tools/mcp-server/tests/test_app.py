@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import httpx
 import respx
-from canvus_sdk import Client
-from fastapi.testclient import TestClient
-
 from canvus_mcp_server.app import build_registry, create_app
 from canvus_mcp_server.config import Settings
+from fastapi.testclient import TestClient
+
+from canvus_sdk import Client
 
 
 def _make_settings() -> Settings:

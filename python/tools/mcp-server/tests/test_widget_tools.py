@@ -7,8 +7,6 @@ from pathlib import Path
 import httpx
 import pytest
 import respx
-from canvus_sdk import Client
-
 from canvus_mcp_server.mcp_tools.base import (
     MCPToolExecutionError,
     MCPToolValidationError,
@@ -31,6 +29,8 @@ from canvus_mcp_server.mcp_tools.notes import (
 )
 from canvus_mcp_server.mcp_tools.pdfs import PdfListTool
 from canvus_mcp_server.mcp_tools.videos import VideoListTool
+
+from canvus_sdk import Client
 
 CANVAS_ID = "00000000-0000-0000-0000-000000000000"
 NOTE_ID = "11111111-1111-1111-1111-111111111111"

@@ -4,8 +4,8 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/output"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/spf13/cobra"
 )
 
@@ -16,8 +16,8 @@ var createCmd = &cobra.Command{
 }
 
 var (
-	createUserID     string
-	createDesc string
+	createUserID string
+	createDesc   string
 )
 
 func init() {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/session"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/spf13/cobra"
 )
 
@@ -34,15 +34,15 @@ Keyboard shortcuts:
 }
 
 type model struct {
-	session       *canvus.Session
-	canvases      []canvus.Canvas
-	widgets       []canvus.Widget
+	session        *canvus.Session
+	canvases       []canvus.Canvas
+	widgets        []canvus.Widget
 	selectedCanvas *canvus.Canvas
-	cursor        int
-	mode          string // "canvas" or "widget"
-	err           error
-	width         int
-	height        int
+	cursor         int
+	mode           string // "canvas" or "widget"
+	err            error
+	width          int
+	height         int
 }
 
 func initialModel(sess *canvus.Session) model {

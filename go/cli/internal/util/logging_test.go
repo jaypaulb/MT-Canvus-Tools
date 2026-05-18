@@ -18,9 +18,9 @@ func TestNewLogger(t *testing.T) {
 
 func TestLogger_Debug(t *testing.T) {
 	tests := []struct {
-		name          string
-		verbose       bool
-		expectOutput  bool
+		name         string
+		verbose      bool
+		expectOutput bool
 	}{
 		{
 			name:         "debug logs when verbose is true",

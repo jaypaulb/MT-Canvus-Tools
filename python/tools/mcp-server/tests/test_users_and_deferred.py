@@ -5,8 +5,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-from canvus_sdk import Client
-
 from canvus_mcp_server.mcp_tools.base import (
     MCPToolExecutionError,
     MCPToolValidationError,
@@ -27,6 +25,8 @@ from canvus_mcp_server.mcp_tools.users import (
     UserLoginTool,
     UserLogoutTool,
 )
+
+from canvus_sdk import Client
 
 CANVAS_ID = "00000000-0000-0000-0000-000000000000"
 

@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	geminiModel    = "gemini-2.5-flash-preview-05-20"
-	geminiTimeout  = 5 * time.Minute
-	geminiEnvKey   = "GOOGLE_GENAI_API_KEY"
+	geminiModel   = "gemini-2.5-flash-preview-05-20"
+	geminiTimeout = 5 * time.Minute
+	geminiEnvKey  = "GOOGLE_GENAI_API_KEY"
 )
 
 // ExtractPostitNotes calls Google Gemini to identify Post-it notes in the

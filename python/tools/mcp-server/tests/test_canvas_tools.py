@@ -10,8 +10,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-from canvus_sdk import Client
-
 from canvus_mcp_server.mcp_tools.base import (
     MCPToolExecutionError,
     MCPToolValidationError,
@@ -24,6 +22,8 @@ from canvus_mcp_server.mcp_tools.canvases import (
     CanvasMoveTool,
     CanvasUpdateTool,
 )
+
+from canvus_sdk import Client
 
 CANVAS_ID = "11111111-1111-1111-1111-111111111111"
 NEW_CANVAS_ID = "22222222-2222-2222-2222-222222222222"

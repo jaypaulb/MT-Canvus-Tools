@@ -84,7 +84,7 @@ func HandlePDFPrecis(ctx context.Context, s *canvus.Session, cfg *config.Config,
 	// Build multi-chunk message history.
 	messages := []openai.ChatCompletionMessage{
 		{
-			Role: openai.ChatMessageRoleSystem,
+			Role:    openai.ChatMessageRoleSystem,
 			Content: fmt.Sprintf("You will receive %d chunks of a document. Do not respond until you receive the final chunk. After the last chunk, I will prompt you for your analysis of the entire document.", totalChunks),
 		},
 	}

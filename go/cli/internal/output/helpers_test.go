@@ -20,20 +20,20 @@ func TestPrintOutputTo(t *testing.T) {
 		check   func(string) bool
 	}{
 		{
-			name:   "json format explicitly specified",
-			data:   map[string]string{"id": "123", "name": "Test"},
-			format: "json",
-			cfg:    nil,
+			name:    "json format explicitly specified",
+			data:    map[string]string{"id": "123", "name": "Test"},
+			format:  "json",
+			cfg:     nil,
 			wantErr: false,
 			check: func(output string) bool {
 				return strings.Contains(output, `"id"`) && strings.Contains(output, `"123"`)
 			},
 		},
 		{
-			name:   "yaml format explicitly specified",
-			data:   map[string]string{"id": "123", "name": "Test"},
-			format: "yaml",
-			cfg:    nil,
+			name:    "yaml format explicitly specified",
+			data:    map[string]string{"id": "123", "name": "Test"},
+			format:  "yaml",
+			cfg:     nil,
 			wantErr: false,
 			check: func(output string) bool {
 				return strings.Contains(output, "id:") && strings.Contains(output, "123")
@@ -52,10 +52,10 @@ func TestPrintOutputTo(t *testing.T) {
 			},
 		},
 		{
-			name:   "default to table format when no format and no config",
-			data:   []map[string]string{{"id": "1"}},
-			format: "",
-			cfg:    nil,
+			name:    "default to table format when no format and no config",
+			data:    []map[string]string{{"id": "1"}},
+			format:  "",
+			cfg:     nil,
 			wantErr: false,
 			check: func(output string) bool {
 				// Table format should have header

@@ -6,10 +6,10 @@ import (
 
 func TestNewFormatter(t *testing.T) {
 	tests := []struct {
-		name       string
-		format     string
-		wantType   string
-		wantErr    bool
+		name     string
+		format   string
+		wantType string
+		wantErr  bool
 	}{
 		{
 			name:     "json formatter",

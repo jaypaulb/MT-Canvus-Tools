@@ -102,9 +102,9 @@ func TestLoad(t *testing.T) {
 		os.Setenv("HOME", tempDir)
 
 		resetViper()
-		os.Setenv("CANVUS_URL", "https://env.example.com")
+		os.Setenv("CANVUS_API_URL", "https://env.example.com")
 		os.Setenv("CANVUS_API_KEY", "env-api-key")
-		defer os.Unsetenv("CANVUS_URL")
+		defer os.Unsetenv("CANVUS_API_URL")
 		defer os.Unsetenv("CANVUS_API_KEY")
 
 		cfg, err := Load()
@@ -127,7 +127,7 @@ func TestLoad(t *testing.T) {
 
 		resetViper()
 		// Clear env vars
-		os.Unsetenv("CANVUS_URL")
+		os.Unsetenv("CANVUS_API_URL")
 		os.Unsetenv("CANVUS_API_KEY")
 
 		// Create config directory and file
@@ -169,9 +169,9 @@ timeout: 60
 		os.Setenv("HOME", tempDir)
 
 		resetViper()
-		os.Setenv("CANVUS_URL", "https://default.example.com")
+		os.Setenv("CANVUS_API_URL", "https://default.example.com")
 		os.Setenv("CANVUS_API_KEY", "default-api-key")
-		defer os.Unsetenv("CANVUS_URL")
+		defer os.Unsetenv("CANVUS_API_URL")
 		defer os.Unsetenv("CANVUS_API_KEY")
 
 		cfg, err := Load()
@@ -197,7 +197,7 @@ timeout: 60
 		os.Setenv("HOME", tempDir)
 
 		resetViper()
-		os.Unsetenv("CANVUS_URL")
+		os.Unsetenv("CANVUS_API_URL")
 		os.Unsetenv("CANVUS_API_KEY")
 		os.Unsetenv("CANVUS_USERNAME")
 		os.Unsetenv("CANVUS_PASSWORD")
@@ -227,9 +227,9 @@ api_key: config-api-key
 		}
 
 		// Set env vars that should override config file
-		os.Setenv("CANVUS_URL", "https://env.example.com")
+		os.Setenv("CANVUS_API_URL", "https://env.example.com")
 		os.Setenv("CANVUS_API_KEY", "env-api-key")
-		defer os.Unsetenv("CANVUS_URL")
+		defer os.Unsetenv("CANVUS_API_URL")
 		defer os.Unsetenv("CANVUS_API_KEY")
 
 		cfg, err := Load()
