@@ -20,8 +20,16 @@ import (
 const defaultSettleSeconds = 2
 
 // settleWindow returns the configured settle duration, reading
-// QNOTE_SETTLE_SECONDS from the environment when set.
+// QNOTE_SETTLE_MS (milliseconds, takes precedence) or QNOTE_SETTLE_SECONDS
+// from the environment when set.
 func settleWindow() time.Duration {
+	if v := os.Getenv("QNOTE_SETTLE_MS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			return time.Duration(n) * time.Millisecond
+		}
+		slog.Warn("qa.wait: QNOTE_SETTLE_MS could not be parsed; ignoring",
+			"value", v)
+	}
 	if v := os.Getenv("QNOTE_SETTLE_SECONDS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			return time.Duration(n) * time.Second
