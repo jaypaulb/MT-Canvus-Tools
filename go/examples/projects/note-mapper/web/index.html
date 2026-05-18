@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvus NoteScan</title>
+    
+    <!-- Aggressive anti-cache headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <link rel="manifest" href="manifest.json">
+    <!-- Dynamic cache-busting with timestamp -->
+    <link rel="stylesheet" href="css/style.css" id="main-css">
+</head>
+<body class="dark">
+    <header style="display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 1em; height: 64px;">
+        <h1 style="margin: 0; font-size: 2em; line-height: 1;">Canvus NoteScan</h1>
+        <button id="darkmode-toggle" title="Toggle dark/light mode" style="margin-left: 0; display: flex; align-items: center; height: 40px; width: 40px; justify-content: center; font-size: 2em">
+            <span id="darkmode-icon" style="display: flex; align-items: center; justify-content: center; height: 100%;">🌙</span>
+        </button>
+    </header>
+    <nav>
+        <button class="tab-btn" id="tab-config" data-tab="config">Config</button>
+        <button class="tab-btn" id="tab-scan" data-tab="scan">Scan</button>
+    </nav>
+    <main>
+        <section id="config-section" class="tab-section">
+            <h2>Configuration</h2>
+            <form id="credentials-form">
+                <label for="mcs-server">MCS Server:</label>
+                <input type="text" id="mcs-server" name="mcs-server" required>
+                <label for="api-key">API Key:</label>
+                <input type="text" id="api-key" name="api-key" required>
+                <button type="submit">Save Credentials</button>
+            </form>
+            <div id="credentials-status"></div>
+        </section>
+        <section id="scan-section" class="tab-section" style="display:none;">
+            <div id="image-capture" class="input-row">
+                <input type="file" id="image-input" name="image" accept="image/*" style="display:none;">
+                <label for="image-input" id="image-input-label">Choose File</label>
+                <button id="upload-btn" type="button" style="display:none;">Upload</button>
+                <button id="capture-btn" type="button">Capture</button>
+            </div>
+            <div id="camera-container" style="display:none; position: relative; margin: 0 auto;">
+                <button id="close-camera" type="button" style="position:absolute;top:8px;left:8px;z-index:2;width:40px;height:40px;background:#222;color:#fff;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">
+                    <span style="font-size:1.5em;line-height:1;">&times;</span>
+                </button>
+                <button id="switch-camera" type="button" title="Switch Camera" style="position:absolute;top:8px;right:8px;z-index:2;width:40px;height:40px;background:#222;color:#fff;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:auto;">
+                        <path d="M7 7V3L2 8l5 5V9c3.31 0 6 2.69 6 6 0 1.1-.9 2-2 2H7v2h4c2.21 0 4-1.79 4-4 0-4.42-3.58-8-8-8zm10 10v4l5-5-5-5v4c-3.31 0-6-2.69-6-6 0-1.1.9-2 2-2h4V5h-4c-2.21 0-4 1.79-4 4 0 4.42 3.58 8 8 8z" fill="#fff"/>
+                    </svg>
+                </button>
+                <video id="camera-stream" autoplay playsinline style="display:none;max-width:100%;border-radius:8px;"></video>
+            </div>
+            <canvas id="capture-canvas" style="display:none;"></canvas>
+            <img id="preview" src="#" alt="Image Preview" style="display:none;max-width:100%;">
+            <div id="image-status"></div>
+            <div id="scan-results-container" style="display:none;">
+                <h3>Extracted Notes</h3>
+                <div>
+                    <button id="select-all" type="button">Select All</button>
+                    <button id="deselect-all" type="button">Deselect All</button>
+                </div>
+                <div id="thumbnails"></div>
+            </div>
+            <label for="canvas-select">Target Canvas</label>
+            <select id="canvas-select"></select>
+            <label for="zone-select">Target Anchor Zone</label>
+            <select id="zone-select"></select>
+            <button id="create-notes" style="display:none;">Create Notes in MCS</button>
+            <div id="create-status"></div>
+            <div id="zone-status"></div>
+        </section>
+    </main>
+    
+    <!-- Standard script loading -->
+    <script src="js/app.js"></script>
+</body>
+</html>
