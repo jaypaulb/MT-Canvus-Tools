@@ -8,6 +8,14 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "canvus-example-01-auth-and-list",
+    "canvus-example-02-auth-flows",
+    "canvus-example-03-widget-crud",
+    "canvus-example-04-file-upload",
+    "canvus-example-05-streaming",
+    "canvus-example-06-llm-integration",
+    "canvus-example-07-webhooks-notifications",
+    "canvus-example-08-cross-canvas-clone",
     "canvus-sdk",
 ]
 
@@ -71,6 +79,146 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/51/5b840c4df7334104cecffa28f23904fe81ca89ca223d2450e288de39fd3c/ast_serialize-0.5.0-cp39-abi3-win32.whl", hash = "sha256:143a4ef63285a075871908fda3672dc21864b83a8ec3ee12304aa3e4c5387b9a", size = 1068311, upload-time = "2026-05-17T17:48:25.027Z" },
     { url = "https://files.pythonhosted.org/packages/41/11/ca5672c7d491825bc4cd6702dea106a6b60d928707712ec257c7833ae476/ast_serialize-0.5.0-cp39-abi3-win_amd64.whl", hash = "sha256:cf25572c526add400f26a4750dc6ce0c3bb93fc1f75e7ae0cad4ce4f2cd5c590", size = 1108931, upload-time = "2026-05-17T17:48:26.591Z" },
     { url = "https://files.pythonhosted.org/packages/45/19/cc8bd127d28a43da249aa955cfd164cf8fd534e79e42cea96c4854d72fd0/ast_serialize-0.5.0-cp39-abi3-win_arm64.whl", hash = "sha256:92a31c9c20d25a076edaeec76b128a3535d74a24f340b9a8a7e96c9b86dc9642", size = 1081181, upload-time = "2026-05-17T17:48:28.122Z" },
+]
+
+[[package]]
+name = "canvus-example-01-auth-and-list"
+version = "0.1.0"
+source = { editable = "examples/core/01-auth-and-list" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-02-auth-flows"
+version = "0.1.0"
+source = { editable = "examples/core/02-auth-flows" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-03-widget-crud"
+version = "0.1.0"
+source = { editable = "examples/core/03-widget-crud" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-04-file-upload"
+version = "0.1.0"
+source = { editable = "examples/core/04-file-upload" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-05-streaming"
+version = "0.1.0"
+source = { editable = "examples/core/05-streaming" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-06-llm-integration"
+version = "0.1.0"
+source = { editable = "examples/core/06-llm-integration" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "httpx" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-07-webhooks-notifications"
+version = "0.1.0"
+source = { editable = "examples/core/07-webhooks-notifications" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "httpx" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "canvus-example-08-cross-canvas-clone"
+version = "0.1.0"
+source = { editable = "examples/core/08-cross-canvas-clone" }
+dependencies = [
+    { name = "canvus-sdk" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvus-sdk", editable = "sdk" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
+    { name = "structlog", specifier = ">=24.1" },
 ]
 
 [[package]]

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "canvus-example-08-cross-canvas-clone"
+version = "0.1.0"
+description = "Clone a widget from one Canvus canvas to another."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "MultiTaction" }]
+dependencies = [
+    "canvus-sdk",
+    "structlog>=24.1",
+    "pydantic-settings>=2.3",
+]
+
+[tool.uv.sources]
+canvus-sdk = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
