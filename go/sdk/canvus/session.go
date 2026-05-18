@@ -209,18 +209,6 @@ func (tm *tokenManager) getToken() string {
 	return tm.currentToken
 }
 
-func (tm *tokenManager) setToken(token string, expiresIn time.Duration) {
-	tm.refreshMutex.Lock()
-	defer tm.refreshMutex.Unlock()
-	tm.currentToken = token
-	if expiresIn > 0 {
-		tm.tokenExpiry = time.Now().Add(expiresIn)
-	}
-	if tm.tokenStore != nil && token != "" {
-		_ = tm.tokenStore.StoreToken(token, tm.tokenExpiry)
-	}
-}
-
 func (tm *tokenManager) clearToken() {
 	tm.refreshMutex.Lock()
 	defer tm.refreshMutex.Unlock()

@@ -111,19 +111,6 @@ func warnOnce(warning APIWarning) {
 	)
 }
 
-// warnAlways emits a warning on every call (rare; used where reminder matters).
-func warnAlways(warning APIWarning) {
-	warningsMu.Lock()
-	defer warningsMu.Unlock()
-	if !warningsEnabled {
-		return
-	}
-	slog.Warn("canvus SDK warning",
-		"code", warning.Code,
-		"description", warning.Description,
-	)
-}
-
 // ResetWarnings clears the record of issued warnings (primarily for tests).
 func ResetWarnings() {
 	warningsMu.Lock()
