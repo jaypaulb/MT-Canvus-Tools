@@ -44,7 +44,7 @@ func TestDistanceBetweenWidgets(t *testing.T) {
 	w4 := widgetAt("d", 30, 30, 5, 5)
 
 	assert.Equal(t, 0.0, DistanceBetweenWidgets(w1, w2))           // overlap
-	assert.Equal(t, 10.0, DistanceBetweenWidgets(w1, w3))           // pure horizontal
+	assert.Equal(t, 10.0, DistanceBetweenWidgets(w1, w3))          // pure horizontal
 	assert.InDelta(t, 28.28, DistanceBetweenWidgets(w1, w4), 0.01) // diagonal
 }
 

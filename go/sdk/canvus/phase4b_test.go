@@ -132,7 +132,7 @@ func TestSubscribeCanvases_StreamsNDJSON(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"id":"c1","name":"first"}` + "\n"))
 		flusher.Flush()
-		_, _ = w.Write([]byte("\n"))                                  // keepalive blank line
+		_, _ = w.Write([]byte("\n"))                                 // keepalive blank line
 		_, _ = w.Write([]byte(`{"id":"c2","name":"second"}` + "\n")) // second record
 		flusher.Flush()
 	}))

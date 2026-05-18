@@ -17,10 +17,10 @@ import (
 // SpatialTolerance carries fuzz factors for spatial widget operations.
 // Mirrors the Python dataclass of the same name.
 type SpatialTolerance struct {
-	PositionTolerance  float64 // tolerance for position-based operations
-	SizeTolerance      float64 // tolerance for size-based operations
-	OverlapTolerance   float64 // minimum overlap for intersection operations
-	DistanceTolerance  float64 // tolerance for distance-based operations
+	PositionTolerance float64 // tolerance for position-based operations
+	SizeTolerance     float64 // tolerance for size-based operations
+	OverlapTolerance  float64 // minimum overlap for intersection operations
+	DistanceTolerance float64 // tolerance for distance-based operations
 }
 
 // DefaultSpatialTolerance returns the Python defaults (5 / 2 / 1 / 10).

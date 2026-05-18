@@ -262,4 +262,3 @@ func matchReason(w canvus.Widget, criteria map[string]any) string {
 	}
 	return "Filter criteria matched"
 }
-
