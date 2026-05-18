@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/generative-ai-go/genai"
-	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 const (
@@ -34,30 +33,32 @@ func ExtractPostitNotes(input ExtractInput) ([]Note, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), geminiTimeout)
 	defer cancel()
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("ExtractPostitNotes: create Gemini client: %w", err)
 	}
-	defer func() { _ = client.Close() }()
 
-	cfg := &genai.GenerationConfig{
+	cfg := &genai.GenerateContentConfig{
 		ResponseMIMEType: "application/json",
 		ResponseSchema:   noteSchema(),
 	}
 
-	model := client.GenerativeModel(geminiModel)
-	model.GenerationConfig = *cfg
-
-	// Build prompt parts.
-	imageFormat := mimeToFormat(input.MimeType)
-	parts := []genai.Part{
-		genai.Text(extractionPrompt),
-		genai.ImageData(imageFormat, input.ImageData),
+	// Build prompt contents.
+	contents := []*genai.Content{
+		{
+			Parts: []*genai.Part{
+				{Text: extractionPrompt},
+				genai.NewPartFromBytes(input.ImageData, input.MimeType),
+			},
+		},
 	}
 
 	slog.Debug("calling Gemini", "model", geminiModel, "image_bytes", len(input.ImageData), "mime", input.MimeType)
 
-	resp, err := model.GenerateContent(ctx, parts...)
+	resp, err := client.Models.GenerateContent(ctx, geminiModel, contents, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("ExtractPostitNotes: GenerateContent: %w", err)
 	}
@@ -126,11 +127,10 @@ func parseGeminiResponse(resp *genai.GenerateContentResponse) ([]extractOutput, 
 			continue
 		}
 		for _, part := range c.Content.Parts {
-			txt, ok := part.(genai.Text)
-			if !ok {
+			if part.Text == "" {
 				continue
 			}
-			jsonStr := stripMarkdownFence(string(txt))
+			jsonStr := stripMarkdownFence(part.Text)
 			var outputs []extractOutput
 			if err := json.Unmarshal([]byte(jsonStr), &outputs); err == nil && len(outputs) > 0 {
 				return outputs, nil
@@ -172,13 +172,4 @@ func convertOutputs(raw []extractOutput) []Note {
 		notes = append(notes, n)
 	}
 	return notes
-}
-
-// mimeToFormat strips the "image/" prefix from a MIME type (e.g.
-// "image/jpeg" → "jpeg"), which is the format accepted by genai.ImageData.
-func mimeToFormat(mime string) string {
-	if after, found := strings.CutPrefix(mime, "image/"); found {
-		return after
-	}
-	return mime
 }
