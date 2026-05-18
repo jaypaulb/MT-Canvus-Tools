@@ -59,12 +59,15 @@ Ctrl-C for clean shutdown.
 
 ## How it works
 
-### Initial-snapshot filter
-The subscribe stream sends the full current widget list on connect. Without
-filtering, the bridge would synthesise a `widget.created` for every widget
-that already existed — useless and noisy. We treat the first frame as a
-state-establishing snapshot: every ID is added to `seen` but no events are
-emitted. From frame 2 onwards, only IDs not in `seen` trigger a delivery.
+### Typed Subscribe helper + snapshot-drain filter
+The bridge uses `session.SubscribeWidgets(ctx, canvasID)` (Phase 4b §4.1
+#7) which yields each widget on a typed `<-chan canvus.Widget`. The
+server re-emits the full snapshot on every change, so we apply a
+`SNAPSHOT_DRAIN_SECONDS` window (default `2`) at startup: every widget id
+that arrives during the window is recorded in `seen` but no events fire.
+After the drain timer elapses, only previously-unseen IDs trigger a
+delivery. This prevents the bridge from synthesising a `widget.created`
+event for every widget that already existed on the canvas.
 
 ### What counts as a "new widget"?
 A widget whose ID we have not seen this process lifetime. We do not
@@ -91,15 +94,15 @@ the `SessionConfig` to 10 minutes.
 
 ## Architectural notes
 
-- **No SDK Subscribe helper** — direct `http.NewRequestWithContext` on the
-  session's exported HTTPClient. Same pattern as examples 05 and 06.
+- **Typed Subscribe helper** — uses `session.SubscribeWidgets(ctx, canvasID)`.
+  Auth and NDJSON decoding are handled by the SDK.
 - **`widget.created` only** — by design. The subscribe stream emits snapshots,
-  not deltas, so deriving `widget.updated` requires diffing frames and
-  detecting `widget.deleted` requires detecting absence. Both are
+  not deltas, so deriving `widget.updated` requires per-id field diffing and
+  detecting `widget.deleted` requires tracking absence. Both are
   straightforward to add but out of scope for this minimal example.
-- **No event ordering guarantees** — within a single frame, events are
-  delivered in iteration order of the widget array. The frame itself is the
-  ordering boundary.
+- **No event ordering guarantees** — the typed channel yields widgets in
+  the order the server emits them, which within a snapshot is its iteration
+  order over the canvas.
 
 ## Troubleshooting
 

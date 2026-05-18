@@ -78,16 +78,19 @@ Ctrl-C stops the watcher cleanly.
 ## How it works
 
 ### Deduplication
-The Canvus subscribe stream emits the full current note list on every
-frame — these are snapshots, not deltas. Naively answering every question
-in every frame would be a runaway loop. The watcher maintains an in-memory
-`seen` map keyed by note ID:
+The watcher uses `session.SubscribeNotes(ctx, canvasID)` (Phase 4b §4.1
+#7) which yields each note on a typed channel. The server re-emits the
+full snapshot whenever anything changes, so the same note id is expected
+to appear repeatedly. The watcher maintains an in-memory `seen` map
+keyed by note ID:
 
-1. The first frame is treated as the *initial snapshot*. Every note ID is
-   recorded in `seen`, but no questions are answered. This means existing
-   questions on the canvas at startup are ignored.
-2. From frame 2 onwards, only IDs not in `seen` are eligible. New question
-   notes (text starting with `?`) are forwarded to Ollama.
+1. For a configurable startup window (`SNAPSHOT_DRAIN_SECONDS`, default
+   `2`), every incoming note is recorded in `seen` but no questions are
+   answered. This is the snapshot-drain phase — existing canvas notes
+   are observed once and ignored.
+2. After the drain timer fires, any previously-unseen note that arrives
+   is eligible. Question notes (text starting with `?`) are forwarded to
+   Ollama; everything else is just recorded.
 3. The answer note's own ID is added to `seen` immediately after creation,
    defensively — it shouldn't match the `?` prefix anyway, but a bug here
    could cause an infinite question/answer loop, so we make it impossible.
@@ -108,9 +111,9 @@ yellow so questions and answers are easy to scan visually.
 
 ## Architectural notes
 
-- **No SDK Subscribe helper:** same pattern as example 05 — build the HTTP
-  request directly using `session.HTTPClient`, which already has the API-key
-  round-tripper installed.
+- **Typed Subscribe helper:** uses `session.SubscribeNotes(ctx, canvasID)`.
+  The channel yields each note as the server emits it; authentication and
+  NDJSON decoding are handled by the SDK.
 - **Idempotency:** the watcher does not store state across restarts. If you
   Ctrl-C and restart, every existing note (including answered questions)
   becomes part of the new initial snapshot and is ignored.

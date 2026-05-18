@@ -1,17 +1,24 @@
 // Command 07-webhooks-notifications subscribes to the widgets endpoint of
-// a Canvus canvas and POSTs a small JSON event to WEBHOOK_URL for every
-// widget that appears AFTER the watcher starts (initial snapshot ignored).
+// a Canvus canvas using Session.SubscribeWidgets and POSTs a small JSON
+// event to WEBHOOK_URL for every widget that appears AFTER the watcher
+// starts.
 //
 // The Canvus API does not have native outbound webhooks; this example
 // demonstrates the canonical pattern for synthesising them on top of the
 // streaming subscribe endpoint.
+//
+// Dedup strategy: the typed channel yields each widget as the server
+// emits it; snapshot frames are re-sent on every change. We track seen
+// widget IDs and apply a SNAPSHOT_DRAIN_SECONDS (default 2s) window at
+// startup during which existing widgets are merely recorded, not
+// forwarded — so a restart doesn't re-fire webhooks for everything on
+// the canvas.
 //
 // On non-2xx webhook responses, the POST is retried with exponential
 // backoff (2s, 4s, 8s; up to 3 attempts total).
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -19,10 +26,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
-	"path"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -31,7 +37,8 @@ import (
 )
 
 const (
-	maxRetries = 3
+	maxRetries               = 3
+	defaultSnapshotDrainSecs = 2
 )
 
 var retryBackoff = []time.Duration{
@@ -84,128 +91,88 @@ func run() error {
 	defer cancel()
 
 	b := &bridge{
-		session:    s,
-		canvasID:   canvasID,
-		webhookURL: webhookURL,
-		seen:       make(map[string]struct{}),
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		session:       s,
+		canvasID:      canvasID,
+		webhookURL:    webhookURL,
+		seen:          make(map[string]struct{}),
+		httpClient:    &http.Client{Timeout: 30 * time.Second},
+		drainDuration: snapshotDrainDuration(),
 	}
 	slog.Info("webhook bridge starting",
 		"canvas_id", canvasID,
 		"webhook_url", webhookURL,
-		"max_retries", maxRetries)
+		"max_retries", maxRetries,
+		"snapshot_drain_seconds", int(b.drainDuration.Seconds()))
 	return b.subscribe(ctx)
 }
 
 type bridge struct {
-	session    *canvus.Session
-	canvasID   string
-	webhookURL string
-	httpClient *http.Client
+	session       *canvus.Session
+	canvasID      string
+	webhookURL    string
+	httpClient    *http.Client
+	drainDuration time.Duration
 
 	mu              sync.Mutex
 	seen            map[string]struct{}
-	initialSnapshot bool
+	snapshotDrained bool
 }
 
-// subscribe reads NDJSON frames from /canvases/{id}/widgets?subscribe=true.
+// subscribe opens the typed widgets channel and dispatches per arrival.
 func (b *bridge) subscribe(ctx context.Context) error {
-	u, err := url.Parse(b.session.BaseURL)
+	events, err := b.session.SubscribeWidgets(ctx, b.canvasID)
 	if err != nil {
-		return fmt.Errorf("parse base URL: %w", err)
-	}
-	u.Path = path.Join(u.Path, fmt.Sprintf("canvases/%s/widgets", b.canvasID))
-	q := u.Query()
-	q.Set("subscribe", "true")
-	u.RawQuery = q.Encode()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return fmt.Errorf("new request: %w", err)
-	}
-	req.Header.Set("Accept", "application/x-ndjson, application/json")
-
-	resp, err := b.session.HTTPClient.Do(req)
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil
-		}
 		return fmt.Errorf("subscribe: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)
-	}
+	drainTimer := time.NewTimer(b.drainDuration)
+	defer drainTimer.Stop()
 
-	scanner := bufio.NewScanner(resp.Body)
-	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		if err := b.handleFrame(ctx, line); err != nil {
-			slog.Warn("handleFrame error", "err", err)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		if ctx.Err() != nil {
+	for {
+		select {
+		case <-ctx.Done():
 			slog.Info("bridge cancelled cleanly")
 			return nil
+		case <-drainTimer.C:
+			b.mu.Lock()
+			snapshotSize := len(b.seen)
+			b.snapshotDrained = true
+			b.mu.Unlock()
+			slog.Info("snapshot drain window elapsed", "existing_widgets_marked_seen", snapshotSize)
+		case w, ok := <-events:
+			if !ok {
+				return nil
+			}
+			b.handle(ctx, w)
 		}
-		return fmt.Errorf("scan: %w", err)
 	}
-	return nil
 }
 
-// handleFrame decodes one frame, identifies new widgets, and dispatches a
-// webhook for each.
-func (b *bridge) handleFrame(ctx context.Context, line []byte) error {
-	var widgets []canvus.Widget
-	if err := json.Unmarshal(line, &widgets); err != nil {
-		return fmt.Errorf("decode widgets: %w", err)
-	}
-
+// handle records the widget id and, if it's a fresh post-drain arrival,
+// dispatches a webhook for it.
+func (b *bridge) handle(ctx context.Context, w canvus.Widget) {
 	b.mu.Lock()
-	firstSnapshot := !b.initialSnapshot
-	var fresh []canvus.Widget
-	for _, w := range widgets {
-		if _, seen := b.seen[w.ID]; seen {
-			continue
-		}
-		b.seen[w.ID] = struct{}{}
-		if firstSnapshot {
-			continue
-		}
-		fresh = append(fresh, w)
-	}
-	b.initialSnapshot = true
+	_, alreadySeen := b.seen[w.ID]
+	b.seen[w.ID] = struct{}{}
+	drained := b.snapshotDrained
 	b.mu.Unlock()
 
-	if firstSnapshot {
-		slog.Info("initial snapshot recorded",
-			"existing_widget_count", len(widgets))
-		return nil
+	if alreadySeen || !drained {
+		return
 	}
-
-	for _, w := range fresh {
-		evt := webhookEvent{
-			Event:      "widget.created",
-			CanvasID:   b.canvasID,
-			WidgetID:   w.ID,
-			WidgetType: w.WidgetType,
-			Timestamp:  time.Now().UTC(),
-		}
-		if err := b.deliver(ctx, evt); err != nil {
-			slog.Warn("webhook delivery failed",
-				"widget_id", w.ID,
-				"widget_type", w.WidgetType,
-				"err", err)
-		}
+	evt := webhookEvent{
+		Event:      "widget.created",
+		CanvasID:   b.canvasID,
+		WidgetID:   w.ID,
+		WidgetType: w.WidgetType,
+		Timestamp:  time.Now().UTC(),
 	}
-	return nil
+	if err := b.deliver(ctx, evt); err != nil {
+		slog.Warn("webhook delivery failed",
+			"widget_id", w.ID,
+			"widget_type", w.WidgetType,
+			"err", err)
+	}
 }
 
 // deliver POSTs the event to WEBHOOK_URL with exponential-backoff retry on
@@ -269,6 +236,17 @@ func (b *bridge) deliver(ctx context.Context, evt webhookEvent) error {
 			"latency_ms", latency.Milliseconds())
 	}
 	return fmt.Errorf("gave up after %d attempts: %w", maxRetries, lastErr)
+}
+
+func snapshotDrainDuration() time.Duration {
+	if v := os.Getenv("SNAPSHOT_DRAIN_SECONDS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			return time.Duration(n) * time.Second
+		}
+		slog.Warn("SNAPSHOT_DRAIN_SECONDS could not be parsed; using default",
+			"value", v, "default_seconds", defaultSnapshotDrainSecs)
+	}
+	return defaultSnapshotDrainSecs * time.Second
 }
 
 func mustEnv(name string) (string, error) {

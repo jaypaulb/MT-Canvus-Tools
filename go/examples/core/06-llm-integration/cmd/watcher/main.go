@@ -1,28 +1,28 @@
-// Command watcher subscribes to notes on a Canvus canvas, watches for new
-// "question notes" (text starting with `?`), forwards each question to a
-// local Ollama LLM, and posts the answer back to the canvas as a sibling
-// note positioned to the right of the question.
+// Command watcher subscribes to notes on a Canvus canvas via the typed
+// Session.SubscribeNotes helper, watches for new "question notes" (text
+// starting with `?`), forwards each to a local Ollama LLM, and posts the
+// answer back to the canvas as a sibling note positioned to the right.
 //
-// Deduplication: the server emits the full current note list on every
-// frame (snapshots, not deltas). We track every note ID we have seen and
-// answer only IDs that are new and start with `?`. The initial snapshot is
-// recorded but its existing notes are NOT answered — only notes that
-// appear after the watcher started are eligible.
+// Dedup strategy: the typed Subscribe channel yields each note as the
+// server emits it. The server re-sends the full snapshot every time
+// something changes, so we keep a set of seen IDs and skip duplicates.
+// To avoid answering pre-existing questions on startup we apply a
+// snapshot-drain window: any ID we see during the first
+// SNAPSHOT_DRAIN_SECONDS (default 2s) is marked seen but not answered.
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
-	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -32,10 +32,11 @@ import (
 )
 
 const (
-	defaultOllamaURL   = "http://localhost:11434"
-	defaultOllamaModel = "llama3.2"
-	answerColor        = "#1D71B8FF" // MT blue, full alpha.
-	answerOffsetX      = 400.0       // pixels right of the question note.
+	defaultOllamaURL          = "http://localhost:11434"
+	defaultOllamaModel        = "llama3.2"
+	defaultSnapshotDrainSecs  = 2
+	answerColor               = "#1D71B8FF" // MT blue, full alpha.
+	answerOffsetX             = 400.0       // pixels right of the question note.
 )
 
 type generateRequest struct {
@@ -84,126 +85,88 @@ func run() error {
 	defer cancel()
 
 	w := &watcher{
-		session:   s,
-		canvasID:  canvasID,
-		ollamaURL: ollamaURL,
-		model:     model,
-		seen:      make(map[string]struct{}),
+		session:       s,
+		canvasID:      canvasID,
+		ollamaURL:     ollamaURL,
+		model:         model,
+		seen:          make(map[string]struct{}),
+		drainDuration: snapshotDrainDuration(),
 	}
 	slog.Info("watcher starting",
 		"canvas_id", canvasID,
 		"ollama_url", ollamaURL,
 		"model", model,
-		"answer_color", answerColor)
+		"answer_color", answerColor,
+		"snapshot_drain_seconds", int(w.drainDuration.Seconds()))
 	return w.subscribe(ctx)
 }
 
 type watcher struct {
-	session   *canvus.Session
-	canvasID  string
-	ollamaURL string
-	model     string
+	session       *canvus.Session
+	canvasID      string
+	ollamaURL     string
+	model         string
+	drainDuration time.Duration
 
 	mu              sync.Mutex
 	seen            map[string]struct{}
-	initialSnapshot bool
+	snapshotDrained bool
 }
 
-// subscribe opens the streaming notes endpoint and processes each frame.
+// subscribe opens the typed notes channel and processes each yield.
 func (w *watcher) subscribe(ctx context.Context) error {
-	u, err := url.Parse(w.session.BaseURL)
+	events, err := w.session.SubscribeNotes(ctx, w.canvasID)
 	if err != nil {
-		return fmt.Errorf("parse base URL: %w", err)
-	}
-	u.Path = path.Join(u.Path, fmt.Sprintf("canvases/%s/notes", w.canvasID))
-	q := u.Query()
-	q.Set("subscribe", "true")
-	u.RawQuery = q.Encode()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return fmt.Errorf("new request: %w", err)
-	}
-	req.Header.Set("Accept", "application/x-ndjson, application/json")
-
-	resp, err := w.session.HTTPClient.Do(req)
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil
-		}
 		return fmt.Errorf("subscribe: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)
-	}
+	// After drainDuration elapses, every previously-unseen note that arrives
+	// is treated as fresh and may be answered. Pre-drain arrivals are simply
+	// marked seen.
+	drainTimer := time.NewTimer(w.drainDuration)
+	defer drainTimer.Stop()
 
-	scanner := bufio.NewScanner(resp.Body)
-	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		if err := w.handleFrame(ctx, line); err != nil {
-			slog.Warn("handleFrame error", "err", err)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		if ctx.Err() != nil {
+	for {
+		select {
+		case <-ctx.Done():
 			slog.Info("watcher cancelled cleanly")
 			return nil
+		case <-drainTimer.C:
+			w.mu.Lock()
+			snapshotSize := len(w.seen)
+			w.snapshotDrained = true
+			w.mu.Unlock()
+			slog.Info("snapshot drain window elapsed", "existing_notes_marked_seen", snapshotSize)
+		case note, ok := <-events:
+			if !ok {
+				return nil
+			}
+			if err := w.handle(ctx, note); err != nil {
+				slog.Warn("handle error", "id", note.ID, "err", err)
+			}
 		}
-		return fmt.Errorf("scan: %w", err)
 	}
-	return nil
 }
 
-// handleFrame decodes one NDJSON frame into a []Note, then handles any
-// newly observed question notes.
-func (w *watcher) handleFrame(ctx context.Context, line []byte) error {
-	var notes []canvus.Note
-	if err := json.Unmarshal(line, &notes); err != nil {
-		return fmt.Errorf("decode notes: %w", err)
-	}
-
+// handle records the note id and answers it if it's new, post-drain, and
+// starts with `?`.
+func (w *watcher) handle(ctx context.Context, n canvus.Note) error {
 	w.mu.Lock()
-	firstSnapshot := !w.initialSnapshot
-	var newQuestions []canvus.Note
-	for _, n := range notes {
-		if _, seen := w.seen[n.ID]; seen {
-			continue
-		}
-		w.seen[n.ID] = struct{}{}
-		// Skip the initial snapshot — only react to notes that appear
-		// after the watcher started.
-		if firstSnapshot {
-			continue
-		}
-		if strings.HasPrefix(strings.TrimSpace(n.Text), "?") {
-			newQuestions = append(newQuestions, n)
-		}
-	}
-	w.initialSnapshot = true
+	_, alreadySeen := w.seen[n.ID]
+	w.seen[n.ID] = struct{}{}
+	drained := w.snapshotDrained
 	w.mu.Unlock()
 
-	if firstSnapshot {
-		slog.Info("initial snapshot recorded",
-			"existing_note_count", len(notes),
-			"existing_questions_skipped", countQuestions(notes))
+	if alreadySeen {
 		return nil
 	}
-
-	for _, q := range newQuestions {
-		if err := w.answer(ctx, q); err != nil {
-			slog.Warn("answer failed",
-				"question_id", q.ID,
-				"err", err)
-		}
+	if !drained {
+		return nil
 	}
-	return nil
+	if !strings.HasPrefix(strings.TrimSpace(n.Text), "?") {
+		return nil
+	}
+	return w.answer(ctx, n)
 }
 
 // answer runs one question through Ollama and posts the response back to
@@ -222,13 +185,12 @@ func (w *watcher) answer(ctx context.Context, q canvus.Note) error {
 		"question_id", q.ID,
 		"response_len", len(answerText))
 
-	loc := q.Location
 	answerReq := map[string]any{
 		"widget_type":      "note",
 		"text":             answerText,
 		"background_color": answerColor,
 	}
-	if loc != nil {
+	if loc := q.Location; loc != nil {
 		answerReq["location"] = map[string]any{
 			"x": loc.X + answerOffsetX,
 			"y": loc.Y,
@@ -239,9 +201,7 @@ func (w *watcher) answer(ctx context.Context, q canvus.Note) error {
 		return fmt.Errorf("CreateNote (answer): %w", err)
 	}
 
-	// Mark the answer note as seen so the next snapshot frame doesn't
-	// trigger another round (defensive — the answer doesn't start with `?`
-	// but a bug here would be a runaway loop, so be explicit).
+	// Mark the answer note as seen so it can't trigger a self-answer loop.
 	w.mu.Lock()
 	w.seen[created.ID] = struct{}{}
 	w.mu.Unlock()
@@ -290,19 +250,20 @@ func (w *watcher) askOllama(ctx context.Context, prompt string) (string, error) 
 		return "", fmt.Errorf("decode: %w", err)
 	}
 	if gr.Response == "" {
-		return "", fmt.Errorf("ollama returned empty response")
+		return "", errors.New("ollama returned empty response")
 	}
 	return strings.TrimSpace(gr.Response), nil
 }
 
-func countQuestions(notes []canvus.Note) int {
-	n := 0
-	for _, note := range notes {
-		if strings.HasPrefix(strings.TrimSpace(note.Text), "?") {
-			n++
+func snapshotDrainDuration() time.Duration {
+	if v := os.Getenv("SNAPSHOT_DRAIN_SECONDS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			return time.Duration(n) * time.Second
 		}
+		slog.Warn("SNAPSHOT_DRAIN_SECONDS could not be parsed; using default",
+			"value", v, "default_seconds", defaultSnapshotDrainSecs)
 	}
-	return n
+	return defaultSnapshotDrainSecs * time.Second
 }
 
 func truncate(s string, n int) string {

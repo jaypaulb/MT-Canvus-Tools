@@ -51,19 +51,23 @@ same canvas and watch the new note's text appear in this stream.
 
 ## How it works
 
-### No SDK Subscribe method (yet)
-The Canvus Go SDK does not yet expose a typed Subscribe helper for the
-streaming endpoints. Until it does, the idiomatic approach is to build the
-HTTP request directly:
+### Typed Subscribe helper
+The example uses `session.SubscribeNotes(ctx, canvasID)` (added in Phase 4b
+§4.1 #7) which returns a `<-chan canvus.Note` and handles all the wire
+mechanics — long-lived HTTPS, NDJSON line decoding, batched snapshot
+frames vs. single-object deltas, keep-alive blank lines:
 
 ```go
-req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-resp, _ := session.HTTPClient.Do(req)
+events, err := session.SubscribeNotes(ctx, canvasID)
+if err != nil { return err }
+for note := range events {
+    // ... handle each note as it arrives
+}
 ```
 
-`session.HTTPClient` is exported on the `*Session` type and already has the
-`Private-Token` round-tripper installed by `WithAPIKey`, so authentication
-"just works" — we don't need to know the header name or value.
+The channel closes when the context is cancelled or the stream ends. The
+same `Subscribe*` pattern exists for every streamable resource (canvases,
+folders, widgets per-type, users, groups, server-config, …).
 
 ### Request timeout
 The SDK's default `RequestTimeout` is 30 seconds — fine for normal API
@@ -71,21 +75,18 @@ calls, fatal for long-lived streams. We override it to 10 minutes in the
 `SessionConfig`. If you set `STREAM_DURATION_SECONDS` higher than that,
 bump the timeout to match.
 
-### Keep-alive handling
-The Canvus server periodically writes empty lines to keep the connection
-warm. They are valid NDJSON (zero records) but parsing an empty string as
-JSON would error, so we skip lines with `len(line) == 0` before unmarshal.
+### Snapshot re-emission
+The Canvus server re-sends the full current note list every time anything
+changes (it doesn't send deltas). The typed channel yields each note
+individually, so you'll see the same note id arrive repeatedly. If you
+need per-arrival dedup, keep a `seen` set keyed on `note.ID` — see
+example 06 for the canonical pattern.
 
 ### Clean shutdown
 `signal.NotifyContext` wires SIGINT/SIGTERM into the parent context.
 `context.WithTimeout` adds the duration deadline. When either fires, the
-HTTP request is cancelled, the scanner exits, and `stream` returns. We
-treat context cancellation as success, not failure.
-
-### Scanner buffer size
-The default `bufio.Scanner` buffer (64KB) is too small for busy canvases —
-a frame containing 100 notes with long text can exceed it. We provide an
-8MB max buffer.
+channel closes and the range loop exits cleanly. We treat context
+cancellation as success, not failure.
 
 ## Troubleshooting
 
@@ -94,5 +95,4 @@ a frame containing 100 notes with long text can exceed it. We provide an
 | Immediate `unexpected status 401` | Wrong API key. |
 | Immediate `unexpected status 404` | Wrong canvas ID. |
 | No frames printed, then clean exit | The canvas has no notes and nothing changed during the window. Add a note from the UI to confirm. |
-| `frame did not parse as []Note` warning | Server changed its response shape — open an issue. The raw byte count is logged so you know data is flowing. |
 | Stream hangs past `STREAM_DURATION_SECONDS` | Context cancellation didn't reach the in-flight read. Usually a kernel-buffered read; Ctrl-C will force exit. |
