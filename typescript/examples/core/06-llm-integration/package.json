@@ -1,0 +1,34 @@
+{
+  "name": "@mt-canvus-tools/example-llm-integration",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paired Canvus + Ollama apps: watcher subscribes to notes and posts LLM answers; responder lists available Ollama models.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "bin": {
+    "example-llm-watcher": "./dist/watcher.js",
+    "example-llm-responder": "./dist/responder.js"
+  },
+  "scripts": {
+    "dev:watcher": "tsx src/watcher.ts",
+    "dev:responder": "tsx src/responder.ts",
+    "build": "tsc -b",
+    "start:watcher": "node dist/watcher.js",
+    "start:responder": "node dist/responder.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@mt-canvus-tools/sdk": "workspace:*",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.13",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3"
+  }
+}

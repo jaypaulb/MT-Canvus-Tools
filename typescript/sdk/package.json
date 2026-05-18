@@ -18,7 +18,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
     "test": "vitest run --coverage",
