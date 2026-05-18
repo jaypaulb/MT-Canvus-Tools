@@ -917,3 +917,9 @@ When a Phase 4b refresh agent encounters a decision not covered above, it **must
 ---
 
 <!-- New amendments are appended below this line in reverse chronological order. -->
+
+### 2026-05-18 — CLI tools may use viper precedence instead of FromEnv (Phase 4d)
+
+**Item:** `go/cli` configuration loading (`go/cli/internal/config/config.go`)
+**Decision:** The CLI binary uses `github.com/spf13/viper` to resolve configuration in flag > env > file > defaults order, rather than the SDK's `canvus.FromEnv` constructor.
+**Rationale:** `FromEnv` is an environment-only constructor; it has no mechanism to accept command-line flag overrides or a YAML config file. CLI binaries inherently require a full precedence chain (flags win over env vars, env vars win over file, file wins over compiled defaults) so that interactive users can override persistent settings at the call site without modifying their environment or config file. `go/cli` is the canonical example of this pattern. Any future CLI-style tool in `go/tools/` may follow the same approach when it accepts flags that override env vars. **Mandatory constraint:** the CLI MUST alias `CANVUS_API_URL` (canonical name, matching the SDK and `.secrets` convention) and `CANVUS_URL` (deprecated alias) via an explicit `viper.BindEnv("url", "CANVUS_API_URL", "CANVUS_URL")` call inside `Load()`, so that env-var precedence matches SDK behaviour and users switching between the SDK and the CLI observe consistent variable names. `go/cli/internal/config/config.go` implements this at the top of `Load()`.
