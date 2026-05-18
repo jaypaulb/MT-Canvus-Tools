@@ -533,7 +533,7 @@ All Canvus-related env vars use the `CANVUS_` prefix. Examples:
 
 | Var                    | Purpose                                         |
 | ---------------------- | ----------------------------------------------- |
-| `CANVUS_API_BASE_URL`  | e.g. `https://canvus.example.com/api/v1/`       |
+| `CANVUS_API_URL`  | e.g. `https://canvus.example.com/api/v1/`       |
 | `CANVUS_API_KEY`       | Long-lived API key (`Private-Token` header)     |
 | `CANVUS_TIMEOUT_MS`    | Request timeout in milliseconds                 |
 | `CANVUS_VERIFY_TLS`    | `true`/`false` — useful only for dev with self-signed certs |
@@ -560,7 +560,7 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = ConfigSchema.safeParse({
-    apiBaseUrl: env.CANVUS_API_BASE_URL,
+    apiBaseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
     timeoutMs: env.CANVUS_TIMEOUT_MS,
     verifyTls: env.CANVUS_VERIFY_TLS,
@@ -578,7 +578,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
 Always parse once at startup. Never read `process.env` deep inside business logic — that makes the code untestable and surprises consumers when they thought they had overridden something.
 
-For tests, pass an explicit env object: `loadConfig({ CANVUS_API_BASE_URL: "...", ... })`. Vitest does not need `dotenv` because Node 20 supports `--env-file=.env` natively.
+For tests, pass an explicit env object: `loadConfig({ CANVUS_API_URL: "...", ... })`. Vitest does not need `dotenv` because Node 20 supports `--env-file=.env` natively.
 
 ---
 
@@ -806,7 +806,7 @@ Notes:
 - `--frozen-lockfile` ensures CI fails if the lockfile is out of sync; never regenerate it silently.
 - `pnpm -r` runs each script in every workspace package in topological order.
 - Coverage reports are uploaded via a separate step on Node 20 only (avoid double-uploads).
-- Integration tests live in a manually-triggered workflow (`typescript-integration.yml`) and require a `CANVUS_API_BASE_URL` + `CANVUS_API_KEY` secret pair.
+- Integration tests live in a manually-triggered workflow (`typescript-integration.yml`) and require a `CANVUS_API_URL` + `CANVUS_API_KEY` secret pair.
 
 ---
 

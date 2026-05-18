@@ -129,6 +129,11 @@ async def _consume(
 ) -> None:
     """Drain the subscription, answering question notes as they appear."""
     seen: set[str] = set()
+    # The first frame the server emits is the snapshot of pre-existing
+    # notes. Mark all snapshot IDs as `seen` without answering them so a
+    # restart doesn't flood the canvas with duplicate replies to old
+    # questions. Only notes that appear in frame 2+ trigger the LLM.
+    snapshot_drained = False
     sub = client.widgets.subscribe(settings.canvas_id, widget_type="notes")
     aiter = sub.__aiter__()
     while not stop_event.is_set():
@@ -166,6 +171,9 @@ async def _consume(
             if note_id in seen:
                 continue
             seen.add(note_id)
+            if not snapshot_drained:
+                # Initial snapshot — mark as seen but do not answer.
+                continue
             if not _is_question_note(item):
                 continue
             text = (item.get("text") or "").strip()
@@ -175,6 +183,10 @@ async def _consume(
             logger.info("question detected", note_id=note_id, prompt=prompt[:80])
             answer = await _ask_ollama(http, _ollama_url(), _ollama_model(), prompt)
             await _post_answer(client, settings.canvas_id, item, answer)
+
+        # After processing the first batch (whatever shape it had), enable
+        # answering for subsequent frames.
+        snapshot_drained = True
 
 
 async def main() -> int:

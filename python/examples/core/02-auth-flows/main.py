@@ -50,29 +50,30 @@ class AuthSettings(BaseSettings):
     password: str | None = Field(default=None, description="Login password for flow 2.")
 
 
-async def run_api_key(settings: AuthSettings) -> str | None:
+async def run_api_key(settings: AuthSettings) -> bool:
     """Flow 1: authenticate with an API key.
 
-    Returns the authenticated user id on success, ``None`` otherwise.
+    Returns True on success, False otherwise. We can't introspect the
+    authenticated user without /users/me (which v1.2 doesn't expose), so
+    a successful canvas list is the strongest proof we can produce here.
     """
     if not settings.api_key:
         logger.warning("flow_api_key skipped", reason="CANVUS_API_KEY not set")
-        return None
+        return False
     async with Client(settings.api_url, settings.api_key) as client:
         try:
             canvases = await client.canvases.list()
         except AuthError as e:
             logger.error("flow_api_key failed", status_code=e.status_code)
-            return None
+            return False
         except APIError as e:
             logger.error("flow_api_key api error", status_code=e.status_code)
-            return None
+            return False
         logger.info("flow_api_key ok", canvas_count=len(canvases))
-        # No /users/me on v1.2, so we just report success via canvas count.
-    return "api-key-authenticated"
+    return True
 
 
-async def run_login(settings: AuthSettings) -> str | None:
+async def run_login(settings: AuthSettings) -> tuple[str, str] | None:
     """Flow 2: log in with email + password.
 
     The server rejects requests that double-key email and username; we send
@@ -101,21 +102,24 @@ async def run_login(settings: AuthSettings) -> str | None:
             return None
     user_id = login.user.id if login.user else None
     logger.info("flow_login ok", user_id=user_id, has_token=bool(login.token))
-    return user_id
+    if user_id is None or not login.token:
+        return None
+    return (str(user_id), login.token)
 
 
-async def run_token_lifecycle(settings: AuthSettings, user_id: str) -> None:
+async def run_token_lifecycle(
+    settings: AuthSettings,
+    user_id: str,
+    auth_token: str,
+) -> None:
     """Flow 3: create + list + delete a programmatic access token.
 
-    Requires the API key path (flow 1) to have produced a usable user id
-    via a side channel — the caller passes ``user_id`` explicitly so we
-    don't depend on a removed ``/users/me`` endpoint.
+    Uses the session token returned by flow 2's login as the auth credential.
+    Caller passes ``user_id`` (also from login) explicitly because v1.2
+    does not expose ``/users/me``.
     """
-    if not settings.api_key:
-        logger.warning("flow_token_lifecycle skipped", reason="CANVUS_API_KEY not set")
-        return
     token_name = f"example-02 {datetime.now(UTC).isoformat()}"
-    async with Client(settings.api_url, settings.api_key) as client:
+    async with Client(settings.api_url, auth_token) as client:
         try:
             created = await client.auth.create_token(user_id, name=token_name)
         except APIError as e:
@@ -157,17 +161,18 @@ async def main() -> int:
         return 2
 
     await run_api_key(settings)
-    login_user_id = await run_login(settings)
+    login_result = await run_login(settings)
 
-    if login_user_id is not None:
+    if login_result is not None:
+        user_id, token = login_result
         try:
-            await run_token_lifecycle(settings, login_user_id)
+            await run_token_lifecycle(settings, user_id, token)
         except CanvusError as e:
             logger.error("flow_token_lifecycle unexpected error", error=str(e))
     else:
         logger.warning(
             "flow_token_lifecycle skipped",
-            reason="no user id available — set CANVUS_EMAIL/PASSWORD to drive flow 3",
+            reason="no login session available — set CANVUS_EMAIL/PASSWORD to drive flow 3",
         )
     return 0
 

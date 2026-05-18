@@ -28,7 +28,7 @@ no `CANVUS_EMAIL`/`CANVUS_PASSWORD` is set), the others still run.
 
 | Variable           | Required        | Description                                       |
 | ------------------ | --------------- | ------------------------------------------------- |
-| `CANVUS_BASE_URL`  | yes             | API base URL, e.g. `https://server/api/v1/`       |
+| `CANVUS_API_URL`  | yes             | API base URL, e.g. `https://server/api/v1/`       |
 | `CANVUS_API_KEY`   | yes             | Long-lived API key (mode 1)                       |
 | `CANVUS_EMAIL`     | mode 2 + 3      | Login email                                       |
 | `CANVUS_PASSWORD`  | mode 2 + 3      | Login password                                    |
@@ -53,7 +53,7 @@ output with `LOG_FORMAT=pretty`):
 {"level":30,"component":"example-auth-flows","mode":"api-key","canvasCount":12,"msg":"API-key auth succeeded"}
 {"level":30,"component":"example-auth-flows","mode":"login","email":"alice@example.com","msg":"trying login auth"}
 {"level":30,"component":"example-auth-flows","mode":"login","userId":1000,"email":"alice@example.com","isAdmin":false,"msg":"login auth succeeded"}
-{"level":30,"component":"example-auth-flows","mode":"token","tokenId":"...","name":"auth-flows-demo-1715942400000","msg":"minted access token"}
+{"level":30,"component":"example-auth-flows","mode":"token","tokenId":"...","description":"auth-flows-demo-1715942400000","msg":"minted access token"}
 {"level":30,"component":"example-auth-flows","mode":"token","visibleTokenCount":1,"msg":"listed access tokens"}
 {"level":30,"component":"example-auth-flows","mode":"token","tokenId":"...","msg":"revoked access token"}
 ```
@@ -78,8 +78,14 @@ output with `LOG_FORMAT=pretty`):
   field causes the server to reject the request with
   `"Login request must have either email and password or token"`.
   See `docs/api-reference/VERIFIED-CORRECTIONS.md` §4.
-- `User.user-id` is an **integer**, not a UUID. The SDK type reflects
-  this. See `VERIFIED-CORRECTIONS.md` §6.
+- `User.id` is an **integer**, not a UUID, and the field is named
+  `id` (not `user-id`). The SDK type reflects this. See
+  `VERIFIED-CORRECTIONS.md` §6.
+- User fields use underscored names: `name` (not `full-name`),
+  `admin` (not `is-admin`), `blocked` (not `is-blocked`).
+- Access tokens use `id` (an opaque string) and `description` (the
+  user-facing label). Older SDK drafts called these `token-id` and
+  `name`; they do not exist on the wire.
 
 ## Troubleshooting
 

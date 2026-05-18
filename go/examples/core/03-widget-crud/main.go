@@ -27,7 +27,7 @@ func main() {
 }
 
 func run() error {
-	baseURL, err := mustEnv("CANVUS_BASE_URL")
+	baseURL, err := mustEnv("CANVUS_API_URL")
 	if err != nil {
 		return err
 	}
@@ -46,9 +46,10 @@ func run() error {
 
 	// Step 1 — create.
 	createText := fmt.Sprintf("hello from Go @ %s", time.Now().UTC().Format(time.RFC3339))
+	// The endpoint (/canvases/{id}/notes) already pins widget_type; the
+	// server treats it as a server-set discriminator, not a mutable field.
 	createReq := map[string]any{
-		"widget_type": "note",
-		"text":        createText,
+		"text": createText,
 	}
 	note, err := s.CreateNote(ctx, canvasID, createReq)
 	if err != nil {
@@ -65,7 +66,6 @@ func run() error {
 	// Step 3 — update.
 	updateText := fmt.Sprintf("updated from Go @ %s", time.Now().UTC().Format(time.RFC3339))
 	updateReq := map[string]any{
-		"widget_type":      "note",
 		"text":             updateText,
 		"background_color": "#3AAA34FF",
 	}

@@ -24,7 +24,7 @@ one-shot URL into `WEBHOOK_URL` and watch deliveries land in your browser.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | yes | API key with read access. |
 | `CANVUS_CANVAS_ID` | yes | UUID of canvas to monitor. |
 | `WEBHOOK_URL` | yes | Outbound webhook receiver. |

@@ -28,7 +28,7 @@ The example:
 
 | Variable             | Required | Description                                       |
 | -------------------- | -------- | ------------------------------------------------- |
-| `CANVUS_BASE_URL`    | yes      | API base URL                                      |
+| `CANVUS_API_URL`    | yes      | API base URL                                      |
 | `CANVUS_API_KEY`     | yes      | API key with edit access                          |
 | `CANVUS_CANVAS_ID`   | yes      | Target canvas                                     |
 | `CANVUS_IMAGE_PATH`  | no       | Path to a PNG/JPEG to upload (default: embedded)  |
@@ -63,6 +63,12 @@ directly.
 This is a frequent gotcha: the Canvus API treats `location.x` /
 `location.y` and `size.width` / `size.height` as **pixel** values. Do
 not multiply by canvas dimensions or normalise to 0–1.
+
+### Image widget field names
+
+The live Canvus v1.2 server uses underscored field names for image
+widgets: `id`, `hash`, `original_filename`, `mime_type`, `file_size`
+(not `widget-id`, `asset-hash`, `mime-type`, `file-size`).
 
 ## Troubleshooting
 

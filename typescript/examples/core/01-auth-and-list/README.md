@@ -19,7 +19,7 @@ directory should work too.
 
 | Variable           | Required | Description                                       |
 | ------------------ | -------- | ------------------------------------------------- |
-| `CANVUS_BASE_URL`  | yes      | API base URL, e.g. `https://server/api/v1/`       |
+| `CANVUS_API_URL`  | yes      | API base URL, e.g. `https://server/api/v1/`       |
 | `CANVUS_API_KEY`   | yes      | Long-lived API key (Private-Token header)         |
 | `LOG_LEVEL`        | no       | pino log level (`debug`, `info`, `warn`, `error`) |
 | `LOG_FORMAT`       | no       | `pretty` for human-readable dev output            |
@@ -41,11 +41,14 @@ pnpm build && node --env-file=.env dist/index.js
 ## Expected output
 
 ```
-ID                                    NAME                                      OWNER                   MODIFIED
+ID                                    NAME                                      MODE      MODIFIED
 ----------------------------------------------------------------------------------------------------------------
-1a2b3c4d-...-1234                     My First Canvas                           alice@example.com       2026-05-17T12:34:56Z
+1a2b3c4d-...-1234                     My First Canvas                           normal    2026-05-17T12:34:56Z
 ...
 ```
+
+Field names match the live Canvus v1.2 wire shape (`id`, `name`, `mode`,
+`modified_at` — all underscored). See `docs/api-reference/VERIFIED-CORRECTIONS.md`.
 
 ## How it works
 
@@ -57,9 +60,10 @@ The example wires the SDK to your env vars in three steps:
    `Session` with all resource namespaces (`session.canvases`,
    `session.widgets`, etc.) wired up.
 3. **List + print** — `session.canvases.list()` issues a single GET to
-   `/api/v1/canvases` and returns the wire shape verbatim (kebab-case
-   keys). The rendering code truncates long names so the table fits in
-   a typical 120-column terminal.
+   `/api/v1/canvases` and returns the wire shape verbatim
+   (mostly underscored keys — see the post-review correction notes).
+   The rendering code truncates long names so the table fits in a
+   typical 120-column terminal.
 
 `console.table` would have been simpler but cannot truncate UUIDs and
 produces unreadable output once any column exceeds the column width.
@@ -68,7 +72,7 @@ The manual padding here is deliberate.
 ## Troubleshooting
 
 - **401 Unauthorized** — your `CANVUS_API_KEY` is missing or wrong.
-- **404 Not Found** — your `CANVUS_BASE_URL` does not end in
+- **404 Not Found** — your `CANVUS_API_URL` does not end in
   `/api/v1/`, or the server is on a different path.
 - **Empty list** — the API key authenticates a user with no canvas
   read access. Confirm the user's permissions in the Canvus admin UI.

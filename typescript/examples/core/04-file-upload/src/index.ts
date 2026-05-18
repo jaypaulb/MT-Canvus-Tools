@@ -35,7 +35,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_CANVAS_ID: z.string().min(1),
   CANVUS_IMAGE_PATH: z.string().min(1).optional(),
@@ -78,7 +78,7 @@ async function loadImage(env: Env): Promise<{ bytes: Buffer; filename: string }>
 async function run(): Promise<void> {
   const env = loadEnv();
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
   const canvasId = env.CANVUS_CANVAS_ID;
@@ -93,13 +93,13 @@ async function run(): Promise<void> {
     bytes,
     filename,
   );
-  const widgetId = image["widget-id"];
+  const widgetId = image.id;
   logger.info(
     {
       widgetId,
-      assetHash: image["asset-hash"],
-      mimeType: image["mime-type"],
-      fileSize: image["file-size"],
+      hash: image.hash,
+      mimeType: image.mime_type,
+      fileSize: image.file_size,
     },
     "uploaded image",
   );
@@ -112,7 +112,7 @@ async function run(): Promise<void> {
   });
   logger.info(
     {
-      widgetId: patched["widget-id"],
+      widgetId: patched.id,
       location: patched.location,
       scale: patched.scale,
     },

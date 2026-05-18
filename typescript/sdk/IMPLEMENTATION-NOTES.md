@@ -161,6 +161,82 @@ boundary rules).
 | Server       |     22 |          22 |                                                                         |
 | **Total**    | **150**| **148**     | The 2 missing are deliberate per changelog §2; SDK is API-complete.     |
 
+## Post-review wire-shape correction (2026-05-18)
+
+The Phase 3 TS SDK shipped with hyphenated field names (`widget-id`,
+`canvas-name`, `user-id`, `is-admin`, `full-name`, `is-pinned`,
+per-type `note-id`/`image-id`/etc.) inherited from spec docs that
+pre-date live-server verification. Live testing against
+dev-mtcs.multitaction.com (v1.2) — documented in
+`docs/api-reference/VERIFIED-CORRECTIONS.md` §6/§7 — established that
+the actual server uses MOSTLY UNDERSCORED field names with a few
+HYPHENATED exceptions for specific widget fields.
+
+### Field-rename map
+
+| Surface           | Previous (hyphen)             | Verified (wire)             |
+| ----------------- | ----------------------------- | --------------------------- |
+| Canvas            | `canvas-id`, `canvas-name`, `demo-canvas`, `has-main-password`, `parent-folder-id`, `link-permission`, `permission-overrides` | `id`, `name`, `mode`, `folder_id`, `link_permission`, plus permission overrides as `{users[], groups[], editors_can_share, link_permission}` |
+| BaseWidget        | `widget-id`, `widget-type`, `is-pinned` | `id`, `widget_type`, `pinned`, plus `parent_id`, `state` |
+| Note              | `note-id`, `background-color`, `text-color`, `auto-text-color` | (removed `note-id`; just `id`), `background_color`, `text_color`, `auto_text_color` |
+| Image             | `image-id`, `asset-hash`, `original-filename`, `mime-type`, `file-size` | (removed `image-id`), `hash`, `original_filename`, `mime_type`, `file_size` |
+| Video             | `video-id`, `seek-position`, `playback-state` | `id`, `playback_position`, `playback_state` |
+| Pdf               | `pdf-id`, `page-count` | `id`, `page_count` |
+| Browser           | `browser-id`, `transparent-mode`, `main-frame-scroll-offset` | `id`, `transparent_mode`, `main_frame_scroll_offset`, `url` (not `source`) |
+| Anchor            | `anchor-id`, `anchor-name` | `id`, `anchor_name`, `anchor_index` |
+| Connector         | `connector-id`, `connector-type`, `src-rel-location`, `dst-tip`, `line-color`, `line-width` | `id`, `type`, src/dst endpoints with `rel_location`/`auto_location`/`tip`, `line_color`, `line_width` |
+| Table             | `table-id`, `grid-size` | `id`, `grid_size` |
+| VideoInput        | (lowercase) | `id`, `widget_type: "VideoInput"`, `"host-id"` (HYPHEN), `source` |
+| IpVideo           | `host-id` only | `id`, `"host-id"` (HYPHEN), `parent_id`, `widget_type: "IpVideo"` |
+| RdpConnection     | snake-case fields | `id`, `"host-id"`, `"connection-name"`, `"content-id"` (HYPHENS); other fields underscored |
+| User              | `user-id`, `full-name`, `is-admin`, `is-blocked`, `last-login`, `avatar-color` | `id` (INTEGER), `name`, `admin`, `blocked`, `last_login` |
+| AccessToken       | `token-id`, `name`, `last-used` | `id` (opaque string), `description`, `created_at`; secret returned as `plain_token` on create |
+| Group             | `group-id`, `group-name`, `member-count` | `id` (INTEGER), `name`, `description` |
+| License           | various hyphenated drafts | `edition`, `has_expired`, `is_valid`, `max_clients`, `seat_model`, `type` |
+| AuditEntry        | hyphenated keys | `id` (INT), `action`, `author_id`, `target_id`, `target_type`, `ip_address`, `created_at`, `details` |
+| ServerInfo        | `build-date`, `go-version` | `api`, `go`, `server_id`, `version` |
+| Folder            | `folder-id`, `folder-name`, `parent-folder-id` | `id`, `name`, `folder_id` (parent ref) |
+| ColorPresets      | `annotation-colors`, `note-background-colors`, etc. | `annotation`, `connector`, `note_background`, `note_text` |
+| Workspace fields  | hyphenated drafts | `canvas_id`, `canvas_size`, `info_panel_visible`, `server_id`, `workspace_name`, `workspace_state`, `view_rectangle` |
+| Send-test-email body | `recipient-email` | `recipient-email` (KEPT — confirmed hyphenated request body) |
+| Change-email body | `new-email` | `new-email` (KEPT — confirmed hyphenated) |
+| Change-password body | `old-password`, `new-password` | (KEPT — confirmed hyphenated) |
+| Audit-log query | `per-page`, `start-time`, `user-id` | (KEPT — query parameters) |
+| Clone-source fields | `source-canvas-id` | `source_canvas_id`, `source_widget_id` (UNDERSCORED — verified) |
+| `canvas-id` HTTP header | `canvas-id` | (KEPT — it's an HTTP header, not a JSON key) |
+
+### Removed properties
+
+The per-type `*-id` aliases (`note-id`, `image-id`, `video-id`,
+`pdf-id`, `browser-id`, `anchor-id`, `table-id`, `connector-id`,
+`token-id`, `group-id`, `folder-id`) have all been deleted. The server
+returns a single canonical `id` field on every entity.
+
+### `widget_type` discriminator values
+
+The server emits capitalised `widget_type` strings: `Note`, `Image`,
+`Video`, `Pdf`, `Browser`, `Anchor`, `Connector`, `Table`, `VideoInput`,
+`IpVideo`, `RdpConnection`. The previous lowercase-hyphenated values
+(`note`, `ip-video`, etc.) did not match the wire format.
+
+### Best-guess fields (orchestrator may want to curl-verify)
+
+A few shapes are typed defensively because the live `curl` output was
+not captured in the briefing:
+
+- `Connector` endpoint shape: typed as `{id, rel_location?, auto_location?, tip?}` mirroring the Go SDK's `ConnectorEnd`.
+- `Browser.url` (renamed from `source`): the Go SDK uses `url`; the Python SDK uses `url`. Confirmed; the previous TS `source` field appears to have been wrong.
+- `CanvasPermissions` shape: `{editors_can_share, users: [{id, permission, inherited}], groups: [...], link_permission}` per Go SDK. The old `permission-overrides[]` flat array was the wrong shape.
+- `FolderPermissions`: same pattern as canvas permissions.
+- `ConnectedClient`: typed permissively. Live shape only confirmed `{id, name, user_id, created_at}` from Go SDK.
+- `MipmapInfo` / `ClientVideoOutput`: typed with open index signatures because shapes vary across server builds.
+- `AuditLogPage`: kept hyphenated `total-count` / `per-page` per spec — the live server's audit-log endpoint returns a flat array (`AuditEntry[]`), not a paged envelope, so this type may be vestigial.
+
+All TS examples (01–08) updated to consume the corrected types. No
+example reads `widget-id`, `canvas-id`, `user-id`, `is-admin`,
+`full-name`, `is-pinned`, `note-id`, `background-color`, `widget-type`,
+or any per-type `*-id` alias.
+
 ## 9. Top 3 risks for morning review
 
 1. **RDP / IP-Video field naming** (changelog §5) — unverified. Half a

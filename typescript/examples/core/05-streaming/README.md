@@ -29,7 +29,7 @@ filtered out by the SDK; they never reach the consumer's loop.
 
 | Variable                  | Required | Default | Description                       |
 | ------------------------- | -------- | ------- | --------------------------------- |
-| `CANVUS_BASE_URL`         | yes      |         | API base URL                      |
+| `CANVUS_API_URL`         | yes      |         | API base URL                      |
 | `CANVUS_API_KEY`          | yes      |         | API key with view access          |
 | `CANVUS_CANVAS_ID`        | yes      |         | Canvas to subscribe to            |
 | `STREAM_DURATION_SECONDS` | no       | `30`    | How long to stream before exiting |

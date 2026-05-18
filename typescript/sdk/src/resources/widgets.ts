@@ -45,16 +45,23 @@ export interface UploadMetadata {
   readonly size?: { readonly width: number; readonly height: number };
   readonly depth?: number;
   readonly scale?: number;
-  readonly "is-pinned"?: boolean;
+  readonly pinned?: boolean;
   readonly [key: string]: unknown;
 }
 
-/** Cross-canvas clone arguments (changelog §1). */
+/**
+ * Cross-canvas clone arguments (changelog §1).
+ *
+ * `widgetType` values match the server's `widget_type` discriminator
+ * (capitalised: `Note`, `Image`, `Video`, `Pdf`, `Browser`, `Anchor`,
+ * `Table`). The clone helper internally maps these to the lowercase
+ * plural URL segment.
+ */
 export interface CloneWidgetArgs {
   readonly destCanvasId: Uuid;
   readonly sourceCanvasId: Uuid;
   readonly sourceWidgetId: Uuid;
-  readonly widgetType: "note" | "image" | "video" | "pdf" | "browser" | "anchor" | "table";
+  readonly widgetType: "Note" | "Image" | "Video" | "Pdf" | "Browser" | "Anchor" | "Table";
   readonly location?: { readonly x: number; readonly y: number };
 }
 
@@ -66,13 +73,13 @@ export interface CloneWidgetArgs {
  * `rdp-connections`).
  */
 const SEGMENT: Record<CloneWidgetArgs["widgetType"], string> = {
-  note: "notes",
-  image: "images",
-  video: "videos",
-  pdf: "pdfs",
-  browser: "browsers",
-  anchor: "anchors",
-  table: "tables",
+  Note: "notes",
+  Image: "images",
+  Video: "videos",
+  Pdf: "pdfs",
+  Browser: "browsers",
+  Anchor: "anchors",
+  Table: "tables",
 };
 
 /**
@@ -131,8 +138,9 @@ export class WidgetsResource {
 
   /**
    * Clone a widget into another canvas using the standard create endpoint
-   * with `source-canvas-id` / `source-widget-id` in the body
-   * (per changelog §1).
+   * with `source_canvas_id` / `source_widget_id` in the body
+   * (per changelog §1 — these two clone-source fields are underscored,
+   * matching the rest of the verified wire shape).
    *
    * This is the canonical way to copy widgets across canvases; the
    * historical `/widgets/clone` endpoint returns 501 Not Implemented and
@@ -399,18 +407,18 @@ export class WidgetsResource {
     /**
      * Update a table.
      *
-     * Per changelog §4, the server silently drops `grid-size` from PATCH
+     * Per changelog §4, the server silently drops `grid_size` from PATCH
      * bodies. The SDK filters it out and emits a `logger.warn` so callers
      * notice the no-op.
      */
     update: (canvasId: Uuid, tableId: Uuid, body: UpdateTableRequest): Promise<Table> => {
       const filtered = body as Record<string, unknown>;
-      if ("grid-size" in filtered) {
+      if ("grid_size" in filtered) {
         logger.warn(
           { canvasId, tableId },
-          "ignoring grid-size in table PATCH (server silently drops it)",
+          "ignoring grid_size in table PATCH (server silently drops it)",
         );
-        const { ["grid-size"]: _omit, ...rest } = filtered;
+        const { ["grid_size"]: _omit, ...rest } = filtered;
         void _omit;
         return this.transport.request("PATCH", `canvases/${canvasId}/tables/${tableId}`, rest);
       }
@@ -508,10 +516,10 @@ export class WidgetsResource {
    * rejected by the server with "WidgetType is not supported". The SDK
    * intentionally omits a create method.
    *
-   * Per changelog §5: the C++ serialiser may emit hyphenated keys
-   * (`host-id`, `content-id`, `connection-name`, `host-site`); the types
-   * here follow the public-docs underscored convention. If verification
-   * against a live server shows the hyphenated form, swap the type alias.
+   * Per live-server verification (2026-05-18): the C++ serialiser emits
+   * HYPHENATED keys for `host-id`, `connection-name`, and `content-id`
+   * (other widget fields like `parent_id`, `widget_type` remain
+   * underscored). The `RdpConnection` type reflects this hybrid shape.
    */
   readonly rdpConnections = {
     list: (canvasId: Uuid): Promise<readonly RdpConnection[]> =>

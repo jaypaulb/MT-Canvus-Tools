@@ -59,7 +59,7 @@ func main() {
 }
 
 func run() error {
-	baseURL, err := mustEnv("CANVUS_BASE_URL")
+	baseURL, err := mustEnv("CANVUS_API_URL")
 	if err != nil {
 		return err
 	}

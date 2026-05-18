@@ -4,14 +4,14 @@ import { createSession } from "../../src/index.js";
 /**
  * Live-server integration tests.
  *
- * These run only when `CANVUS_API_BASE_URL` and `CANVUS_API_KEY` are
+ * These run only when `CANVUS_API_URL` and `CANVUS_API_KEY` are
  * exported in the environment; otherwise the suite is skipped. Do NOT
  * hard-code credentials here.
  *
  * Run with:
- *   CANVUS_API_BASE_URL=... CANVUS_API_KEY=... pnpm test:integration
+ *   CANVUS_API_URL=... CANVUS_API_KEY=... pnpm test:integration
  */
-const BASE = process.env.CANVUS_API_BASE_URL;
+const BASE = process.env.CANVUS_API_URL;
 const KEY = process.env.CANVUS_API_KEY;
 const HAVE_CREDS = typeof BASE === "string" && BASE !== "" && typeof KEY === "string" && KEY !== "";
 

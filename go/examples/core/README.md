@@ -12,7 +12,7 @@ ones.
 
 | # | Slug | Purpose | Key env vars | Complexity |
 | --- | --- | --- | --- | --- |
-| 01 | [`01-auth-and-list`](01-auth-and-list/) | Authenticate with API key, list canvases as a tab-aligned table. | `CANVUS_BASE_URL`, `CANVUS_API_KEY` | * |
+| 01 | [`01-auth-and-list`](01-auth-and-list/) | Authenticate with API key, list canvases as a tab-aligned table. | `CANVUS_API_URL`, `CANVUS_API_KEY` | * |
 | 02 | [`02-auth-flows`](02-auth-flows/) | Three auth modes: API key, email+password login, access-token CRUD. | + `CANVUS_EMAIL`, `CANVUS_PASSWORD` | ** |
 | 03 | [`03-widget-crud`](03-widget-crud/) | Create / patch / delete / verify a sticky note. | + `CANVUS_CANVAS_ID` | ** |
 | 04 | [`04-file-upload`](04-file-upload/) | Upload a PNG as an image widget, reposition, optionally clean up. | + `CANVUS_IMAGE_PATH`, `CANVUS_KEEP_WIDGET` | *** |
@@ -67,12 +67,12 @@ your `.env`:
    orchestration platform's secret mechanism. Never bake them into images.
 4. **`env -S` for one-shot runs** — useful in CI:
    ```bash
-   env CANVUS_BASE_URL=... CANVUS_API_KEY=... go run .
+   env CANVUS_API_URL=... CANVUS_API_KEY=... go run .
    ```
 
 ### Where to get .env values
 
-- `CANVUS_BASE_URL` — your Canvus server's URL including `/api/v1/`. The
+- `CANVUS_API_URL` — your Canvus server's URL including `/api/v1/`. The
   dev server is `https://dev-mtcs.multitaction.com/api/v1/`.
 - `CANVUS_API_KEY` — mint from the Canvus UI under
   **Settings → Access Tokens**. Don't reuse a personal token for

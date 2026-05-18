@@ -37,7 +37,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_CANVAS_ID: z.string().min(1),
 });
@@ -59,7 +59,7 @@ function loadEnv(): Env {
 async function run(): Promise<void> {
   const env = loadEnv();
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
   const canvasId = env.CANVUS_CANVAS_ID;
@@ -71,20 +71,20 @@ async function run(): Promise<void> {
     location: { x: 200, y: 200 },
     size: { width: 300, height: 200 },
   });
-  const noteId = created["widget-id"];
+  const noteId = created.id;
   logger.info({ noteId, text: created.text }, "created note");
 
   // Step 3: update.
   const updatedAt = new Date().toISOString();
   const updated = await session.widgets.notes.update(canvasId, noteId, {
     text: `updated from TypeScript @ ${updatedAt}`,
-    "background-color": "#3aaa34ff",
+    background_color: "#3aaa34ff",
   });
   logger.info(
     {
-      noteId: updated["widget-id"],
+      noteId: updated.id,
       text: updated.text,
-      backgroundColor: updated["background-color"],
+      backgroundColor: updated.background_color,
     },
     "updated note",
   );

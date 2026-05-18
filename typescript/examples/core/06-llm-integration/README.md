@@ -28,7 +28,7 @@ Two independent entry points:
 
 | Variable           | Required | Default                    | Description                       |
 | ------------------ | -------- | -------------------------- | --------------------------------- |
-| `CANVUS_BASE_URL`  | yes      |                            | API base URL                      |
+| `CANVUS_API_URL`  | yes      |                            | API base URL                      |
 | `CANVUS_API_KEY`   | yes      |                            | API key with edit access          |
 | `CANVUS_CANVAS_ID` | yes      |                            | Canvas to watch                   |
 | `OLLAMA_URL`       | no       | `http://localhost:11434`   | Ollama API base                   |

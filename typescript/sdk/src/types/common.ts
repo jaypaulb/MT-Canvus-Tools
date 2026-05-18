@@ -1,9 +1,15 @@
 /**
  * Shared primitive shapes used across the Canvus data model.
  *
- * The Canvus API returns kebab-case JSON keys. These types model the wire
- * shape exactly — no key transformation is performed by the SDK so that
- * what you see in `curl` is what you get in TypeScript.
+ * The Canvus API returns mostly underscored JSON keys with a few
+ * hyphenated exceptions (notably `host-id`, `connection-name`,
+ * `content-id` on IP-Video and RDP-Connection widgets, plus a handful
+ * of request-body keys like `new-email`, `old-password`, `new-password`,
+ * `recipient-email`, and audit-log query params).
+ *
+ * These types model the verified wire shape exactly — no key
+ * transformation is performed by the SDK so that what you see in
+ * `curl` is what you get in TypeScript.
  */
 
 /** A 2D point in absolute canvas pixel coordinates. */
@@ -41,7 +47,12 @@ export interface ServerErrorBody {
   readonly error?: string;
 }
 
-/** Generic pagination envelope for list responses with totals. */
+/**
+ * Generic pagination envelope for list responses with totals.
+ *
+ * The Canvus spec uses hyphenated keys for paging metadata
+ * (`total-count`, `per-page`).
+ */
 export interface PagedResult<T> {
   readonly events?: readonly T[];
   readonly items?: readonly T[];

@@ -29,7 +29,7 @@ export interface StreamOptions {
  * for await (const event of streamNdjson<Canvas>(transport, "canvases", {
  *   signal: ctrl.signal,
  * })) {
- *   logger.info({ id: event["canvas-id"] }, "canvas event");
+ *   logger.info({ id: event.id }, "canvas event");
  * }
  * ```
  *

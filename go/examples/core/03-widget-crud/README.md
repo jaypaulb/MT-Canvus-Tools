@@ -23,7 +23,7 @@ interesting one and you should not chase its cascade.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | yes | API key with write access on the target canvas. |
 | `CANVUS_CANVAS_ID` | yes | UUID of the target canvas. |
 | `LOG_FORMAT` | no | `text` (default) or `json`. |

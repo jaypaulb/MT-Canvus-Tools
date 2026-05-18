@@ -36,7 +36,7 @@ export type Config = z.infer<typeof ConfigSchema>;
  */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = ConfigSchema.safeParse({
-    apiBaseUrl: env.CANVUS_API_BASE_URL,
+    apiBaseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
     timeoutMs: env.CANVUS_TIMEOUT_MS,
     verifyTls: env.CANVUS_VERIFY_TLS,

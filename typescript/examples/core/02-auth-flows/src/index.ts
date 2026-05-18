@@ -41,7 +41,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_EMAIL: z.string().email().optional(),
   CANVUS_PASSWORD: z.string().min(1).optional(),
@@ -70,7 +70,7 @@ function loadEnv(): Env {
 async function runApiKey(env: Env): Promise<void> {
   logger.info({ mode: "api-key" }, "trying API-key auth");
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
   const canvases = await session.canvases.list();
@@ -89,10 +89,13 @@ async function runApiKey(env: Env): Promise<void> {
 /**
  * Result of a successful login: the authenticated session plus the
  * logged-in user's id (needed for access-token CRUD).
+ *
+ * Note: `User.id` is an INTEGER on the live server (per
+ * VERIFIED-CORRECTIONS.md §6); we keep it as a number for type fidelity.
  */
 interface LoggedIn {
   readonly session: Session;
-  readonly userId: string;
+  readonly userId: number;
 }
 
 async function runLogin(env: Env): Promise<LoggedIn | undefined> {
@@ -107,7 +110,7 @@ async function runLogin(env: Env): Promise<LoggedIn | undefined> {
   logger.info({ mode: "login", email: env.CANVUS_EMAIL }, "trying login auth");
 
   // Step 1: unauthenticated session to call /users/login.
-  const anonymous = createSession({ baseUrl: env.CANVUS_BASE_URL });
+  const anonymous = createSession({ baseUrl: env.CANVUS_API_URL });
   const login = await anonymous.auth.login({
     // VERIFIED-CORRECTIONS.md §4: send `email` ONLY.
     email: env.CANVUS_EMAIL,
@@ -116,17 +119,17 @@ async function runLogin(env: Env): Promise<LoggedIn | undefined> {
 
   // Step 2: build a new session using the returned session token.
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: login.token,
   });
-  const userId = String(login.user["user-id"]);
+  const userId = login.user.id;
   const me = await session.users.get(userId);
   logger.info(
     {
       mode: "login",
-      userId: me["user-id"],
+      userId: me.id,
       email: me.email,
-      isAdmin: me["is-admin"],
+      isAdmin: me.admin,
     },
     "login auth succeeded",
   );
@@ -156,10 +159,10 @@ async function runTokenLifecycle(loggedIn: LoggedIn | undefined): Promise<void> 
 
   // Create.
   const created = await session.auth.createAccessToken(userId, {
-    name: tokenName,
+    description: tokenName,
   });
   logger.info(
-    { mode: "token", tokenId: created["token-id"], name: created.name },
+    { mode: "token", tokenId: created.id, description: created.description },
     "minted access token",
   );
 
@@ -171,9 +174,9 @@ async function runTokenLifecycle(loggedIn: LoggedIn | undefined): Promise<void> 
   );
 
   // Revoke (cleanup).
-  await session.auth.deleteAccessToken(userId, created["token-id"]);
+  await session.auth.deleteAccessToken(userId, created.id);
   logger.info(
-    { mode: "token", tokenId: created["token-id"] },
+    { mode: "token", tokenId: created.id },
     "revoked access token",
   );
 }

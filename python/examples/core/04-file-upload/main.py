@@ -15,7 +15,6 @@ Steps:
 from __future__ import annotations
 
 import asyncio
-import os
 import struct
 import sys
 import zlib
@@ -170,9 +169,8 @@ async def main() -> int:
         )
 
         # Step 5: cleanup
-        keep = settings.keep_widget or os.environ.get("CANVUS_KEEP_WIDGET") == "1"
-        if keep:
-            logger.info("cleanup skipped (CANVUS_KEEP_WIDGET=1)", widget_id=widget_id)
+        if settings.keep_widget:
+            logger.info("cleanup skipped (CANVUS_KEEP_WIDGET set)", widget_id=widget_id)
         else:
             try:
                 await client.widgets.images.delete(canvas_id, widget_id)

@@ -14,7 +14,7 @@ and 3 are skipped with a warning — you still get a useful smoke test.
 
 ## Prerequisites
 
-- A Canvus server reachable on `CANVUS_BASE_URL`.
+- A Canvus server reachable on `CANVUS_API_URL`.
 - One or both of: a long-lived API key, and an email/password pair valid on
   that server.
 
@@ -22,7 +22,7 @@ and 3 are skipped with a warning — you still get a useful smoke test.
 
 | Variable | Required for | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | all paths | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | all paths | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | path 1 | Long-lived API key. |
 | `CANVUS_EMAIL` | paths 2 + 3 | Account email address. |
 | `CANVUS_PASSWORD` | paths 2 + 3 | Account password. |

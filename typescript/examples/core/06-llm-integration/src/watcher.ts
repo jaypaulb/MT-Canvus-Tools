@@ -37,7 +37,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_CANVAS_ID: z.string().min(1),
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
@@ -87,7 +87,7 @@ async function askOllama(env: Env, prompt: string): Promise<string> {
 async function run(): Promise<void> {
   const env = loadEnv();
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
 
@@ -119,7 +119,7 @@ async function run(): Promise<void> {
     const notes: readonly Note[] = Array.isArray(raw) ? raw : [raw as Note];
 
     for (const note of notes) {
-      const id = note["widget-id"];
+      const id = note.id;
       if (seen.has(id)) continue;
       seen.add(id);
 
@@ -145,16 +145,16 @@ async function run(): Promise<void> {
               y: note.location.y,
             },
             size: note.size,
-            "background-color": "#1d71b8ff",
-            "auto-text-color": true,
+            background_color: "#1d71b8ff",
+            auto_text_color: true,
           },
         );
         // Add the answer's id to `seen` so it does not retrigger.
-        seen.add(answered["widget-id"]);
+        seen.add(answered.id);
         logger.info(
           {
             questionNoteId: id,
-            answerNoteId: answered["widget-id"],
+            answerNoteId: answered.id,
             answerLength: answer.length,
           },
           "posted answer note",

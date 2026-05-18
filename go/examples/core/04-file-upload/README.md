@@ -17,7 +17,7 @@ unmistakeable to find on the canvas.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | yes | API key with write access. |
 | `CANVUS_CANVAS_ID` | no | Target canvas. Auto-picked if unset. |
 | `CANVUS_IMAGE_PATH` | no | Path to upload. Default: `./sample.png` (auto-generated if missing). |

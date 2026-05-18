@@ -27,7 +27,7 @@ SDK. Don't try to call it.
 
 | Variable                   | Required | Description                                       |
 | -------------------------- | -------- | ------------------------------------------------- |
-| `CANVUS_BASE_URL`          | yes      | API base URL                                      |
+| `CANVUS_API_URL`          | yes      | API base URL                                      |
 | `CANVUS_API_KEY`           | yes      | API key                                           |
 | `CANVUS_CANVAS_ID`         | yes      | Source canvas                                     |
 | `CANVUS_SOURCE_WIDGET_ID`  | yes      | Widget to clone from source                       |
@@ -45,7 +45,8 @@ pnpm dev
 The example does the work in three SDK calls:
 
 1. **Discover type** — `session.widgets.get(canvasId, widgetId)` returns
-   a discriminated `Widget` union. Its `widget-type` tells the clone
+   a discriminated `Widget` union. Its `widget_type` (underscored,
+   capitalised values like `Note`, `Image`, `Pdf`) tells the clone
    helper which sub-endpoint to target.
 2. **Clone** — `session.widgets.clone({...})` POSTs to
    `POST /canvases/{destCanvasId}/{type-segment}` with
@@ -58,13 +59,13 @@ The example does the work in three SDK calls:
 
 ### Which widget types can be cloned
 
-The clone helper supports: `note`, `image`, `video`, `pdf`, `browser`,
-`anchor`, `table`. Other widget types are intentionally excluded:
+The clone helper supports: `Note`, `Image`, `Video`, `Pdf`, `Browser`,
+`Anchor`, `Table`. Other widget types are intentionally excluded:
 
-- **`connector`** is positional metadata between two widgets — clone
+- **`Connector`** is positional metadata between two widgets — clone
   the endpoints, then create a new connector.
-- **`video-input`** is tied to a specific hardware source.
-- **`ip-video`** and **`rdp-connection`** cannot be created via the
+- **`VideoInput`** is tied to a specific hardware source.
+- **`IpVideo`** and **`RdpConnection`** cannot be created via the
   API at all (changelog §2); they can only be authored from the
   Canvus desktop client.
 

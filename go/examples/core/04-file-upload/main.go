@@ -37,7 +37,7 @@ func main() {
 }
 
 func run() error {
-	baseURL, err := mustEnv("CANVUS_BASE_URL")
+	baseURL, err := mustEnv("CANVUS_API_URL")
 	if err != nil {
 		return err
 	}
@@ -91,11 +91,11 @@ func run() error {
 		slog.Info("CANVUS_KEEP_WIDGET=1 — leaving widget on canvas")
 	}
 
-	// Reposition + scale.
+	// Reposition + scale. The endpoint pins widget_type as a server-set
+	// discriminator; sending it in the PATCH body is unnecessary.
 	patch := map[string]any{
-		"widget_type": "image",
-		"location":    map[string]any{"x": 100, "y": 200},
-		"scale":       0.5,
+		"location": map[string]any{"x": 100, "y": 200},
+		"scale":    0.5,
 	}
 	updated, err := s.UpdateImage(ctx, canvasID, img.ID, patch)
 	if err != nil {

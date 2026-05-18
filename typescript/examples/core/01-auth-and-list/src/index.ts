@@ -2,7 +2,7 @@
  * Example 01 — auth-and-list.
  *
  * Smoke test: authenticate with an API key, list canvases, and print a
- * summary table to stdout. If this works, your `CANVUS_BASE_URL` and
+ * summary table to stdout. If this works, your `CANVUS_API_URL` and
  * `CANVUS_API_KEY` are valid and your network can reach the server.
  */
 
@@ -26,7 +26,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
 });
 
@@ -60,25 +60,25 @@ async function run(): Promise<void> {
   const env = loadEnv();
 
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
 
-  logger.info({ baseUrl: env.CANVUS_BASE_URL }, "listing canvases");
+  logger.info({ baseUrl: env.CANVUS_API_URL }, "listing canvases");
   const canvases = await session.canvases.list();
   logger.info({ count: canvases.length }, "fetched canvases");
 
   // Format as a padded table. Avoid console.table because it does not
   // truncate UUIDs and produces unreadable output when names are long.
-  const header = `${pad("ID", 38)}${pad("NAME", 42)}${pad("OWNER", 24)}MODIFIED`;
+  const header = `${pad("ID", 38)}${pad("NAME", 42)}${pad("MODE", 10)}MODIFIED`;
   process.stdout.write(`${header}\n`);
   process.stdout.write(`${"-".repeat(header.length)}\n`);
   for (const canvas of canvases) {
-    const id = canvas["canvas-id"];
-    const name = truncate(canvas["canvas-name"], 40);
-    const owner = truncate(canvas.owner, 22);
-    const modified = canvas.modified;
-    process.stdout.write(`${pad(id, 38)}${pad(name, 42)}${pad(owner, 24)}${modified}\n`);
+    const id = canvas.id;
+    const name = truncate(canvas.name, 40);
+    const mode = truncate(canvas.mode, 8);
+    const modified = canvas.modified_at ?? "";
+    process.stdout.write(`${pad(id, 38)}${pad(name, 42)}${pad(mode, 10)}${modified}\n`);
   }
 }
 

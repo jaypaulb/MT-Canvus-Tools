@@ -1,6 +1,5 @@
 import type { Transport } from "../transport.js";
 import { streamNdjson, type StreamOptions } from "../streaming.js";
-import type { Uuid } from "../types/common.js";
 import type {
   AddGroupMemberRequest,
   ChangeEmailRequest,
@@ -11,6 +10,15 @@ import type {
   UpdateUserRequest,
   User,
 } from "../types/user.js";
+
+/**
+ * User and group identifiers are INTEGERS on the live Canvus server
+ * (per VERIFIED-CORRECTIONS.md §6 / §7). Callers may pass either a
+ * `number` (preferred) or a stringified number; both are coerced to
+ * a path segment.
+ */
+type UserId = number | string;
+type GroupId = number | string;
 
 /**
  * User and group management endpoints.
@@ -34,12 +42,12 @@ export class UsersResource {
   }
 
   /** `GET /api/v1/users/{uid}`. */
-  async get(userId: Uuid): Promise<User> {
+  async get(userId: UserId): Promise<User> {
     return this.transport.request<User>("GET", `users/${userId}`);
   }
 
   /** Subscribe to a single user. */
-  subscribeOne(userId: Uuid, opts?: StreamOptions): AsyncGenerator<User, void, void> {
+  subscribeOne(userId: UserId, opts?: StreamOptions): AsyncGenerator<User, void, void> {
     return streamNdjson<User>(this.transport, `users/${userId}`, opts);
   }
 
@@ -49,12 +57,12 @@ export class UsersResource {
   }
 
   /** `PATCH /api/v1/users/{uid}` — update profile fields. */
-  async update(userId: Uuid, body: UpdateUserRequest): Promise<User> {
+  async update(userId: UserId, body: UpdateUserRequest): Promise<User> {
     return this.transport.request<User>("PATCH", `users/${userId}`, body);
   }
 
   /** `POST /api/v1/users/{uid}/change-email` — request an email change. */
-  async changeEmail(userId: Uuid, body: ChangeEmailRequest): Promise<{ readonly msg: string }> {
+  async changeEmail(userId: UserId, body: ChangeEmailRequest): Promise<{ readonly msg: string }> {
     return this.transport.request<{ readonly msg: string }>(
       "POST",
       `users/${userId}/change-email`,
@@ -63,22 +71,22 @@ export class UsersResource {
   }
 
   /** `POST /api/v1/users/{uid}/block` — block (admin only). */
-  async block(userId: Uuid): Promise<User> {
+  async block(userId: UserId): Promise<User> {
     return this.transport.request<User>("POST", `users/${userId}/block`, {});
   }
 
   /** `POST /api/v1/users/{uid}/unblock` — unblock (admin only). */
-  async unblock(userId: Uuid): Promise<User> {
+  async unblock(userId: UserId): Promise<User> {
     return this.transport.request<User>("POST", `users/${userId}/unblock`, {});
   }
 
   /** `POST /api/v1/users/{uid}/approve` — approve a pending registration. */
-  async approve(userId: Uuid): Promise<User> {
+  async approve(userId: UserId): Promise<User> {
     return this.transport.request<User>("POST", `users/${userId}/approve`, {});
   }
 
   /** `POST /api/v1/users/{uid}/reset-password` — force a reset (admin only). */
-  async forcePasswordReset(userId: Uuid): Promise<{ readonly msg: string }> {
+  async forcePasswordReset(userId: UserId): Promise<{ readonly msg: string }> {
     return this.transport.request<{ readonly msg: string }>(
       "POST",
       `users/${userId}/reset-password`,
@@ -87,7 +95,7 @@ export class UsersResource {
   }
 
   /** `DELETE /api/v1/users/{uid}` — permanently delete (admin only). */
-  async delete(userId: Uuid): Promise<void> {
+  async delete(userId: UserId): Promise<void> {
     await this.transport.request<void>("DELETE", `users/${userId}`);
   }
 
@@ -104,12 +112,12 @@ export class UsersResource {
   }
 
   /** `GET /api/v1/groups/{gid}`. */
-  async getGroup(groupId: Uuid): Promise<Group> {
+  async getGroup(groupId: GroupId): Promise<Group> {
     return this.transport.request<Group>("GET", `groups/${groupId}`);
   }
 
   /** Subscribe to a single group. */
-  subscribeGroup(groupId: Uuid, opts?: StreamOptions): AsyncGenerator<Group, void, void> {
+  subscribeGroup(groupId: GroupId, opts?: StreamOptions): AsyncGenerator<Group, void, void> {
     return streamNdjson<Group>(this.transport, `groups/${groupId}`, opts);
   }
 
@@ -119,35 +127,35 @@ export class UsersResource {
   }
 
   /** `PATCH /api/v1/groups/{gid}`. */
-  async updateGroup(groupId: Uuid, body: UpdateGroupRequest): Promise<Group> {
+  async updateGroup(groupId: GroupId, body: UpdateGroupRequest): Promise<Group> {
     return this.transport.request<Group>("PATCH", `groups/${groupId}`, body);
   }
 
   /** `DELETE /api/v1/groups/{gid}`. */
-  async deleteGroup(groupId: Uuid): Promise<void> {
+  async deleteGroup(groupId: GroupId): Promise<void> {
     await this.transport.request<void>("DELETE", `groups/${groupId}`);
   }
 
   /** `GET /api/v1/groups/{gid}/members` — list members. */
-  async listGroupMembers(groupId: Uuid): Promise<readonly User[]> {
+  async listGroupMembers(groupId: GroupId): Promise<readonly User[]> {
     return this.transport.request<readonly User[]>("GET", `groups/${groupId}/members`);
   }
 
   /** Subscribe to a group's member list. */
   subscribeGroupMembers(
-    groupId: Uuid,
+    groupId: GroupId,
     opts?: StreamOptions,
   ): AsyncGenerator<User, void, void> {
     return streamNdjson<User>(this.transport, `groups/${groupId}/members`, opts);
   }
 
   /** `POST /api/v1/groups/{gid}/members` — add a user. */
-  async addGroupMember(groupId: Uuid, body: AddGroupMemberRequest): Promise<void> {
+  async addGroupMember(groupId: GroupId, body: AddGroupMemberRequest): Promise<void> {
     await this.transport.request<void>("POST", `groups/${groupId}/members`, body);
   }
 
   /** `DELETE /api/v1/groups/{gid}/members/{uid}` — remove a user. */
-  async removeGroupMember(groupId: Uuid, userId: Uuid): Promise<void> {
+  async removeGroupMember(groupId: GroupId, userId: UserId): Promise<void> {
     await this.transport.request<void>("DELETE", `groups/${groupId}/members/${userId}`);
   }
 }

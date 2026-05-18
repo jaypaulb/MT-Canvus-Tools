@@ -9,12 +9,13 @@ class User(CanvusModel):
     """A Canvus user.
 
     Note:
-        Per spec, ``id`` is a UUID string (not an integer). The legacy
-        ``CanvusPythonAPI`` typed this as ``int``; the migrated SDK uses
-        ``str`` everywhere — see ``MIGRATION-NOTES.md`` work item #21.
+        Server v1.2 uses INTEGER user IDs, not UUID strings. Live testing
+        against dev-mtcs.multitaction.com (``audit_log.author_id`` and
+        ``/users/me`` rejection) verified this; see
+        ``docs/api-reference/VERIFIED-CORRECTIONS.md`` §6.
     """
 
-    id: str | None = None
+    id: int | None = None
     email: str
     name: str
     password: str | None = None
@@ -27,9 +28,9 @@ class User(CanvusModel):
 
 
 class Group(CanvusModel):
-    """A user group."""
+    """A user group. Group IDs are integers."""
 
-    id: str
+    id: int
     name: str
     description: str | None = None
     created_at: str | None = None
@@ -38,9 +39,9 @@ class Group(CanvusModel):
 
 
 class GroupMember(CanvusModel):
-    """A member of a user group."""
+    """A member of a user group. Member IDs are integer user IDs."""
 
-    id: str
+    id: int
     name: str
     email: str
     admin: bool = False

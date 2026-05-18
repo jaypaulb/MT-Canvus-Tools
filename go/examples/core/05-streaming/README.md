@@ -18,7 +18,7 @@ pattern.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | yes | API key with read access. |
 | `CANVUS_CANVAS_ID` | yes | UUID of the canvas to subscribe to. |
 | `STREAM_DURATION_SECONDS` | no | Auto-shutdown timer (default 30). |

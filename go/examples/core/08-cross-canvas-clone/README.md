@@ -27,7 +27,7 @@ body and clone the widget rather than creating a new one from scratch.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | yes | API key with edit access on dest, view on source. |
 | `CANVUS_CANVAS_ID` | yes | Source canvas UUID. |
 | `CANVUS_DEST_CANVAS_ID` | yes | Destination canvas UUID. |

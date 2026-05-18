@@ -34,7 +34,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_CANVAS_ID: z.string().min(1),
   STREAM_DURATION_SECONDS: z.coerce.number().int().positive().default(30),
@@ -64,7 +64,7 @@ interface Stats {
 async function run(): Promise<void> {
   const env = loadEnv();
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
 
@@ -140,7 +140,7 @@ function summarise(event: Note | readonly Note[]): void {
       {
         kind: "snapshot",
         count: event.length,
-        firstId: first?.["widget-id"],
+        firstId: first?.id,
         firstText: first ? truncate(first.text, 40) : undefined,
       },
       "snapshot",
@@ -151,7 +151,7 @@ function summarise(event: Note | readonly Note[]): void {
   logger.info(
     {
       kind: "note-event",
-      widgetId: note["widget-id"],
+      widgetId: note.id,
       text: truncate(note.text, 80),
     },
     "note event",

@@ -31,7 +31,7 @@ running steps 2–6 once step 1 has failed.
 
 | Variable           | Required | Description                                       |
 | ------------------ | -------- | ------------------------------------------------- |
-| `CANVUS_BASE_URL`  | yes      | API base URL                                      |
+| `CANVUS_API_URL`  | yes      | API base URL                                      |
 | `CANVUS_API_KEY`   | yes      | Long-lived API key with edit access               |
 | `CANVUS_CANVAS_ID` | yes      | Canvas the note will be written to                |
 
@@ -49,6 +49,10 @@ pnpm dev
 {"level":30,"component":"example-widget-crud","noteId":"...","msg":"deleted note"}
 {"level":30,"component":"example-widget-crud","noteId":"...","msg":"delete verified — GET returned 404 as expected"}
 ```
+
+Note: the SDK Note type uses underscored field names (`id`,
+`background_color`, `text_color`, `auto_text_color`) to match the live
+Canvus v1.2 wire shape.
 
 ## How it works
 

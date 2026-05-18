@@ -26,7 +26,7 @@ The Canvus API has no built-in webhook system. This example shows the
 
 | Variable           | Required | Description                                       |
 | ------------------ | -------- | ------------------------------------------------- |
-| `CANVUS_BASE_URL`  | yes      | API base URL                                      |
+| `CANVUS_API_URL`  | yes      | API base URL                                      |
 | `CANVUS_API_KEY`   | yes      | API key with view access                          |
 | `CANVUS_CANVAS_ID` | yes      | Canvas to watch                                   |
 | `WEBHOOK_URL`      | yes      | Receiving webhook endpoint                        |
@@ -45,10 +45,14 @@ a few seconds, your webhook receiver should see a POST with the body:
   "event": "widget.created",
   "canvas_id": "...",
   "widget_id": "...",
-  "widget_type": "note",
+  "widget_type": "Note",
   "timestamp": "2026-05-18T12:34:56.789Z"
 }
 ```
+
+`widget_type` values match the server's discriminator: `Note`, `Image`,
+`Video`, `Pdf`, `Browser`, `Anchor`, `Connector`, `Table`, `VideoInput`,
+`IpVideo`, `RdpConnection`.
 
 Press Ctrl-C to stop the bridge.
 

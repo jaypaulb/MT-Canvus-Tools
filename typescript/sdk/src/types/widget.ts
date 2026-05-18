@@ -3,33 +3,42 @@ import type { AssetHash, HexColor, Location, Size, Uuid } from "./common.js";
 /**
  * Discriminator for every widget type known to the Canvus API.
  *
- * Note: `ip-video` and `rdp-connection` are intentionally included so that
- * GET/PATCH/DELETE remain typed, but POST helpers for these two types are
- * not exposed — see {@link IpVideo} / {@link RdpConnection} and the
- * changelog §2 entry.
+ * Values are the literal strings the server emits in `widget_type`.
+ * Verified against dev-mtcs.multitaction.com (v1.2):
+ * `Note`, `Image`, `Video`, `Pdf`, `Browser`, `Anchor`, `Connector`,
+ * `Table`, `VideoInput`, `IpVideo`, `RdpConnection`.
  */
 export type WidgetKind =
-  | "note"
-  | "image"
-  | "video"
-  | "pdf"
-  | "browser"
-  | "anchor"
-  | "connector"
-  | "table"
-  | "video-input"
-  | "ip-video"
-  | "rdp-connection";
+  | "Note"
+  | "Image"
+  | "Video"
+  | "Pdf"
+  | "Browser"
+  | "Anchor"
+  | "Connector"
+  | "Table"
+  | "VideoInput"
+  | "IpVideo"
+  | "RdpConnection";
 
-/** Fields common to every widget. */
+/**
+ * Fields common to every widget.
+ *
+ * Live-server verification (2026-05-18) established that the server emits
+ * UNDERSCORED keys for the canonical widget fields: `id`, `widget_type`,
+ * `parent_id`, `pinned`, etc. The previous hyphenated forms
+ * (`widget-id`, `widget-type`, `is-pinned`) do not exist on the wire.
+ */
 export interface BaseWidget {
-  readonly "widget-id": Uuid;
-  readonly "widget-type": WidgetKind;
+  readonly id: Uuid;
+  readonly widget_type: WidgetKind;
+  readonly parent_id: Uuid;
   readonly location: Location;
   readonly depth: number;
   readonly size: Size;
   readonly scale: number;
-  readonly "is-pinned": boolean;
+  readonly pinned: boolean;
+  readonly state: string;
 }
 
 /** Fields that any widget can accept on create/update. */
@@ -38,12 +47,13 @@ export interface WidgetMutableBase {
   readonly depth?: number;
   readonly size?: Size;
   readonly scale?: number;
-  readonly "is-pinned"?: boolean;
+  readonly pinned?: boolean;
+  readonly parent_id?: Uuid;
 }
 
 /** Source-widget reference used by the cross-canvas clone endpoint.
  * The clone source fields use underscores (`source_canvas_id`) per the
- * Phase 4 changelog §1 source note — most other API fields use hyphens. */
+ * Phase 4 changelog §1 source note. */
 export interface CloneSource {
   readonly source_canvas_id: Uuid;
   readonly source_widget_id: Uuid;
@@ -53,21 +63,20 @@ export interface CloneSource {
 // ---------- Note ----------
 
 export interface Note extends BaseWidget {
-  readonly "widget-type": "note";
-  readonly "note-id": Uuid;
+  readonly widget_type: "Note";
   readonly text: string;
   readonly title?: string;
-  readonly "background-color": HexColor;
-  readonly "text-color": HexColor;
-  readonly "auto-text-color": boolean;
+  readonly background_color: HexColor;
+  readonly text_color: HexColor;
+  readonly auto_text_color: boolean;
 }
 
 export interface CreateNoteRequest extends WidgetMutableBase {
   readonly text?: string;
   readonly title?: string;
-  readonly "background-color"?: HexColor;
-  readonly "text-color"?: HexColor;
-  readonly "auto-text-color"?: boolean;
+  readonly background_color?: HexColor;
+  readonly text_color?: HexColor;
+  readonly auto_text_color?: boolean;
 }
 
 export type UpdateNoteRequest = CreateNoteRequest;
@@ -75,14 +84,12 @@ export type UpdateNoteRequest = CreateNoteRequest;
 // ---------- Image ----------
 
 export interface Image extends BaseWidget {
-  readonly "widget-type": "image";
-  readonly "image-id": Uuid;
-  readonly "original-filename": string;
+  readonly widget_type: "Image";
+  readonly hash: AssetHash;
+  readonly original_filename: string;
   readonly title?: string;
-  readonly "asset-hash": AssetHash;
-  readonly "asset-hash-private"?: AssetHash;
-  readonly "mime-type": string;
-  readonly "file-size": number;
+  readonly mime_type?: string;
+  readonly file_size?: number;
 }
 
 export interface ImageMetadata extends WidgetMutableBase {
@@ -93,28 +100,25 @@ export type UpdateImageRequest = ImageMetadata;
 
 // ---------- Video ----------
 
-export type VideoPlaybackState = "playing" | "paused" | "stopped";
+export type VideoPlaybackState = "playing" | "paused" | "stopped" | "PLAYING" | "PAUSED" | "STOPPED";
 
 export interface Video extends BaseWidget {
-  readonly "widget-type": "video";
-  readonly "video-id": Uuid;
-  readonly "original-filename": string;
+  readonly widget_type: "Video";
+  readonly hash: AssetHash;
+  readonly original_filename: string;
   readonly title?: string;
-  readonly "asset-hash": AssetHash;
-  readonly "mime-type": string;
-  readonly "file-size": number;
-  readonly "seek-position"?: number;
-  readonly "seek-timestamp"?: string;
-  readonly "playback-state": VideoPlaybackState;
-  readonly muted: boolean;
+  readonly mime_type?: string;
+  readonly file_size?: number;
+  readonly playback_position?: number;
+  readonly playback_state?: VideoPlaybackState;
+  readonly muted?: boolean;
   readonly duration?: string;
 }
 
 export interface VideoMetadata extends WidgetMutableBase {
   readonly title?: string;
-  readonly "seek-position"?: number;
-  readonly "seek-timestamp"?: string;
-  readonly "playback-state"?: VideoPlaybackState;
+  readonly playback_position?: number;
+  readonly playback_state?: VideoPlaybackState;
   readonly muted?: boolean;
 }
 
@@ -123,15 +127,14 @@ export type UpdateVideoRequest = VideoMetadata;
 // ---------- PDF ----------
 
 export interface Pdf extends BaseWidget {
-  readonly "widget-type": "pdf";
-  readonly "pdf-id": Uuid;
-  readonly "original-filename": string;
+  readonly widget_type: "Pdf";
+  readonly hash: AssetHash;
+  readonly original_filename: string;
   readonly title?: string;
-  readonly "asset-hash": AssetHash;
-  readonly "mime-type": string;
-  readonly "file-size": number;
+  readonly mime_type?: string;
+  readonly file_size?: number;
   readonly index: number;
-  readonly "page-count"?: number;
+  readonly page_count?: number;
 }
 
 export interface PdfMetadata extends WidgetMutableBase {
@@ -144,37 +147,37 @@ export type UpdatePdfRequest = PdfMetadata;
 // ---------- Browser ----------
 
 export interface Browser extends BaseWidget {
-  readonly "widget-type": "browser";
-  readonly "browser-id": Uuid;
-  readonly source: string;
+  readonly widget_type: "Browser";
+  readonly url: string;
   readonly title?: string;
-  readonly "transparent-mode": boolean;
-  readonly "main-frame-scroll-offset": Location;
+  readonly transparent_mode: boolean;
+  readonly main_frame_scroll_offset?: Location;
 }
 
 export interface CreateBrowserRequest extends WidgetMutableBase {
-  readonly source: string;
+  readonly url: string;
   readonly title?: string;
-  readonly "transparent-mode"?: boolean;
+  readonly transparent_mode?: boolean;
 }
 
 export interface UpdateBrowserRequest extends WidgetMutableBase {
-  readonly source?: string;
+  readonly url?: string;
   readonly title?: string;
-  readonly "transparent-mode"?: boolean;
-  readonly "main-frame-scroll-offset"?: Location;
+  readonly transparent_mode?: boolean;
+  readonly main_frame_scroll_offset?: Location;
 }
 
 // ---------- Anchor ----------
 
 export interface Anchor extends BaseWidget {
-  readonly "widget-type": "anchor";
-  readonly "anchor-id": Uuid;
-  readonly "anchor-name": string;
+  readonly widget_type: "Anchor";
+  readonly anchor_index: number;
+  readonly anchor_name: string;
 }
 
 export interface CreateAnchorRequest extends WidgetMutableBase {
-  readonly "anchor-name"?: string;
+  readonly anchor_name?: string;
+  readonly anchor_index?: number;
 }
 
 export type UpdateAnchorRequest = CreateAnchorRequest;
@@ -184,35 +187,39 @@ export type UpdateAnchorRequest = CreateAnchorRequest;
 export type ConnectorType = "line" | "curve" | "arrow";
 export type ConnectorTip = "none" | "arrow" | "circle";
 
+/** One endpoint of a connector. */
+export interface ConnectorEndpoint {
+  readonly id: Uuid;
+  readonly rel_location?: Location;
+  readonly auto_location?: boolean;
+  readonly tip?: ConnectorTip;
+}
+
+/**
+ * Connector widget.
+ *
+ * Connectors don't have a `parent_id` in the same sense as other widgets;
+ * they reference two endpoints (`src` / `dst`). The wire shape uses
+ * underscored field names like other widgets.
+ */
 export interface Connector {
-  readonly "widget-type": "connector";
-  readonly "connector-id": Uuid;
-  readonly "connector-type": ConnectorType;
-  readonly src: Uuid;
-  readonly "src-rel-location": Location;
-  readonly "src-auto-location": boolean;
-  readonly "src-tip": ConnectorTip;
-  readonly dst: Uuid;
-  readonly "dst-rel-location": Location;
-  readonly "dst-auto-location": boolean;
-  readonly "dst-tip": ConnectorTip;
-  readonly "line-color": HexColor;
-  readonly "line-width": number;
+  readonly id: Uuid;
+  readonly widget_type: "Connector";
+  readonly state?: string;
   readonly depth: number;
+  readonly src?: ConnectorEndpoint;
+  readonly dst?: ConnectorEndpoint;
+  readonly line_color: HexColor;
+  readonly line_width: number;
+  readonly type: ConnectorType;
 }
 
 export interface CreateConnectorRequest {
-  readonly src: Uuid;
-  readonly dst: Uuid;
-  readonly "connector-type"?: ConnectorType;
-  readonly "src-rel-location"?: Location;
-  readonly "src-auto-location"?: boolean;
-  readonly "src-tip"?: ConnectorTip;
-  readonly "dst-rel-location"?: Location;
-  readonly "dst-auto-location"?: boolean;
-  readonly "dst-tip"?: ConnectorTip;
-  readonly "line-color"?: HexColor;
-  readonly "line-width"?: number;
+  readonly src: ConnectorEndpoint | Uuid;
+  readonly dst: ConnectorEndpoint | Uuid;
+  readonly type?: ConnectorType;
+  readonly line_color?: HexColor;
+  readonly line_width?: number;
   readonly depth?: number;
 }
 
@@ -228,24 +235,23 @@ export interface GridSize {
 /**
  * Table widget.
  *
- * Per changelog §3, the server does not currently serialise `column-widths`
- * or `row-heights`. They were previously documented as read-only response
+ * Per changelog §3, the server does not currently serialise `column_widths`
+ * or `row_heights`. They were previously documented as read-only response
  * fields but are intentionally omitted from this type.
  */
 export interface Table extends BaseWidget {
-  readonly "widget-type": "table";
-  readonly "table-id": Uuid;
+  readonly widget_type: "Table";
   readonly title?: string;
-  readonly "grid-size": GridSize;
+  readonly grid_size?: GridSize;
 }
 
 export interface CreateTableRequest extends WidgetMutableBase {
   readonly title?: string;
-  readonly "grid-size": GridSize;
+  readonly grid_size: GridSize;
 }
 
 /**
- * Per changelog §4, including `grid-size` in a PATCH request is silently
+ * Per changelog §4, including `grid_size` in a PATCH request is silently
  * ignored by the server. The SDK filters it out before sending and emits
  * a logger.warn.
  */
@@ -255,22 +261,32 @@ export interface UpdateTableRequest extends WidgetMutableBase {
 
 /** A single cell in a {@link Table}. */
 export interface TableCell {
-  readonly "cell-id": Uuid;
-  readonly index: readonly [number, number];
-  readonly content: string;
+  readonly column: number;
+  readonly row: number;
+  readonly text: string;
+  readonly background_color?: HexColor;
+  readonly text_color?: HexColor;
 }
 
 // ---------- Video Input (canvas-scoped) ----------
 
+/**
+ * Canvas-scoped video-input widget.
+ *
+ * Live-server verification: `host-id` is HYPHENATED on the wire (it's
+ * an external client/host reference); other widget fields use underscores.
+ */
 export interface VideoInput extends BaseWidget {
-  readonly "widget-type": "video-input";
+  readonly widget_type: "VideoInput";
+  readonly "host-id": Uuid;
   readonly source: string;
-  readonly name: string;
-  readonly resolution: string;
+  readonly name?: string;
+  readonly resolution?: string;
 }
 
 export interface CreateVideoInputRequest extends WidgetMutableBase {
   readonly source: string;
+  readonly "host-id"?: Uuid;
   readonly name?: string;
   readonly resolution?: string;
 }
@@ -279,18 +295,27 @@ export type UpdateVideoInputRequest = Partial<CreateVideoInputRequest>;
 
 // ---------- IP Video (read/update/delete only — see changelog §2) ----------
 
+/**
+ * IP Video stream widget.
+ *
+ * Live-server verification (2026-05-18): the wire emits `host-id`
+ * (HYPHENATED) for the host identifier; other widget fields use
+ * underscores (`parent_id`, `widget_type`, etc.). Per changelog §2, this
+ * widget type cannot be created via the API — only read/update/delete.
+ */
 export interface IpVideo extends BaseWidget {
-  readonly "widget-type": "ip-video";
-  readonly "host-id": string;
-  readonly parent_id: string;
+  readonly widget_type: "IpVideo";
+  readonly "host-id": Uuid;
   readonly source: string;
   readonly name?: string;
+  readonly title?: string;
   readonly resolution?: string;
 }
 
 export interface UpdateIpVideoRequest extends WidgetMutableBase {
   readonly source?: string;
   readonly name?: string;
+  readonly title?: string;
   readonly resolution?: string;
 }
 
@@ -299,17 +324,16 @@ export interface UpdateIpVideoRequest extends WidgetMutableBase {
 /**
  * RDP connection widget.
  *
- * Live-server verification (2026-05-18): the C++ serialiser emits hyphenated keys
- * for `host-id`, `connection-name`, and `content-id`. Other widget fields
- * like `parent_id` remain underscored. This type follows the verified hybrid
- * convention.
+ * Live-server verification (2026-05-18): the C++ serialiser emits HYPHENATED
+ * keys for `host-id`, `connection-name`, and `content-id`. Other widget
+ * fields (`parent_id`, `widget_type`, etc.) remain UNDERSCORED. This type
+ * follows the verified hybrid convention.
  */
 export interface RdpConnection extends BaseWidget {
-  readonly "widget-type": "rdp-connection";
-  readonly "host-id": string;
+  readonly widget_type: "RdpConnection";
+  readonly "host-id": Uuid;
   readonly "connection-name": string;
   readonly "content-id": string;
-  readonly parent_id: string;
   readonly title?: string;
 }
 
@@ -322,11 +346,11 @@ export interface UpdateRdpConnectionRequest extends WidgetMutableBase {
 // ---------- Discriminated union ----------
 
 /**
- * Discriminated union of every widget type. Narrow with `widget-type`:
+ * Discriminated union of every widget type. Narrow with `widget_type`:
  *
  * @example
  * ```ts
- * if (w["widget-type"] === "note") {
+ * if (w.widget_type === "Note") {
  *   console.log(w.text);
  * }
  * ```
@@ -347,7 +371,7 @@ export type Widget =
 /** Generic uploads-folder item (shape varies; treat as opaque JSON). */
 export interface UploadsFolderItem {
   readonly id?: Uuid;
-  readonly "upload-type"?: "Note" | "Image" | "Video" | "PDF";
+  readonly upload_type?: "Note" | "Image" | "Video" | "PDF";
   readonly title?: string;
   readonly location?: Location;
   readonly [key: string]: unknown;

@@ -19,7 +19,7 @@ the same authentication pattern.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. The SDK appends paths relative to this. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. The SDK appends paths relative to this. |
 | `CANVUS_API_KEY` | yes | Long-lived `Private-Token` value. |
 | `LOG_FORMAT` | no | `text` (default) or `json`. |
 
@@ -85,4 +85,4 @@ mixing with logs.
 | `API error 404` | Base URL is wrong — usually missing `/api/v1/`. |
 | `tls: failed to verify certificate` | The server's cert is signed by a CA your machine doesn't trust **and** you've passed a custom `*http.Client`. The default `WithAPIKey` client skips verification; the option order matters. |
 | Empty table, no error | The API key has zero readable canvases. Verify in the Canvus UI. |
-| `connection refused` | Wrong host, wrong port, or VPN/network reachability. Try `curl $CANVUS_BASE_URL/server-info`. |
+| `connection refused` | Wrong host, wrong port, or VPN/network reachability. Try `curl $CANVUS_API_URL/server-info`. |

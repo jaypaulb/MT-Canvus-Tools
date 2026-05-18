@@ -40,7 +40,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_CANVAS_ID: z.string().min(1),
   CANVUS_SOURCE_WIDGET_ID: z.string().min(1),
@@ -51,18 +51,19 @@ const envSchema = z.object({
 type Env = z.infer<typeof envSchema>;
 
 /** Widget kinds that the clone helper supports. Other kinds
- * (connector, video-input, ip-video, rdp-connection) cannot be cloned
- * via this endpoint per changelog §1 + §2. */
+ * (Connector, VideoInput, IpVideo, RdpConnection) cannot be cloned
+ * via this endpoint per changelog §1 + §2. Discriminator values match
+ * the server's capitalised `widget_type` (e.g. `Note`, not `note`). */
 type CloneableWidgetType = CloneWidgetArgs["widgetType"];
 
 const CLONEABLE: ReadonlySet<string> = new Set<CloneableWidgetType>([
-  "note",
-  "image",
-  "video",
-  "pdf",
-  "browser",
-  "anchor",
-  "table",
+  "Note",
+  "Image",
+  "Video",
+  "Pdf",
+  "Browser",
+  "Anchor",
+  "Table",
 ]);
 
 function loadEnv(): Env {
@@ -83,34 +84,38 @@ function asCloneableType(kind: string): CloneableWidgetType | undefined {
 }
 
 /** Resolve the appropriate sub-resource `delete` helper for cleanup.
- * Returns undefined if the widget type has no SDK-exposed delete (which
- * should not happen for any cloneable type). */
+ *
+ * Wrap each method call in an arrow function so the returned callable
+ * carries its own bound `this` regardless of how the SDK chose to define
+ * the underlying method (arrow field vs. prototype method). Returning a
+ * bare `session.widgets.notes.delete` reference would break the moment
+ * the SDK refactors the method style. */
 function deleterFor(
   session: ReturnType<typeof createSession>,
   kind: CloneableWidgetType,
 ): (canvasId: string, widgetId: string) => Promise<void> {
   switch (kind) {
-    case "note":
-      return session.widgets.notes.delete;
-    case "image":
-      return session.widgets.images.delete;
-    case "video":
-      return session.widgets.videos.delete;
-    case "pdf":
-      return session.widgets.pdfs.delete;
-    case "browser":
-      return session.widgets.browsers.delete;
-    case "anchor":
-      return session.widgets.anchors.delete;
-    case "table":
-      return session.widgets.tables.delete;
+    case "Note":
+      return (cid, wid) => session.widgets.notes.delete(cid, wid);
+    case "Image":
+      return (cid, wid) => session.widgets.images.delete(cid, wid);
+    case "Video":
+      return (cid, wid) => session.widgets.videos.delete(cid, wid);
+    case "Pdf":
+      return (cid, wid) => session.widgets.pdfs.delete(cid, wid);
+    case "Browser":
+      return (cid, wid) => session.widgets.browsers.delete(cid, wid);
+    case "Anchor":
+      return (cid, wid) => session.widgets.anchors.delete(cid, wid);
+    case "Table":
+      return (cid, wid) => session.widgets.tables.delete(cid, wid);
   }
 }
 
 async function run(): Promise<void> {
   const env = loadEnv();
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
 
@@ -119,7 +124,7 @@ async function run(): Promise<void> {
     env.CANVUS_CANVAS_ID,
     env.CANVUS_SOURCE_WIDGET_ID,
   );
-  const kindRaw = source["widget-type"];
+  const kindRaw = source.widget_type;
   logger.info(
     {
       sourceCanvasId: env.CANVUS_CANVAS_ID,
@@ -145,7 +150,7 @@ async function run(): Promise<void> {
     sourceWidgetId: env.CANVUS_SOURCE_WIDGET_ID,
     widgetType: kind,
   });
-  const clonedId = (cloned as { "widget-id"?: string })["widget-id"];
+  const clonedId = (cloned as { id?: string }).id;
   logger.info(
     {
       destCanvasId: env.CANVUS_DEST_CANVAS_ID,
@@ -157,7 +162,7 @@ async function run(): Promise<void> {
   );
 
   if (clonedId === undefined) {
-    logger.error({ cloned }, "clone response missing widget-id — cannot proceed");
+    logger.error({ cloned }, "clone response missing id — cannot proceed");
     process.exit(1);
   }
 

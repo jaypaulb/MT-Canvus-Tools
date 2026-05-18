@@ -67,7 +67,7 @@ describe("createSession", () => {
 describe("loadConfig", () => {
   it("parses CANVUS_* env vars", () => {
     const cfg = loadConfig({
-      CANVUS_API_BASE_URL: BASE,
+      CANVUS_API_URL: BASE,
       CANVUS_API_KEY: KEY,
       CANVUS_TIMEOUT_MS: "5000",
       CANVUS_VERIFY_TLS: "false",

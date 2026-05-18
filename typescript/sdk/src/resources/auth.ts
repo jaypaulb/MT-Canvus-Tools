@@ -1,6 +1,5 @@
 import type { Transport } from "../transport.js";
 import { streamNdjson, type StreamOptions } from "../streaming.js";
-import type { Uuid } from "../types/common.js";
 import type {
   AccessToken,
   AccessTokenWithSecret,
@@ -17,6 +16,14 @@ import type {
   UpdateAccessTokenRequest,
   User,
 } from "../types/user.js";
+
+/**
+ * User IDs are INTEGERS on the live server (per VERIFIED-CORRECTIONS.md §6);
+ * access-token IDs are OPAQUE STRINGS. The path segments accept either
+ * form coerced to string.
+ */
+type UserId = number | string;
+type TokenId = string;
 
 /**
  * Authentication endpoints: login, logout, password reset, registration,
@@ -91,14 +98,14 @@ export class AuthResource {
   // ---- Per-user password (for an authenticated session) -------------------
 
   /** `POST /api/v1/users/{uid}/password` — change a user's password. */
-  async changePassword(userId: Uuid, body: ChangePasswordRequest): Promise<User> {
+  async changePassword(userId: UserId, body: ChangePasswordRequest): Promise<User> {
     return this.transport.request<User>("POST", `users/${userId}/password`, body);
   }
 
   // ---- API access tokens --------------------------------------------------
 
   /** `GET /api/v1/users/{uid}/access-tokens`. */
-  async listAccessTokens(userId: Uuid): Promise<readonly AccessToken[]> {
+  async listAccessTokens(userId: UserId): Promise<readonly AccessToken[]> {
     return this.transport.request<readonly AccessToken[]>(
       "GET",
       `users/${userId}/access-tokens`,
@@ -107,7 +114,7 @@ export class AuthResource {
 
   /** Subscribe to a user's access-token list. */
   subscribeAccessTokens(
-    userId: Uuid,
+    userId: UserId,
     opts?: StreamOptions,
   ): AsyncGenerator<AccessToken, void, void> {
     return streamNdjson<AccessToken>(
@@ -118,7 +125,7 @@ export class AuthResource {
   }
 
   /** `GET /api/v1/users/{uid}/access-tokens/{tid}`. */
-  async getAccessToken(userId: Uuid, tokenId: Uuid): Promise<AccessToken> {
+  async getAccessToken(userId: UserId, tokenId: TokenId): Promise<AccessToken> {
     return this.transport.request<AccessToken>(
       "GET",
       `users/${userId}/access-tokens/${tokenId}`,
@@ -127,8 +134,8 @@ export class AuthResource {
 
   /** Subscribe to a single access-token. */
   subscribeAccessToken(
-    userId: Uuid,
-    tokenId: Uuid,
+    userId: UserId,
+    tokenId: TokenId,
     opts?: StreamOptions,
   ): AsyncGenerator<AccessToken, void, void> {
     return streamNdjson<AccessToken>(
@@ -145,7 +152,7 @@ export class AuthResource {
    * returned. Store it securely; the SDK does not persist it.
    */
   async createAccessToken(
-    userId: Uuid,
+    userId: UserId,
     body: CreateAccessTokenRequest,
   ): Promise<AccessTokenWithSecret> {
     return this.transport.request<AccessTokenWithSecret>(
@@ -157,8 +164,8 @@ export class AuthResource {
 
   /** `PATCH /api/v1/users/{uid}/access-tokens/{tid}`. */
   async updateAccessToken(
-    userId: Uuid,
-    tokenId: Uuid,
+    userId: UserId,
+    tokenId: TokenId,
     body: UpdateAccessTokenRequest,
   ): Promise<AccessToken> {
     return this.transport.request<AccessToken>(
@@ -169,7 +176,7 @@ export class AuthResource {
   }
 
   /** `DELETE /api/v1/users/{uid}/access-tokens/{tid}` — revoke a token. */
-  async deleteAccessToken(userId: Uuid, tokenId: Uuid): Promise<void> {
+  async deleteAccessToken(userId: UserId, tokenId: TokenId): Promise<void> {
     await this.transport.request<void>(
       "DELETE",
       `users/${userId}/access-tokens/${tokenId}`,

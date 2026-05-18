@@ -37,7 +37,7 @@ const logger = pino({
 });
 
 const envSchema = z.object({
-  CANVUS_BASE_URL: z.string().url(),
+  CANVUS_API_URL: z.string().url(),
   CANVUS_API_KEY: z.string().min(1),
   CANVUS_CANVAS_ID: z.string().min(1),
   WEBHOOK_URL: z.string().url(),
@@ -119,7 +119,7 @@ async function postWithRetry(url: string, body: OutboundEvent): Promise<void> {
 async function run(): Promise<void> {
   const env = loadEnv();
   const session = createSession({
-    baseUrl: env.CANVUS_BASE_URL,
+    baseUrl: env.CANVUS_API_URL,
     apiKey: env.CANVUS_API_KEY,
   });
 
@@ -150,10 +150,10 @@ async function run(): Promise<void> {
     const widgets: readonly Widget[] = isSnapshot ? raw : [raw as Widget];
 
     for (const widget of widgets) {
-      // Connector widgets use "connector-id" instead of "widget-id";
-      // all other widget kinds extend BaseWidget which has "widget-id".
-      const id =
-        "widget-id" in widget ? widget["widget-id"] : widget["connector-id"];
+      // Every widget type uses `id` and `widget_type` (underscored) on
+      // the live server. Connector is included in the union and shares
+      // those fields per the verified wire shape.
+      const id = widget.id;
       if (id === undefined) continue;
       if (seen.has(id)) continue;
       seen.add(id);
@@ -169,7 +169,7 @@ async function run(): Promise<void> {
         event: "widget.created",
         canvas_id: env.CANVUS_CANVAS_ID,
         widget_id: id,
-        widget_type: widget["widget-type"],
+        widget_type: widget.widget_type,
         timestamp: new Date().toISOString(),
       };
       // Fire-and-await; we want sequential delivery so a slow webhook

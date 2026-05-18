@@ -25,7 +25,7 @@ import { ServerResource } from "./resources/server.js";
  * });
  *
  * for (const canvas of await session.canvases.list()) {
- *   console.log(canvas["canvas-name"]);
+ *   console.log(canvas.name);
  * }
  * ```
  */

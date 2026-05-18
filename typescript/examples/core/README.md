@@ -9,7 +9,7 @@ immediately.
 
 | # | Slug                        | Purpose                                                                              | Key env vars                                                                                  | Complexity |
 | - | --------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ---------- |
-| 1 | `01-auth-and-list`          | Smoke test: API-key auth, list canvases, print a summary table.                      | `CANVUS_BASE_URL`, `CANVUS_API_KEY`                                                           | *          |
+| 1 | `01-auth-and-list`          | Smoke test: API-key auth, list canvases, print a summary table.                      | `CANVUS_API_URL`, `CANVUS_API_KEY`                                                           | *          |
 | 2 | `02-auth-flows`             | Three auth flows: API key, login, access-token CRUD.                                 | `+ CANVUS_EMAIL`, `CANVUS_PASSWORD`                                                           | **         |
 | 3 | `03-widget-crud`            | Full create / update / delete / verify lifecycle on a sticky note.                   | `+ CANVUS_CANVAS_ID`                                                                          | **         |
 | 4 | `04-file-upload`            | Multipart PNG upload + position patch + cleanup.                                     | `+ CANVUS_CANVAS_ID`, `CANVUS_IMAGE_PATH?`, `CANVUS_KEEP_WIDGET?`                             | **         |

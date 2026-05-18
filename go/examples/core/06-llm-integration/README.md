@@ -28,7 +28,7 @@ The workflow on the canvas, from a user's perspective, is dead simple:
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `CANVUS_BASE_URL` | yes | Full base URL including `/api/v1/`. |
+| `CANVUS_API_URL` | yes | Full base URL including `/api/v1/`. |
 | `CANVUS_API_KEY` | yes | API key with write access. |
 | `CANVUS_CANVAS_ID` | yes (watcher) | UUID of canvas to watch. |
 | `OLLAMA_URL` | no | Defaults to `http://localhost:11434`. |
