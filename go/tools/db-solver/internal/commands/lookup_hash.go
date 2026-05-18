@@ -233,15 +233,16 @@ func (cmd *LookupHashCommand) printSummary(results []HashLookupResult, uniqueLis
 	logger.Info("  Not found: %d unique files", len(notFound))
 }
 
-// newSession builds a Canvus SDK Session from config. Uses an insecure HTTP client
+// newSession builds a Canvus SDK Session from config. Uses WithVerifyTLS(false)
 // when InsecureTLS is true (common for self-signed Canvus server certs).
 func newSession(cfg *config.Config) *canvussdk.Session {
 	sessionCfg := canvussdk.DefaultSessionConfig()
 	sessionCfg.BaseURL = cfg.GetCanvusAPIURL()
+	opts := []canvussdk.SessionConfigOption{}
 	if cfg.CanvusServer.InsecureTLS {
-		return canvussdk.NewSession(sessionCfg, canvussdk.WithHTTPClient(insecureHTTPClient()))
+		opts = append(opts, canvussdk.WithVerifyTLS(false))
 	}
-	return canvussdk.NewSession(sessionCfg)
+	return canvussdk.NewSession(sessionCfg, opts...)
 }
 
 // buildDBCatalog pre-loads database records for all assets-without-hash into a map

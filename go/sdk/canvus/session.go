@@ -279,8 +279,15 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 		// Build a fresh http.Client rather than mutating http.DefaultClient,
 		// which would leak our timeout into unrelated code that uses the
 		// default client. Phase 4b §4.1 #16: honour ConnectTimeout when set.
+		// Phase 4d Round B: honour SkipTLSVerify when set via WithVerifyTLS(false).
 		client := &http.Client{Timeout: cfg.RequestTimeout}
-		if cfg.ConnectTimeout > 0 {
+		switch {
+		case cfg.SkipTLSVerify:
+			//nolint:gosec // explicit opt-out via WithVerifyTLS(false).
+			client.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+		case cfg.ConnectTimeout > 0:
 			client.Transport = buildConnectTimeoutTransport(cfg.ConnectTimeout)
 		}
 		cfg.HTTPClient = client

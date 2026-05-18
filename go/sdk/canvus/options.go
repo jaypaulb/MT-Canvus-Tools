@@ -1,7 +1,6 @@
 package canvus
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -45,6 +44,15 @@ type SessionConfig struct {
 	// its return value is used as the X-Request-ID header. The value is also
 	// echoed into APIError.RequestID for failed requests. Phase 4b §4.1 #3.
 	RequestIDFunc func() string
+	// SkipTLSVerify disables TLS certificate verification when true.
+	// Set via WithVerifyTLS(false). Ignored when HTTPClient is supplied
+	// by the caller via WithHTTPClient — the caller's client takes precedence.
+	// Phase 4d Round B.
+	SkipTLSVerify bool
+	// SubscribeBuffer is the channel capacity used by subscribeStream for every
+	// Subscribe* call on this session. Default: 4. Set via WithSubscribeBuffer.
+	// Phase 4d Round B.
+	SubscribeBuffer int
 }
 
 // CircuitBreakerConfig holds configuration for the circuit breaker.
@@ -147,6 +155,21 @@ func WithRequestIDFunc(fn func() string) SessionConfigOption {
 	return func(c *SessionConfig) { c.RequestIDFunc = fn }
 }
 
+// WithVerifyTLS controls TLS certificate verification for the SDK's internal
+// HTTP client. Pass verify=true (the default) to enforce verification;
+// pass verify=false to skip it — suitable for Canvus servers that use
+// self-signed certificates.
+//
+// Precedence: if the caller has already supplied a custom *http.Client via
+// WithHTTPClient, this option has no effect — the caller's transport is used
+// as-is. Apply WithVerifyTLS before WithHTTPClient, or configure TLS
+// directly on your own transport. Phase 4d Round B.
+func WithVerifyTLS(verify bool) SessionConfigOption {
+	return func(c *SessionConfig) {
+		c.SkipTLSVerify = !verify
+	}
+}
+
 // FromEnv builds a Session from environment variables, applying any
 // additional options on top. Recognised variables (all optional except
 // CANVUS_API_URL):
@@ -185,17 +208,10 @@ func FromEnv(opts ...SessionConfigOption) (*Session, error) {
 			return nil, fmt.Errorf("FromEnv: invalid CANVUS_VERIFY_TLS %q (expected 1/0/true/false)", v)
 		}
 	}
-	if !verify {
-		cfg.HTTPClient = &http.Client{
-			Timeout: cfg.RequestTimeout,
-			Transport: &http.Transport{
-				//nolint:gosec // explicit opt-out via env var.
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-	}
-
 	prepend := []SessionConfigOption{}
+	if !verify {
+		prepend = append(prepend, WithVerifyTLS(false))
+	}
 	if key := strings.TrimSpace(os.Getenv("CANVUS_API_KEY")); key != "" {
 		prepend = append(prepend, WithAPIKey(key))
 	}

@@ -3,9 +3,7 @@ package commands
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 	"os"
 	"syscall"
 	"time"
@@ -104,19 +102,13 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	// configured with credentials.
 	sessionCfg := canvus.DefaultSessionConfig()
 	sessionCfg.BaseURL = cfg.URL
+	opts := []canvus.SessionConfigOption{}
 	if cfg.Insecure {
-		sessionCfg.HTTPClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, //nolint:gosec // user opt-in.
-				},
-			},
-			Timeout: sessionCfg.RequestTimeout,
-		}
+		opts = append(opts, canvus.WithVerifyTLS(false))
 	}
 
 	// Create session without authentication
-	session := canvus.NewSession(sessionCfg)
+	session := canvus.NewSession(sessionCfg, opts...)
 
 	// Attempt login
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

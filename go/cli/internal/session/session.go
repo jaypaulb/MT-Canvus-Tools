@@ -4,9 +4,7 @@ package session
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/config"
@@ -27,8 +25,8 @@ const (
 //  2. Username + Password (uses Login to acquire a temporary token)
 //
 // TLS verification is on by default. When cfg.Insecure is true (typically from
-// --insecure or CANVUS_INSECURE) the session uses a custom http.Client that
-// disables certificate verification. This is opt-in only.
+// --insecure or CANVUS_INSECURE) the session is created with WithVerifyTLS(false).
+// This is opt-in only.
 func NewSession(cfg *config.Config) (*canvus.Session, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("configuration is required")
@@ -38,25 +36,16 @@ func NewSession(cfg *config.Config) (*canvus.Session, error) {
 	sessionCfg.BaseURL = cfg.URL
 	sessionCfg.RequestTimeout = time.Duration(cfg.Timeout) * time.Second
 
+	opts := []canvus.SessionConfigOption{}
 	if cfg.Insecure {
-		// Explicit user opt-out — the SDK has no first-class WithVerifyTLS
-		// helper, so the safest option is to install a custom client that
-		// skips verification.
-		sessionCfg.HTTPClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, //nolint:gosec // opt-in.
-				},
-			},
-			Timeout: sessionCfg.RequestTimeout,
-		}
+		opts = append(opts, canvus.WithVerifyTLS(false))
 	}
 
 	switch {
 	case cfg.APIKey != "":
-		return canvus.NewSession(sessionCfg, canvus.WithAPIKey(cfg.APIKey)), nil
+		return canvus.NewSession(sessionCfg, append(opts, canvus.WithAPIKey(cfg.APIKey))...), nil
 	case cfg.Username != "" && cfg.Password != "":
-		sess := canvus.NewSession(sessionCfg)
+		sess := canvus.NewSession(sessionCfg, opts...)
 		ctx := context.Background()
 		if err := sess.Login(ctx, cfg.Username, cfg.Password); err != nil {
 			return nil, fmt.Errorf("login with username/password: %w", err)
