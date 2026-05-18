@@ -2,7 +2,7 @@ import type { IsoDateTime, Uuid } from "./common.js";
 
 /** A user account as returned by the API. */
 export interface User {
-  readonly "user-id": Uuid;
+  readonly "user-id": number;
   readonly email: string;
   readonly "full-name": string;
   readonly "is-admin": boolean;

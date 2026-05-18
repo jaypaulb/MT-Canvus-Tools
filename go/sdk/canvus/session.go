@@ -787,13 +787,8 @@ func toString(v any) string {
 }
 
 // Login authenticates a user and stores the returned token + user ID.
-//
-// Field-name reconciliation per work item #9: the Canvus server accepts both
-// `username` and `email` keys (the C++ canonical client uses `username`).
-// We send both to be defensive against either being checked first.
 func (s *Session) Login(ctx context.Context, emailOrUser, password string) error {
 	loginReq := map[string]string{
-		"username": emailOrUser,
 		"email":    emailOrUser,
 		"password": password,
 	}

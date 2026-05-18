@@ -8,14 +8,12 @@ import (
 
 // LicenseInfo represents the license information for the server.
 type LicenseInfo struct {
-	Key       string   `json:"key,omitempty"`
-	Valid     bool     `json:"valid,omitempty"`
-	ExpiresAt string   `json:"expires_at,omitempty"`
-	Type      string   `json:"type,omitempty"`
-	Seats     int      `json:"seats,omitempty"`
-	IssuedTo  string   `json:"issued_to,omitempty"`
-	IssuedBy  string   `json:"issued_by,omitempty"`
-	Features  []string `json:"features,omitempty"`
+	Edition    string `json:"edition,omitempty"`
+	HasExpired bool   `json:"has_expired,omitempty"`
+	IsValid    bool   `json:"is_valid,omitempty"`
+	MaxClients int    `json:"max_clients,omitempty"`
+	SeatModel  string `json:"seat_model,omitempty"`
+	Type       string `json:"type,omitempty"`
 }
 
 // GetLicenseInfo retrieves the current license information.
@@ -40,12 +38,8 @@ func (s *Session) GetActivationRequest(ctx context.Context) (string, error) {
 }
 
 // InstallLicense installs a new license key.
-//
-// Field-name reconciliation per Phase 3 work item #9: the spec body uses
-// `{"license-data": "..."}` while the legacy SDK and C++ client use
-// `{"key": "..."}`. We send both so either server interpretation works.
 func (s *Session) InstallLicense(ctx context.Context, key string) error {
-	req := map[string]string{"key": key, "license-data": key}
+	req := map[string]string{"license": key}
 	return s.doRequest(ctx, http.MethodPost, "license", req, nil, nil, false)
 }
 

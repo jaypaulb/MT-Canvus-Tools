@@ -98,11 +98,12 @@ class ServerResource(Resource):
     async def install_offline_license(self, license_data: str) -> LicenseInfo:
         """Install an offline license blob (Phase 3 Python work item #16).
 
-        Per spec, the body field is ``license-data`` (hyphenated); the legacy
-        SDK sent ``license``.
+        Per live-server verification (v1.2), the body field is ``license`` (not
+        ``license-data``); the endpoint is ``POST /license`` (not
+        ``/license/install``).
         """
         data = await self._transport.request(
-            "POST", "license", json_body={"license-data": license_data}
+            "POST", "license", json_body={"license": license_data}
         )
         return self._parse(LicenseInfo, data)
 
@@ -124,7 +125,7 @@ class ServerResource(Resource):
         filter: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
-        user_id: str | None = None,
+        user_id: int | None = None,
         action: str | None = None,
     ) -> AuditLogPage:
         """Read the audit log (Phase 3 Python work item #18).
@@ -171,7 +172,7 @@ class ServerResource(Resource):
         *,
         start_time: str | None = None,
         end_time: str | None = None,
-        user_id: str | None = None,
+        user_id: int | None = None,
         action: str | None = None,
         filter: str | None = None,
     ) -> bytes:

@@ -166,9 +166,13 @@ class IPVideo(BaseWidget):
         Per API changelog §2, this widget type **cannot be created** via the
         REST API. Only GET / PATCH / DELETE are supported. Creation must
         happen from the Canvus desktop client.
+
+        Per live-server verification (v1.2), the wire uses ``host-id`` (hyphenated)
+        for the host identifier; other fields use underscores.
     """
 
     widget_type: str = "IpVideo"
+    host_id: str | None = Field(default=None, alias="host-id")
     name: str | None = None
     source: str | None = None
     title: str | None = None

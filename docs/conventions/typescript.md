@@ -416,7 +416,8 @@ export type CanvusErrorKind =
   | "api"
   | "validation"
   | "auth"
-  | "network";
+  | "network"
+  | "not-found";
 
 export class CanvusError extends Error {
   public readonly kind: CanvusErrorKind;
@@ -502,6 +503,8 @@ function describe(err: CanvusError): string {
       return `auth failed: ${(err as AuthError).reason}`;
     case "network":
       return "network unreachable";
+    case "not-found":
+      return "resource not found";
   }
 }
 ```
@@ -911,4 +914,26 @@ Phase 4b refresh agents append to this section whenever they deviate from the lo
 **Decision:** <what was chosen>
 **Rationale:** <why>
 
-<!-- No amendments yet. -->
+### 2026-05-18 — NotFoundError as a 5th error kind
+
+**Item:** typescript/sdk/src/errors.ts
+**Decision:** Added `NotFoundError` extending `APIError` (with `kind: "not-found"`) beyond the original four (CanvusError / APIError / ValidationError / AuthError / NetworkError).
+**Rationale:** 404 is often normal control flow (resource may be deleted, may have never existed). Collapsing it into generic `APIError` forces callers to inspect `status` codes for routine flows. Industry-standard SDKs (Stripe, AWS, GitHub) distinguish 404 separately. Confirmed by Jaypaul 2026-05-18.
+
+### 2026-05-18 — Wire-shape preservation in v0.1; camelCase mapper deferred to v0.2
+
+**Item:** typescript/sdk/src/types/*.ts and src/transport.ts
+**Decision:** v0.1 preserves the server wire shape verbatim (e.g. `widget["host-id"]`, `widget.parent_id`, `license.is_valid`). A camelCase normalisation layer (`hostId`, `parentId`, `isValid`) is deferred to v0.2.
+**Rationale:** The Canvus server uses a HYBRID hyphen/underscore field-naming convention (see `docs/api-reference/VERIFIED-CORRECTIONS.md` §7) that was not fully documented in the spec we extracted from. A camelCase mapper needs careful design — not a rushed sweep — because (a) the source-side normaliser must understand which fields are hyphen vs underscore on the wire, and (b) request-body construction must reverse the mapping correctly. A focused v0.2 effort with full test coverage is safer than a quick mapper landed alongside other Tier-1 bug fixes. Confirmed as senior-dev judgement 2026-05-18 (Jaypaul asked for 80% industry-standard call; TS SDKs typically ship camelCase but doing it well requires dedicated effort).
+
+### 2026-05-18 — Zod for config only; response validation deferred to v0.2
+
+**Item:** typescript/sdk/src/config.ts (zod present) vs src/transport.ts (zod absent)
+**Decision:** Zod is used for environment-variable parsing in `loadConfig()`. Response payloads are typed but NOT validated at runtime in v0.1.
+**Rationale:** Adding zod schemas for the full response surface (~150 endpoints, 11 widget kinds, nested permission/config objects) is multi-day work and produces a duplication of the TypeScript type system at runtime. Industry-standard 2026 SDKs (Stripe, GitHub Octokit, AWS SDK v3) do not ship runtime response validation — they rely on TypeScript type safety + occasional schema enforcement at trust boundaries (user input, webhook payloads). Deferred to v0.2 as a focused effort alongside the camelCase mapper. Confirmed as senior-dev judgement 2026-05-18.
+
+### 2026-05-18 — `ListAuditEvents` returns a flat array (corrected from envelope)
+
+**Item:** typescript/sdk/src/resources/server.ts + types/server.ts
+**Decision:** `listAuditLog()` returns `Promise<AuditEntry[]>` (flat array). The Go SDK initially shipped a `*AuditLogResponse` envelope wrapper; live-server testing (see `docs/api-reference/VERIFIED-CORRECTIONS.md` §8) confirmed the server returns a flat array with no pagination metadata. All three SDKs are now aligned on the flat-array contract.
+**Rationale:** Match the wire reality. If pagination metadata is added by the server in a future version, the SDK contract will widen at that point.

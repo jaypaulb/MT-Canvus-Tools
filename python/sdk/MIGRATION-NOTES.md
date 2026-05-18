@@ -105,7 +105,47 @@ These omissions are deliberate, not oversights. If callers need them, lifting th
 ### 4.7 `Client.sync` thread leak surface
 - Every call to `client.sync` lazily creates a dedicated thread. Calling `client.aclose()` shuts it down, but callers that abandon a Client without `aclose()` will leak the thread until process exit. Acceptable for scripts; flag if used in a long-lived service.
 
-## 5. File / line summary
+## 5. Post-verification fixes (2026-05-18)
+
+Live-server verification against Canvus v1.2 revealed wire-format mismatches. The following surgical fixes were applied:
+
+### 5.1 IP Video and RDP Connection field naming — HYBRID (hyphens for specific fields)
+**Models affected:** `IPVideo`, `RDPConnection` in `models/widgets.py`
+
+- **IPVideo**: Added `host_id` field with `alias="host-id"` (per live JSON). Other fields stay underscored.
+- **RDPConnection**: Already had correct aliases (`host-id`, `connection-name`, `content-id`). Confirmed in use.
+- **Verification:** Live GET on IP Video and RDP Connection endpoints return hyphenated keys only for these fields; all others use underscores.
+
+### 5.2 Install license — wrong path and body field
+**Method affected:** `ServerResource.install_offline_license()` in `resources/server.py`
+
+- **Old:** `POST /license/install` with body `{"license-data": ...}`
+- **New:** `POST /license` with body `{"license": ...}`
+- **Verification:** Live `POST /api/v1/license/install` returns `{"msg": "Unknown action install"}`. Correct endpoint is `POST /api/v1/license` with `{"license": "..."}`.
+
+### 5.3 License GET response — cleaned to live shape
+**Model affected:** `LicenseInfo` in `models/server.py`
+
+- **Removed:** `license_key`, `status`, `expiry_date`, `features`, `max_users`, `max_canvases` (not in live response).
+- **Kept:** `edition`, `has_expired`, `is_valid`, `max_clients`, `type`.
+- **Added:** `seat_model` (present in live response).
+- **Verification:** Live `GET /api/v1/license` returns exactly `{edition, has_expired, is_valid, max_clients, seat_model, type}`.
+
+### 5.4 Audit log entry — remodelled to live shape
+**Model affected:** `AuditLogEntry` in `models/audit.py`
+
+- **Old fields:** `id` (str), `timestamp`, `user_id` (str), `user_email`, `action`, `resource_type`, `resource_id`, `details` (dict), `ip_address`, `user_agent`.
+- **New fields:** `id` (int), `action`, `author_id` (int|null), `created_at`, `details` (str — JSON-encoded), `ip_address`, `target_id` (str|null), `target_type`.
+- **Verification:** Live `GET /api/v1/audit-log` returns flat array with exactly these 8 fields per entry; `details` is a string containing nested JSON, not a dict.
+
+### 5.5 User ID type — reverted to int
+**Parameters affected:** `get_audit_log(user_id)` and `export_audit_log_csv(user_id)` in `resources/server.py`
+
+- **Old:** `user_id: str | None`
+- **New:** `user_id: int | None`
+- **Rationale:** Coverage matrix item #21 incorrectly specified UUID strings. The server uses integer user IDs (`author_id: 1000`). Reverted per live verification.
+
+## 6. File / line summary
 
 Approximate line counts (after final pass):
 

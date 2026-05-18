@@ -2,29 +2,20 @@ package canvus
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
 // AuditEvent represents an audit log entry in the Canvus system.
 type AuditEvent struct {
-	ID        json.Number `json:"id"`
-	Timestamp string      `json:"timestamp,omitempty"`
-	UserID    string      `json:"user_id,omitempty"`
-	Action    string      `json:"action,omitempty"`
-	Resource  string      `json:"resource,omitempty"`
-	Details   string      `json:"details,omitempty"`
-}
-
-// AuditLogResponse is the envelope returned by GET /audit-log per the spec.
-// Per Phase 3 work item #6, the SDK now decodes the envelope rather than the
-// flat array the legacy SDK assumed.
-type AuditLogResponse struct {
-	Events     []AuditEvent `json:"events"`
-	TotalCount int          `json:"total-count"`
-	Page       int          `json:"page"`
-	PerPage    int          `json:"per-page"`
+	ID         int     `json:"id"`
+	Action     string  `json:"action,omitempty"`
+	AuthorID   *int    `json:"author_id,omitempty"`
+	CreatedAt  string  `json:"created_at,omitempty"`
+	Details    string  `json:"details,omitempty"`
+	IPAddress  string  `json:"ip_address,omitempty"`
+	TargetID   *string `json:"target_id,omitempty"`
+	TargetType string  `json:"target_type,omitempty"`
 }
 
 // auditQueryFromOpts builds the request query map from AuditLogOptions.
@@ -61,26 +52,13 @@ func auditQueryFromOpts(opts *AuditLogOptions) map[string]string {
 	return q
 }
 
-// ListAuditEvents retrieves audit log events with the spec-defined envelope.
-//
-// Breaking change vs legacy SDK (returned []AuditEvent only): this now
-// returns the full envelope so callers can paginate. See AuditLogResponse.
-func (s *Session) ListAuditEvents(ctx context.Context, opts *AuditLogOptions) (*AuditLogResponse, error) {
-	// Try the envelope decode first. If the server replies with a flat array
-	// (older build), fall back to wrapping it.
-	var raw json.RawMessage
-	if err := s.doRequest(ctx, http.MethodGet, "audit-log", nil, &raw, auditQueryFromOpts(opts), false); err != nil {
+// ListAuditEvents retrieves audit log events as a flat array.
+func (s *Session) ListAuditEvents(ctx context.Context, opts *AuditLogOptions) ([]AuditEvent, error) {
+	var events []AuditEvent
+	if err := s.doRequest(ctx, http.MethodGet, "audit-log", nil, &events, auditQueryFromOpts(opts), false); err != nil {
 		return nil, fmt.Errorf("ListAuditEvents: %w", err)
 	}
-	var env AuditLogResponse
-	if err := json.Unmarshal(raw, &env); err == nil && (env.Events != nil || env.TotalCount > 0 || env.Page > 0) {
-		return &env, nil
-	}
-	var arr []AuditEvent
-	if err := json.Unmarshal(raw, &arr); err != nil {
-		return nil, fmt.Errorf("ListAuditEvents: decode failed: %w", err)
-	}
-	return &AuditLogResponse{Events: arr, TotalCount: len(arr), Page: 1, PerPage: len(arr)}, nil
+	return events, nil
 }
 
 // ExportAuditLog exports the audit log as a CSV file with the same filter set

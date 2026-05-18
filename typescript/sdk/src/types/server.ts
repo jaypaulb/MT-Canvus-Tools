@@ -28,14 +28,12 @@ export interface SendTestEmailRequest {
 
 /** License information. */
 export interface License {
-  readonly status: "valid" | "expired" | "invalid";
-  readonly clients: number;
-  readonly "max-clients": number;
-  readonly valid: boolean;
-  readonly message?: string;
-  readonly "expiry-date"?: IsoDateTime;
-  readonly "seat-model"?: "usage_reported" | "fixed_seats" | "none";
-  readonly "activation-required"?: boolean;
+  readonly edition: string;
+  readonly has_expired: boolean;
+  readonly is_valid: boolean;
+  readonly max_clients: number;
+  readonly seat_model: string;
+  readonly type: string;
 }
 
 /** License activation request payload. */
@@ -45,21 +43,19 @@ export interface LicenseRequestPayload {
 
 /** Install-license body. */
 export interface InstallLicenseRequest {
-  readonly "license-data": string;
+  readonly license: string;
 }
 
 /** Audit log event. */
 export interface AuditEntry {
-  readonly "event-id": Uuid;
+  readonly id: string;
   readonly timestamp: IsoDateTime;
-  readonly "user-id"?: Uuid;
-  readonly "user-email"?: string;
+  readonly author_id: number | null;
+  readonly target_id: string | null;
+  readonly target_type: string;
   readonly action: string;
-  readonly "resource-type"?: string;
-  readonly "resource-id"?: string;
-  readonly changes?: Readonly<Record<string, unknown>>;
-  readonly "ip-address"?: string;
-  readonly "user-agent"?: string;
+  readonly ip_address: string;
+  readonly created_at: IsoDateTime;
 }
 
 /** Audit log paged response. */

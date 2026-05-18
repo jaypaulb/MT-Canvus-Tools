@@ -281,6 +281,8 @@ export type UpdateVideoInputRequest = Partial<CreateVideoInputRequest>;
 
 export interface IpVideo extends BaseWidget {
   readonly "widget-type": "ip-video";
+  readonly "host-id": string;
+  readonly parent_id: string;
   readonly source: string;
   readonly name?: string;
   readonly resolution?: string;
@@ -297,17 +299,17 @@ export interface UpdateIpVideoRequest extends WidgetMutableBase {
 /**
  * RDP connection widget.
  *
- * Source uncertainty (changelog §5): the C++ serialiser uses hyphenated keys
- * (`host-id`, `content-id`, `connection-name`, `host-site`) but the public
- * docs use underscored keys (`host_id`, `content_id`, `connection_name`,
- * `host_site`). This type follows the public-docs convention; if a live
- * server is shown to return the hyphenated form, regenerate or alias.
+ * Live-server verification (2026-05-18): the C++ serialiser emits hyphenated keys
+ * for `host-id`, `connection-name`, and `content-id`. Other widget fields
+ * like `parent_id` remain underscored. This type follows the verified hybrid
+ * convention.
  */
 export interface RdpConnection extends BaseWidget {
   readonly "widget-type": "rdp-connection";
+  readonly "host-id": string;
   readonly "connection-name": string;
-  readonly "host-site": string;
-  readonly "content-id"?: string;
+  readonly "content-id": string;
+  readonly parent_id: string;
   readonly title?: string;
 }
 

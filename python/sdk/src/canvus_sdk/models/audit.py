@@ -12,20 +12,22 @@ from ._base import CanvusModel
 class AuditLogEntry(CanvusModel):
     """A single audit-log event.
 
-    Field names mirror the wire format documented in
-    ``docs/api-reference/endpoints/server.md``.
+    Per live-server verification (v1.2), the wire format returns:
+    - ``id`` (int), ``action`` (str), ``author_id`` (int | null), ``created_at`` (str),
+      ``details`` (str — JSON-encoded), ``ip_address`` (str), ``target_id`` (str | null),
+      ``target_type`` (str).
+    Legacy fields ``resource_type``, ``resource_id``, ``user_email``, ``user_agent``,
+    ``timestamp`` are not present; use ``created_at`` instead.
     """
 
-    id: str | None = None
-    timestamp: str | None = None
-    user_id: str | None = None
-    user_email: str | None = None
+    id: int | None = None
     action: str | None = None
-    resource_type: str | None = None
-    resource_id: str | None = None
-    details: dict[str, Any] = Field(default_factory=dict)
+    author_id: int | None = None
+    created_at: str | None = None
+    details: str = ""
     ip_address: str | None = None
-    user_agent: str | None = None
+    target_id: str | None = None
+    target_type: str | None = None
 
 
 class AuditLogPage(CanvusModel):

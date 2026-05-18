@@ -4,6 +4,35 @@ These are the autonomous design decisions made during the initial
 greenfield scaffold. Jaypaul was asleep; defaults below are reversible
 in v0.2.
 
+## Post-verification fixes (2026-05-18)
+
+Live-server verification against Canvus v1.2 dev server identified six field-naming and schema corrections:
+
+1. **IpVideo and RdpConnection — hybrid hyphen/underscore fields**
+   - IpVideo: added `"host-id"` (hyphen) and `parent_id` (underscore) fields to match live response.
+   - RdpConnection: changed from all-underscores to hybrid: `"host-id"`, `"connection-name"`, `"content-id"` (all hyphens) + `parent_id` (underscore).
+   - Updated inline type comments in `types/widget.ts` to reflect verified wire shape.
+
+2. **InstallLicense request body field**
+   - Changed `InstallLicenseRequest` field from `"license-data"` to `license` (simple string key).
+   - Server endpoint remains `POST /api/v1/license` (already correct).
+
+3. **License response type**
+   - Removed nonexistent fields: `status`, `clients`, `valid`, `message`, `expiry-date`, `activation-required`.
+   - Kept only wire-present fields: `edition`, `has_expired`, `is_valid`, `max_clients`, `seat_model`, `type` (all underscored).
+
+4. **User ID type**
+   - Changed `User.user-id` from `Uuid` (string) to `number` to match live server integer user IDs.
+
+5. **AuditEntry type**
+   - Rewrote from hyphenated keys to underscored: `id`, `timestamp`, `author_id`, `target_id`, `target_type`, `action`, `ip_address`, `created_at`.
+   - Changed `author_id: number | null` and `target_id: string | null` per live observations.
+
+6. **Error hierarchy — NotFoundError documentation**
+   - NotFoundError was already implemented (extends APIError with kind reassigned to `"not-found"`).
+   - Updated conventions doc (`docs/conventions/typescript.md`) to reflect this as a 5th kind alongside the original four.
+   - Added NotFoundError case to error-handling example.
+
 ## 1. Validation strategy — trust the server (for now)
 
 The SDK uses **zod for configuration parsing only** (env-var loading and

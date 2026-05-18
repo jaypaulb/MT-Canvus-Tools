@@ -193,3 +193,50 @@ manual reviews if anything fails:
   CLI tooling.
 - `test_helpers.go` — minor utility kept only for legacy tests; not needed
   by the SDK or its smoke tests.
+
+## 12. Post-verification fixes (2026-05-18)
+
+Based on live-server curl verification against Canvus dev server v1.2:
+
+### Fix 1: Login — removed defensive `username` double-keying
+**Finding:** Live server rejects login request when both `email` and `username` are present in body with error: `{"msg": "Login request must have either email and password or token"}`.
+**Action:** Removed `username` field from `session.go` Login method. Request now sends only `email` and `password`.
+**Impact:** Breaking for any client code that relied on the defensive double-keying (none found in codebase).
+
+### Fix 2: InstallLicense — corrected path and body field
+**Finding:** Live server path `/api/v1/license/install` returns `{"msg": "Unknown action install"}`. Correct path is `POST /api/v1/license`. POST to `/license` with invalid field name returns `{"msg": "license parameter is missing"}` — confirmed field name is `license`, not `key` or `license-data`.
+**Action:** Updated `license.go` InstallLicense method to send only `{"license": key}` to `POST /license` (path fix implicit in existing endpoint string).
+**Impact:** Breaking change. Previous requests with `key` or `license-data` fields will fail, but those never worked against this server anyway.
+
+### Fix 3: License GET response shape — updated struct fields
+**Finding:** Live server `GET /license` returns:
+```json
+{"edition":"","has_expired":false,"is_valid":true,"max_clients":-1,"seat_model":"fixed_seats","type":"lifetime"}
+```
+Old struct fields (Key, Valid, ExpiresAt, Seats, IssuedTo, IssuedBy, Features) do not exist.
+**Action:** Updated `LicenseInfo` struct in `license.go` to match actual server response shape: `Edition`, `HasExpired`, `IsValid`, `MaxClients`, `SeatModel`, `Type` (all with underscore JSON tags).
+**Impact:** Breaking for any code reading the old LicenseInfo fields.
+
+### Fix 4: ListAuditEvents — reverted envelope return to flat array
+**Finding:** Live server `GET /audit-log` returns a flat JSON array of event objects, not an envelope:
+```json
+[{"action":"...","author_id":1000,"created_at":"...","id":10532,"target_type":"user"},...]
+```
+Phase 3 agent introduced `AuditLogResponse` envelope type and "transparent fallback" logic — the envelope does not exist on this server.
+**Action:** Reverted `ListAuditEvents` in `auditlog.go` return type from `(*AuditLogResponse, error)` to `([]AuditEvent, error)`. Removed `AuditLogResponse` type entirely. Removed "fallback for flat-array servers" decode logic.
+**Impact:** Breaking change for Phase 3 consumers that migrated to the envelope form (`resp.Events` → direct array). Callers must update from `ListAuditEvents(...).Events` to `ListAuditEvents(...)`.
+
+### Fix 5: AuditEvent — updated struct fields to match live server
+**Finding:** Live server audit events use underscored field names and integer IDs: `id`, `action`, `author_id`, `created_at`, `details`, `ip_address`, `target_id`, `target_type`.
+**Action:** Updated `AuditEvent` struct in `auditlog.go`:
+- ID: `json.Number` → `int`
+- Removed: Timestamp, UserID, Resource (not in live response)
+- Added: AuthorID (*int), CreatedAt, IPAddress, TargetID (*string), TargetType
+- All fields now match live server exactly with underscore JSON tags
+**Impact:** Breaking for Phase 3 code expecting old AuditEvent field names.
+
+### Verification checklist
+- ✓ Grep for `"username"` in login context: clean (no remaining references in session.go Login method)
+- ✓ AuditLogResponse envelope type removed entirely: grep confirms zero references
+- ✓ License fields updated to match live server response
+- ✓ InstallLicense body field corrected to `license`

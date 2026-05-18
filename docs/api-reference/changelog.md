@@ -1,5 +1,7 @@
 # API Changelog
 
+> **2026-05-18 verification addendum:** Live-server testing against `dev-mtcs.multitaction.com` (v1.2) discovered additional doc errors beyond what's catalogued here. See **[`VERIFIED-CORRECTIONS.md`](VERIFIED-CORRECTIONS.md)** for the full delta against the as-extracted spec. The upstream docs fix is tracked at [`canvus-server#96`](https://gitlab.multitaction.com/swrd/conan/canvus/canvus-server/-/work_items/96).
+
 > Pending documentation updates extracted from `mt-restapi-client/doc-updates-for-developer-site.md` as of 2026-05-17.
 > Each entry describes a change from the current public developer documentation that downstream SDKs must reflect.
 

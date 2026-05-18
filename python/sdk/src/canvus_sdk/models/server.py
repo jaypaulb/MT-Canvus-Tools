@@ -39,19 +39,21 @@ class ServerConfig(CanvusModel):
 
 
 class LicenseInfo(CanvusModel):
-    """Response from ``GET /license``."""
+    """Response from ``GET /license``.
 
-    license_key: str | None = None
-    status: str | None = None
-    type: str | None = None
-    edition: str | None = None
-    expiry_date: str | None = None
-    features: list[str] = Field(default_factory=list)
-    max_users: int | None = None
-    max_canvases: int | None = None
-    max_clients: int | None = None
+    Per live-server verification (v1.2), the response contains:
+    - ``edition``, ``has_expired``, ``is_valid``, ``max_clients``,
+      ``seat_model``, ``type`` (all present).
+    - Legacy fields ``status``, ``expiry_date``, ``features``, ``license_key``,
+      ``max_canvases``, ``max_users`` are not returned.
+    """
+
+    edition: str = ""
     has_expired: bool = False
-    is_valid: bool = True
+    is_valid: bool = False
+    max_clients: int = -1
+    seat_model: str = ""
+    type: str = ""
 
 
 class LicenseActivationRequest(CanvusModel):
