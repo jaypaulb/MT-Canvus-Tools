@@ -13,6 +13,7 @@ use (
 	./examples/core/08-cross-canvas-clone
 	./examples/projects/note-mapper
 	./examples/projects/llm-canvas-companion
+	./examples/projects/ai-personas
 	./sdk
 	./tools/translator
 	./tools/db-solver
