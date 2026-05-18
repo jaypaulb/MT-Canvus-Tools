@@ -30,11 +30,12 @@
 | ~~9~~ | ~~`Canvus-Local-LLM`~~ | ~~`python/tools/local-llm/`~~ | ~~Python~~ | ~~772~~ | ~~8~~ | **Dropped 2026-05-18**: superseded by Go `llm-canvas-companion` (item #6) + `python/examples/core/06-llm-integration` (already shipped in 4a). Three implementations of the same Canvus+LLM idea would be redundant. |
 | 10 | `CanvusWebUI` | `typescript/examples/webui/` | TS | 6,521 | 15 | **Rewrite** — source is JavaScript. |
 
-**Scope reductions** (confirmed during pre-flight + audit 2026-05-18):
+**Scope reductions** (confirmed during pre-flight + audit + Round 3 dispatch 2026-05-18):
 - Item #2 `CanvusMCP` → `go/tools/mcp-server/`: dropped (no upstream repo, never built).
 - Item #9 `Canvus-Local-LLM` → `python/tools/local-llm/`: dropped (superseded by item #6 `llm-canvas-companion` and Phase 4a's `python/examples/core/06-llm-integration`).
+- Item `CanvusPowerToys` → `go/tools/powertoys/`: **deferred to Phase 5**. The Round 3 implementer agent surfaced that the source is bigger and more wired-up than the audit estimated: a 1,100-LOC `manager.go` god-organism and local-typed `Widget`/`Location`/`Size` types referenced from 10+ files would each require deep rewrites. Two viable paths (pragmatic shim vs full SDK type migration) need a dedicated Phase 5 plan. Carry-forward decisions for that plan: (a) opt-in TLS insecure mode via BOTH `--insecure-tls` flag AND `CANVUS_INSECURE_TLS` env var; (b) split client architecture — SDK-backed `APIClient` for canvus-server calls + separate `RCUClient` struct for `http://127.0.0.1:<webui-port>` with `WEBUI_PWD` Bearer auth (matching the Round 2 webui server).
 
-**Final scope: 9 items.**
+**Final scope: 8 items.**
 
 **RCU endpoints clarification:** PowerToys' `rcu_handler.go` and CanvusWebUI's RCU pages call `/api/v1/canvases/{id}/rcu/*`. These are NOT canvus-server endpoints — they are the WebUI's OWN admin endpoints. PowerToys runs an embedded WebUI and calls into it locally. Porters preserve RCU as-is in both items: the WebUI item rebuilds the RCU routes server-side in Hono; the PowerToys item keeps the RCU client calls (they don't go through the Canvus SDK).
 
@@ -42,9 +43,9 @@
 
 - **Round 1 (4 items, sonnet-default):** #3 translator (Go), #7 note-mapper (Go), #6 llm-canvas-companion (Go), #4 db-solver (Go). All four are SDK-swap-plus-localized-cleanup with effective LOC ≤5k each (db-solver's 10k total is 6k vendored SDK that disappears in the port).
 - **Round 2 (2 items, opus):** #5 ai-personas (Go), #10 webui (TS rewrite). Both architecturally heavy; webui is a full JS→TS rewrite to Hono.
-- **Round 3 (3 items, opus):** #1 cli (Go, ~13k LOC, mechanical), #2 powertoys (Go, ~20k LOC + RCU), #8 mcp-server-python (Python, ~5-10k effective + 3.2k-LOC `canvas.py` decomposition).
+- **Round 3 (2 items, opus):** #1 cli (Go, ~13k LOC, mechanical), #8 mcp-server-python (Python, ~5-10k effective + 3.2k-LOC `canvas.py` decomposition). Powertoys was originally in this round but was deferred to Phase 5 — see Scope Reductions above.
 
-Total: 9 items, 3 rounds, 4 + 2 + 3 agents.
+Total: 8 items, 3 rounds, 4 + 2 + 2 agents.
 
 ---
 
