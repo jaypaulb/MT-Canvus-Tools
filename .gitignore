@@ -13,6 +13,18 @@
 *.out
 vendor/
 
+# Go example binaries (produced by `go build ./...` inside each example dir)
+go/examples/core/01-auth-and-list/01-auth-and-list
+go/examples/core/02-auth-flows/02-auth-flows
+go/examples/core/03-widget-crud/03-widget-crud
+go/examples/core/04-file-upload/04-file-upload
+go/examples/core/04-file-upload/sample.png
+go/examples/core/05-streaming/05-streaming
+go/examples/core/06-llm-integration/cmd/watcher/watcher
+go/examples/core/06-llm-integration/cmd/responder/responder
+go/examples/core/07-webhooks-notifications/07-webhooks-notifications
+go/examples/core/08-cross-canvas-clone/08-cross-canvas-clone
+
 # Python
 __pycache__/
 *.py[cod]
