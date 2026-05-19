@@ -279,10 +279,9 @@ func (m *Manager) persistConfiguration() error {
 // performConnectionTests checks the local WebUI server health endpoint and the remote
 // Canvus server clients endpoint, returning a summary string and success flags for each.
 func (m *Manager) performConnectionTests(port, serverURL, authToken string) (string, string, bool, bool) {
-	// Create HTTP client with TLS verification disabled for self-signed certs
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: m.insecureTLS, //nolint:gosec
 		},
 	}
 	client := &http.Client{
