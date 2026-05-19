@@ -155,7 +155,10 @@ class ElementRelationshipAnalysisTool(BaseMCPTool):
             ) from exc
 
         if not isinstance(semantic, list):
-            semantic = []
+            raise MCPToolExecutionError(
+                "semantic response was not a JSON array",
+                self.name,
+            )
 
         return {
             "canvas_id": canvas_id,
@@ -230,7 +233,10 @@ class AutomaticConnectorSuggestionTool(BaseMCPTool):
             ) from exc
 
         if not isinstance(suggestions, list):
-            suggestions = []
+            raise MCPToolExecutionError(
+                "suggestion response was not a JSON array",
+                self.name,
+            )
 
         novel = [
             s for s in suggestions
