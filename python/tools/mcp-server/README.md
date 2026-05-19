@@ -42,7 +42,13 @@ By default the server listens on `0.0.0.0:8000`. Override with
 | `OLLAMA_HOST` | `localhost` | Ollama daemon host. |
 | `OLLAMA_PORT` | `11434` | Ollama daemon port. |
 | `OLLAMA_BASE_URL` | derived | Full URL; overrides host/port if set. |
+| `OLLAMA_TIMEOUT` | `30` | Per-request timeout (seconds). |
+| `OLLAMA_MAX_RETRIES` | `3` | Retry budget on transport / 5xx errors. |
 | `DEFAULT_MODEL` | `gemma3:2b` | Default Ollama model. |
+| `MODEL_TEMPERATURE` | `0.7` | Default sampling temperature. |
+| `MODEL_MAX_TOKENS` | `2048` | Default `num_predict` (max tokens). |
+| `MODEL_TOP_P` | `0.9` | Default top-p sampling threshold. |
+| `HEALTH_CHECK_TIMEOUT` | `10` | Ollama probe timeout (`/health/llm`). |
 
 ## MCP tool inventory
 
@@ -60,10 +66,10 @@ follow the `BaseMCPTool` contract (`name`, `description`, `validate_input`,
 | PDFs | `pdf_create`, `pdf_get`, `pdf_list`, `pdf_update` |
 | Connectors | `connector_create`, `connector_get`, `connector_list`, `connector_update`, `connector_delete` |
 | Users | `user_login`, `user_logout`, `get_current_user`, `user_list`, `user_create`, `get_canvas_permissions` |
-| Correlation (Phase 4d body) | `element_relationship_analysis`, `automatic_connector_suggestion`, `connector_visualization` |
-| LLM (Phase 4d body) | `llm_health_check`, `llm_text_analysis`, `llm_connector_suggestions`, `llm_canvas_insights`, `llm_enhanced_correlation`, `llm_brainstorming_enhancement` |
-| Brainstorming (Phase 4d body) | `brainstorming_note_retrieval`, `persona_identification`, `llm_brainstorming_analysis`, `auto_connector_creation` |
-| Reports (Phase 4d body) | `brainstorming_summary_report`, `brainstorming_insight_report`, `brainstorming_export` |
+| Correlation | `element_relationship_analysis`, `automatic_connector_suggestion`, `connector_visualization` |
+| LLM | `llm_health_check`, `llm_text_analysis`, `llm_connector_suggestions`, `llm_canvas_insights`, `llm_enhanced_correlation`, `llm_brainstorming_enhancement` |
+| Brainstorming | `brainstorming_note_retrieval`, `persona_identification`, `llm_brainstorming_analysis`, `auto_connector_creation` |
+| Reports | `brainstorming_summary_report`, `brainstorming_insight_report`, `brainstorming_export` |
 
 ## HTTP API
 
@@ -98,12 +104,29 @@ Add to your MCP client configuration (e.g. `~/Library/Application Support/Claude
 }
 ```
 
+## LLM configuration
+
+The LLM-orchestration tools (correlation / LLM / brainstorming / reports
+families) talk to an [Ollama](https://ollama.com) instance via the
+in-process `OllamaClient` (`canvus_mcp_server.llm.OllamaClient`). The
+client is constructed once at app start-up from `Settings.build_ollama_config()`
+and injected into every LLM-aware tool — there are no module-level globals.
+
+| Convention | Notes |
+|---|---|
+| HTTP transport | `httpx.AsyncClient` (one per `OllamaClient`). |
+| Logging | `structlog` at `INFO` / `WARNING`. |
+| Errors | `OllamaError` / `OllamaConnectionError` / `OllamaInferenceError`; tools translate to `MCPToolExecutionError`. |
+| Silent fallbacks | None. Legacy `LLM_FALLBACK_ENABLED` / `LLM_OFFLINE_MODE` paths are intentionally not ported (see `docs/conventions/python.md` §Error handling). |
+| Retries | Per `OLLAMA_MAX_RETRIES`, with linear back-off. |
+
 ## SQLite cache
 
-PDF-text extraction is cached to a SQLite database at `DATABASE_PATH`
-(default `~/.canvus-mcp-server/pdf_cache.db`). The cache layer itself is
-non-Canvus infrastructure preserved from the legacy server; its full port
-is scheduled for Phase 4d alongside the PDF-processing pipeline.
+PDF-text extraction and LLM responses are cached to a SQLite database
+at `DATABASE_PATH` (default `~/.canvus-mcp-server/pdf_cache.db`) via the
+async `aiosqlite` backend. Cache keys are `SHA256(model + prompt)`; TTL
+is governed by `PDF_CACHE_TTL`. Backend failures raise `CacheError`
+rather than silently re-computing.
 
 ## Ollama setup
 
@@ -142,32 +165,36 @@ production code plus ~13k LOC of tests. This round delivers:
 - Structlog logging per the monorepo convention.
 - mypy `--strict` clean on all new code (per the Round 1+2 lessons).
 
-**Deferred to Phase 4d (tool surface preserved, body raises a structured
-`MCPToolExecutionError` referencing the deferral):**
-- 9 LLM-orchestration tools (`llm.py`, `brainstorming.py`, `reports.py`,
-  `correlation.py`) — these depend on the legacy 541-LOC `llm_client.py`
-  Ollama wrapper, the 902-LOC `brainstorming_analysis.py`, the 821-LOC
-  `report_generation.py`, the 606-LOC `correlation_analysis.py`, plus a
-  large catalogue of `settings.*` LLM flags. The Canvus-side data fetch
-  is wired against the new SDK so the deferral is purely the in-process
-  algorithm body.
+**Ported in Phase 4d Round D (LLM toolchain):**
+- 16 LLM-orchestration tools (`llm.py`, `brainstorming.py`, `reports.py`,
+  `correlation.py`) — previously deferred stubs are now full working
+  implementations backed by the new `OllamaClient`.
+- `canvus_mcp_server.llm.OllamaClient` — `httpx`-based replacement for
+  the 541-LOC `aiohttp` legacy client; no module-level globals.
+- `canvus_mcp_server.llm.LLMCache` — `aiosqlite`-based replacement for
+  the threading-locked sync legacy cache.
+- `canvus_mcp_server.llm.PDFProcessor` — `httpx` + `pdfplumber` PDF
+  fetch / extract / chunk / summarise pipeline.
+
+**Behavioural diffs from legacy** (documented in tool docstrings):
+- `LLM_FALLBACK_ENABLED` / `LLM_OFFLINE_MODE` silent-fallback paths are
+  intentionally not ported per `docs/conventions/python.md` §Error
+  handling. Failures raise structured `MCPToolExecutionError`.
+- `AutoConnectorCreationTool` is suggestion-only (`dry_run=True`) — the
+  legacy direct-mutation path is deferred to Phase 4e behind a
+  `dry_run=False` opt-in.
+- `BrainstormingExportTool` ships JSON / Markdown / CSV; legacy PDF and
+  PNG renderings (matplotlib + reportlab) are dropped.
+- `ElementRelationshipAnalysisTool` replaces legacy sklearn-based
+  clustering / TF-IDF with proximity threshold + LLM semantic pass.
+
+**Still deferred:**
 - Custom JWT auth layer (legacy `auth.py` 730 LOC + `auth_endpoints.py`
   523 LOC) — a per-MCP-client session/permission system distinct from the
-  Canvus API auth. Phase 4d should decide whether to revive this or rely
+  Canvus API auth. Phase 4e should decide whether to revive this or rely
   on transport-level auth (Claude Desktop's MCP transport is local + the
   user already owns the API key).
-- SQLite cache layer body (legacy `caching.py` 467 LOC) — the settings
-  surface is preserved; the cache implementation port is paired with the
-  PDF-processing port.
-- PDF processing pipeline (legacy `pdf_processing.py` 714 LOC) — depends
-  on the SQLite cache port and Ollama port; only invoked by the
-  brainstorming / report tools currently deferred.
-- Health-check sub-system (legacy `health_checks.py` 451 LOC) — kept as a
-  thin `/health/llm` probe for now.
-
-These deferrals do **not** change the user-visible MCP tool registry —
-all 41 legacy tools remain registered and discoverable, so MCP clients
-that enumerate the catalogue still see the full surface.
+- Full `health_checks.py` (451 LOC) — kept as a thin `/health/llm` probe.
 
 ## Tests
 
