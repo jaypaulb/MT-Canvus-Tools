@@ -34,7 +34,10 @@ func (m *Manager) startServer(window fyne.Window) {
 	}
 
 	// Check if port is already in use by checking if server is already running
-	if m.server != nil {
+	m.serverMu.Lock()
+	serverRunning := m.server != nil
+	m.serverMu.Unlock()
+	if serverRunning {
 		dialog.ShowError(fmt.Errorf("Server is already running. Please stop it first."), window)
 		return
 	}
@@ -146,7 +149,7 @@ func (m *Manager) startServer(window fyne.Window) {
 		w.Write([]byte(fileList))
 	})
 
-	m.server = &http.Server{
+	httpServer := &http.Server{
 		Addr:         ":" + port,
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
@@ -154,14 +157,20 @@ func (m *Manager) startServer(window fyne.Window) {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	m.serverMu.Lock()
+	m.server = httpServer
+	m.serverMu.Unlock()
+
 	// Start server in goroutine
 	go func() {
-		if err := m.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Logf("Server error: %v", err)
 			// Don't update UI from goroutine - port check already happens before starting.
 			// If we get here, it's an unexpected error - just log it.
 			// The server will be nil and user can try starting again.
+			m.serverMu.Lock()
 			m.server = nil
+			m.serverMu.Unlock()
 		}
 	}()
 
@@ -181,7 +190,11 @@ func (m *Manager) startServer(window fyne.Window) {
 
 // stopServer stops the local web server.
 func (m *Manager) stopServer() {
-	if m.server == nil {
+	m.serverMu.Lock()
+	srv := m.server
+	m.serverMu.Unlock()
+
+	if srv == nil {
 		return
 	}
 
@@ -196,7 +209,7 @@ func (m *Manager) stopServer() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := m.server.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(ctx); err != nil {
 		// Log error but don't fail - server will still stop
 		if err == context.DeadlineExceeded {
 			logger.Logf("Server shutdown: Some connections did not close within timeout, forcing close")
@@ -204,14 +217,15 @@ func (m *Manager) stopServer() {
 			logger.Logf("Server shutdown error: %v", err)
 		}
 		// Force close if graceful shutdown failed
-		if m.server != nil {
-			m.server.Close()
-		}
+		srv.Close()
 	} else {
 		logger.Logf("Server shutdown: All connections closed gracefully")
 	}
 
+	m.serverMu.Lock()
 	m.server = nil
+	m.serverMu.Unlock()
+
 	m.apiRoutes = nil
 	m.serverStatus.SetText("Server: Stopped")
 	m.serverStatus.Importance = widget.LowImportance

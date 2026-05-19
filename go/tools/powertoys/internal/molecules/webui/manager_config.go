@@ -296,7 +296,11 @@ func (m *Manager) performConnectionTests(port, serverURL, authToken string) (str
 	m.serverStatus.SetText("Testing local WebUI server...")
 	m.serverStatus.Importance = widget.MediumImportance
 
-	if m.server == nil {
+	m.serverMu.Lock()
+	serverNil := m.server == nil
+	m.serverMu.Unlock()
+
+	if serverNil {
 		localTestResult = "❌ Local WebUI server is not running\n   Please start the server first."
 		localTestSuccess = false
 	} else {

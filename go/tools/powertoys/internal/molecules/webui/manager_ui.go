@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -21,6 +22,7 @@ type Manager struct {
 	fileService       *services.FileService
 	iniParser         *config.INIParser
 	insecureTLS       bool
+	serverMu          sync.Mutex
 	server            *http.Server
 	serverURL         *widget.Entry
 	serverSelect      *widget.Select
@@ -38,10 +40,11 @@ type Manager struct {
 }
 
 // NewManager creates a new WebUI Manager.
-func NewManager(fileService *services.FileService) (*Manager, error) {
+func NewManager(fileService *services.FileService, insecureTLS bool) (*Manager, error) {
 	return &Manager{
 		fileService:       fileService,
 		iniParser:         config.NewINIParser(),
+		insecureTLS:       insecureTLS,
 		enabledPages:      make(map[string]*widget.Check),
 		suppressSelectAll: false,
 	}, nil
@@ -238,7 +241,11 @@ func (m *Manager) loadServerURL() {
 
 // toggleServer starts or stops the local web server.
 func (m *Manager) toggleServer(window fyne.Window) {
-	if m.server == nil {
+	m.serverMu.Lock()
+	serverNil := m.server == nil
+	m.serverMu.Unlock()
+
+	if serverNil {
 		// Start server
 		m.startServer(window)
 	} else {

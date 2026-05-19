@@ -27,7 +27,7 @@ type MainWindow struct {
 }
 
 // NewMainWindow creates a new main window instance.
-func NewMainWindow(app fyne.App) *MainWindow {
+func NewMainWindow(app fyne.App, insecureTLS bool) *MainWindow {
 	window := app.NewWindow("Canvus PowerToys")
 	window.CenterOnScreen()
 
@@ -96,7 +96,7 @@ func NewMainWindow(app fyne.App) *MainWindow {
 	// Initialize WebUI Manager
 	var webUI fyne.CanvasObject
 	if fileService != nil {
-		webUIMgr, err := webui.NewManager(fileService)
+		webUIMgr, err := webui.NewManager(fileService, insecureTLS)
 		if err == nil {
 			webUI = webUIMgr.CreateUI(window)
 		} else {
