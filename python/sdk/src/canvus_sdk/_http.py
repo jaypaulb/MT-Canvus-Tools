@@ -106,6 +106,8 @@ class Transport:
         self._max_retries = max_retries
         self._retry_initial_delay = retry_initial_delay_seconds
         self._retry_backoff = retry_backoff_factor
+        if subscribe_buffer < 1:
+            raise ValueError(f"subscribe_buffer must be >= 1, got {subscribe_buffer}")
         self.subscribe_buffer: int = subscribe_buffer
 
         timeout = httpx.Timeout(

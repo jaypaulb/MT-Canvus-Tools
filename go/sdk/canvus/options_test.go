@@ -9,6 +9,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWithSubscribeBuffer_PanicsOnZero(t *testing.T) {
+	cfg := DefaultSessionConfig()
+	assert.Panics(t, func() {
+		WithSubscribeBuffer(0)(cfg)
+	})
+}
+
+func TestWithSubscribeBuffer_PanicsOnNegative(t *testing.T) {
+	cfg := DefaultSessionConfig()
+	assert.Panics(t, func() {
+		WithSubscribeBuffer(-1)(cfg)
+	})
+}
+
+func TestWithAPIKey_DoesNotInstallInsecureTransport(t *testing.T) {
+	cfg := DefaultSessionConfig()
+	cfg.BaseURL = "https://example.invalid/api/v1"
+	s := NewSession(cfg, WithAPIKey("secret"))
+	rt, ok := s.HTTPClient.Transport.(*transportWithAPIKey)
+	require.True(t, ok, "expected *transportWithAPIKey wrapper")
+	// Inner transport must NOT be insecure.
+	if inner, ok2 := rt.transport.(*http.Transport); ok2 && inner.TLSClientConfig != nil {
+		assert.False(t, inner.TLSClientConfig.InsecureSkipVerify,
+			"WithAPIKey alone must not skip TLS verification")
+	}
+}
+
+func TestWithAPIKeyAndVerifyTLSFalse_ComposesInsecureTransport(t *testing.T) {
+	cfg := DefaultSessionConfig()
+	cfg.BaseURL = "https://example.invalid/api/v1"
+	s := NewSession(cfg, WithAPIKey("secret"), WithVerifyTLS(false))
+	rt, ok := s.HTTPClient.Transport.(*transportWithAPIKey)
+	require.True(t, ok, "expected *transportWithAPIKey wrapper")
+	inner, ok2 := rt.transport.(*http.Transport)
+	require.True(t, ok2, "inner transport must be *http.Transport")
+	require.NotNil(t, inner.TLSClientConfig)
+	assert.True(t, inner.TLSClientConfig.InsecureSkipVerify,
+		"WithVerifyTLS(false) must propagate through WithAPIKey")
+}
+
 func TestWithVerifyTLS_FalseInstallsInsecureTransport(t *testing.T) {
 	cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
 	s := NewSession(cfg, WithVerifyTLS(false))

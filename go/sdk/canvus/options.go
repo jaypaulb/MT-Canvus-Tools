@@ -1,6 +1,7 @@
 package canvus
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -49,6 +50,10 @@ type SessionConfig struct {
 	// by the caller via WithHTTPClient — the caller's client takes precedence.
 	// Phase 4d Round B.
 	SkipTLSVerify bool
+	// APIKey, when non-empty, causes NewSession to wrap the HTTP transport with
+	// an auth round-tripper that adds the Private-Token header to every request.
+	// Set via WithAPIKey. Phase 4d Round B.
+	APIKey string
 	// SubscribeBuffer is the channel capacity used by subscribeStream for every
 	// Subscribe* call on this session. Default: 4. Set via WithSubscribeBuffer.
 	// Phase 4d Round B.
@@ -223,7 +228,7 @@ func FromEnv(opts ...SessionConfigOption) (*Session, error) {
 // dialTimeoutTransport wraps an http.Transport with a dial timeout.
 // Returned by buildConnectTimeoutTransport when ConnectTimeout > 0 and no
 // custom HTTPClient is supplied.
-func buildConnectTimeoutTransport(connect time.Duration) http.RoundTripper {
+func buildConnectTimeoutTransport(connect time.Duration, skipTLS bool) http.RoundTripper {
 	t := &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   connect,
@@ -232,6 +237,10 @@ func buildConnectTimeoutTransport(connect time.Duration) http.RoundTripper {
 		MaxIdleConns:        100,
 		IdleConnTimeout:     90 * time.Second,
 		TLSHandshakeTimeout: connect,
+	}
+	if skipTLS {
+		//nolint:gosec // explicit opt-out via WithVerifyTLS(false).
+		t.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return t
 }

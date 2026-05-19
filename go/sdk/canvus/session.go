@@ -57,32 +57,16 @@ func (t *transportWithAPIKey) RoundTrip(req *http.Request) (*http.Response, erro
 	return t.transport.RoundTrip(req)
 }
 
-// WithAPIKey configures the session to use a static API key.
+// WithAPIKey configures the session to authenticate using a static API key.
 //
-// Note: this option installs a round-tripper that adds the Private-Token
-// header to every outgoing request. The default round-tripper used by this
-// option also disables TLS verification — the Canvus dev/test servers are
-// frequently self-signed. Pass WithHTTPClient first if you want a different
-// verification policy.
+// This option records the key so that NewSession can wrap the transport with
+// a round-tripper that injects the Private-Token header on every request.
+// TLS verification is controlled separately by WithVerifyTLS — pass
+// WithVerifyTLS(false) when connecting to servers that use self-signed
+// certificates (common for Canvus dev/test servers).
 func WithAPIKey(apiKey string) SessionConfigOption {
 	return func(cfg *SessionConfig) {
-		if cfg.HTTPClient == nil {
-			cfg.HTTPClient = &http.Client{
-				Transport: &http.Transport{
-					//nolint:gosec // Canvus dev servers commonly use self-signed certs; document and accept.
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
-		}
-		transport := cfg.HTTPClient.Transport
-		if transport == nil {
-			transport = http.DefaultTransport
-		}
-		cfg.HTTPClient.Transport = &transportWithAPIKey{
-			transport: transport,
-			header:    "Private-Token",
-			apiKey:    apiKey,
-		}
+		cfg.APIKey = apiKey
 	}
 }
 
@@ -280,19 +264,33 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 		// which would leak our timeout into unrelated code that uses the
 		// default client. Phase 4b §4.1 #16: honour ConnectTimeout when set.
 		// Phase 4d Round B: honour SkipTLSVerify when set via WithVerifyTLS(false).
+		// Both may now be combined without one silently dropping the other.
 		client := &http.Client{Timeout: cfg.RequestTimeout}
-		switch {
-		case cfg.SkipTLSVerify:
+		if cfg.ConnectTimeout > 0 {
+			client.Transport = buildConnectTimeoutTransport(cfg.ConnectTimeout, cfg.SkipTLSVerify)
+		} else if cfg.SkipTLSVerify {
 			//nolint:gosec // explicit opt-out via WithVerifyTLS(false).
 			client.Transport = &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
-		case cfg.ConnectTimeout > 0:
-			client.Transport = buildConnectTimeoutTransport(cfg.ConnectTimeout)
+		}
+		if cfg.APIKey != "" {
+			t := client.Transport
+			if t == nil {
+				t = http.DefaultTransport
+			}
+			client.Transport = &transportWithAPIKey{transport: t, header: "Private-Token", apiKey: cfg.APIKey}
 		}
 		cfg.HTTPClient = client
 	} else if cfg.HTTPClient.Timeout == 0 {
 		cfg.HTTPClient.Timeout = cfg.RequestTimeout
+		if cfg.APIKey != "" {
+			t := cfg.HTTPClient.Transport
+			if t == nil {
+				t = http.DefaultTransport
+			}
+			cfg.HTTPClient.Transport = &transportWithAPIKey{transport: t, header: "Private-Token", apiKey: cfg.APIKey}
+		}
 	}
 	if cfg.MaxRetries == 0 {
 		cfg.MaxRetries = 3

@@ -47,6 +47,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     apiKey: env.CANVUS_API_KEY,
     timeoutMs: env.CANVUS_TIMEOUT_MS,
     verifyTls: env.CANVUS_VERIFY_TLS,
+    subscribeBuffer: env.CANVUS_SUBSCRIBE_BUFFER,
   });
 
   if (!parsed.success) {

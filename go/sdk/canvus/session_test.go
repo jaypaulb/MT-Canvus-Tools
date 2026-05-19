@@ -35,20 +35,25 @@ func TestNewSession_WithToken_InstallsAuthenticator(t *testing.T) {
 
 func TestWithAPIKey_AppliesHeaderRoundTripper(t *testing.T) {
 	tests := []struct {
-		name string
-		key  string
+		name   string
+		key    string
+		wantRt bool
 	}{
-		{name: "set", key: "secret-key"},
-		{name: "empty (still installs round-tripper)", key: ""},
+		{name: "non-empty key installs round-tripper", key: "secret-key", wantRt: true},
+		{name: "empty key skips round-tripper", key: "", wantRt: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
-			NewSession(cfg, WithAPIKey(tt.key))
-			rt, ok := cfg.HTTPClient.Transport.(*transportWithAPIKey)
-			require.True(t, ok, "expected transportWithAPIKey, got %T", cfg.HTTPClient.Transport)
-			assert.Equal(t, "Private-Token", rt.header)
-			assert.Equal(t, tt.key, rt.apiKey)
+			s := NewSession(cfg, WithAPIKey(tt.key))
+			rt, ok := s.HTTPClient.Transport.(*transportWithAPIKey)
+			if tt.wantRt {
+				require.True(t, ok, "expected transportWithAPIKey, got %T", s.HTTPClient.Transport)
+				assert.Equal(t, "Private-Token", rt.header)
+				assert.Equal(t, tt.key, rt.apiKey)
+			} else {
+				assert.False(t, ok, "empty key should not install round-tripper")
+			}
 		})
 	}
 }

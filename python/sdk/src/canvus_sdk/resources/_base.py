@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import json
 from collections.abc import AsyncIterator, Iterable, Mapping
 from typing import Any, TypeVar
@@ -11,6 +12,11 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 
 from .._http import Transport
+
+
+@dataclasses.dataclass
+class _StreamError:
+    exc: Exception
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
@@ -74,7 +80,7 @@ class Resource:
             Validated ``model_cls`` instances.
         """
         _sentinel = object()
-        queue: asyncio.Queue[ModelT | object] = asyncio.Queue(
+        queue: asyncio.Queue[ModelT | _StreamError | object] = asyncio.Queue(
             maxsize=self._transport.subscribe_buffer
         )
         query: dict[str, Any] = dict(params) if params else {}
@@ -92,6 +98,8 @@ class Resource:
                             await queue.put(model_cls.model_validate(item))
                     else:
                         await queue.put(model_cls.model_validate(payload))
+            except Exception as exc:
+                await queue.put(_StreamError(exc))
             finally:
                 await queue.put(_sentinel)
 
@@ -101,6 +109,8 @@ class Resource:
                 item = await queue.get()
                 if item is _sentinel:
                     break
+                if isinstance(item, _StreamError):
+                    raise item.exc
                 yield item  # type: ignore[misc]
         finally:
             task.cancel()
