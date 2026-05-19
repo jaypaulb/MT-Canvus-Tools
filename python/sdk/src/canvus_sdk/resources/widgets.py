@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import AsyncIterator
-from typing import Any, ClassVar
+from typing import Any, ClassVar, List, cast
 
 from ..errors import UnsupportedOperationError
 from ..models import (
@@ -183,15 +183,15 @@ class NotesResource(_TypedSubResource):
         return await self._list_impl(canvas_id, params=params)
 
     async def get(self, canvas_id: str, note_id: str) -> Note:
-        return await self._get_impl(canvas_id, note_id)
+        return cast(Note, await self._get_impl(canvas_id, note_id))
 
     async def create(self, canvas_id: str, payload: dict[str, Any]) -> Note:
-        return await self._create_impl(canvas_id, payload)
+        return cast(Note, await self._create_impl(canvas_id, payload))
 
     async def update(
         self, canvas_id: str, note_id: str, payload: dict[str, Any]
     ) -> Note:
-        return await self._patch_impl(canvas_id, note_id, payload)
+        return cast(Note, await self._patch_impl(canvas_id, note_id, payload))
 
     async def delete(self, canvas_id: str, note_id: str) -> None:
         await self._delete_impl(canvas_id, note_id)
@@ -229,7 +229,7 @@ class _AssetWidgetMixin(_TypedSubResource):
         metadata: dict[str, Any] | None = None,
     ) -> Any:
         """Create a widget by uploading a file as multipart/form-data."""
-        files = {"data": (filename, file_bytes, content_type)}
+        files: dict[str, Any] = {"data": (filename, file_bytes, content_type)}
         if metadata is not None:
             files["json"] = (
                 None,
@@ -538,7 +538,7 @@ class TablesResource(_TypedSubResource):
     async def delete(self, canvas_id: str, table_id: str) -> None:
         await self._delete_impl(canvas_id, table_id)
 
-    async def list_cells(self, canvas_id: str, table_id: str) -> list[TableCell]:
+    async def list_cells(self, canvas_id: str, table_id: str) -> List[TableCell]:
         """Return the cells inside a table."""
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/tables/{table_id}/cells"
@@ -998,7 +998,7 @@ class WidgetsResource(Resource):
 
     # ---- uploads-folder ----------------------------------------------------
 
-    async def list_uploads_folder(self, canvas_id: str) -> list[UploadItem]:
+    async def list_uploads_folder(self, canvas_id: str) -> List[UploadItem]:
         """List items in the canvas uploads folder (Phase 3 Python item #6)."""
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/uploads-folder"
@@ -1015,7 +1015,7 @@ class WidgetsResource(Resource):
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Upload a file (note or asset) to the canvas uploads folder."""
-        files = {"data": (filename, file_bytes, content_type)}
+        files: dict[str, Any] = {"data": (filename, file_bytes, content_type)}
         if metadata is not None:
             files["json"] = (
                 None,

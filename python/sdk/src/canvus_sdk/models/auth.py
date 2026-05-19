@@ -25,7 +25,7 @@ class AccessTokenWithSecret(AccessToken):
     chance to record the secret.
     """
 
-    plain_token: str  # type: ignore[assignment]
+    plain_token: str
 
 
 class LoginResponse(CanvusModel):

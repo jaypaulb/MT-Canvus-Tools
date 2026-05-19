@@ -11,7 +11,7 @@ Note:
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, List
 
 from ..models import Group, GroupMember, User
 from ._base import Resource
@@ -167,7 +167,7 @@ class GroupsResource(Resource):
 
     # ---- members -----------------------------------------------------------
 
-    async def list_members(self, group_id: str) -> list[GroupMember]:
+    async def list_members(self, group_id: str) -> List[GroupMember]:
         """List members of a group."""
         data = await self._transport.request("GET", f"groups/{group_id}/members")
         return self._parse_list(GroupMember, data)

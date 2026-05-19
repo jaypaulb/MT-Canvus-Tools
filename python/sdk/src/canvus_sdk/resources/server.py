@@ -339,7 +339,7 @@ class ServerResource(Resource):
         # The spec envelope is `{events, total-count, page, per-page}`.
         # The legacy server returns a flat list; handle both.
         if isinstance(data, list):
-            return AuditLogPage(events=data, total_count=len(data))
+            return AuditLogPage.model_validate({"events": data, "total-count": len(data)})
         return self._parse(AuditLogPage, data or {})
 
     async def export_audit_log_csv(
