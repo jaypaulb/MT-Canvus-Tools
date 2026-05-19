@@ -11,8 +11,9 @@ Covers every endpoint under:
 
 from __future__ import annotations
 
+import builtins
 from collections.abc import AsyncIterator
-from typing import Any, List
+from typing import Any
 
 from ..errors import ValidationError
 from ..models import (
@@ -183,7 +184,7 @@ class CanvasesResource(Resource):
     # object client-side so callers can ergonomically work with one preset at
     # a time. They all round-trip through GET + PATCH of the bulk endpoint.
 
-    async def list_color_presets(self, canvas_id: str) -> List[str]:
+    async def list_color_presets(self, canvas_id: str) -> builtins.list[str]:
         """Return the names of every color preset defined on the canvas."""
         presets = await self.get_color_presets(canvas_id)
         return sorted(presets.presets.keys())

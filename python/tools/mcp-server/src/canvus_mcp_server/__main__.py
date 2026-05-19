@@ -15,7 +15,7 @@ from .config import Settings
 
 def main() -> None:
     """Run the MCP server."""
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
     app = create_app(settings=settings)
     uvicorn.run(
         app,

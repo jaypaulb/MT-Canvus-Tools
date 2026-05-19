@@ -24,6 +24,7 @@ Notes:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import time
 
@@ -58,7 +59,7 @@ async def _consume_into_queue(stream, queue: asyncio.Queue) -> None:
     try:
         async for event in stream:
             await queue.put(("event", event))
-    except Exception as exc:  # noqa: BLE001 — surface to caller via queue.
+    except Exception as exc:
         await queue.put(("error", exc))
     finally:
         await queue.put(("eof", None))
@@ -78,7 +79,7 @@ async def _drain_until_quiet(
             kind, payload = await asyncio.wait_for(
                 queue.get(), timeout=settle_seconds
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return drained
         if kind == "event":
             drained.append(payload)
@@ -107,7 +108,7 @@ def _best_effort_post(base_url: str, api_key: str, endpoint: str, body: dict) ->
     """Non-fatal POST used for revert/cleanup."""
     try:
         _raw_post(base_url, api_key, endpoint, body)
-    except Exception as exc:  # noqa: BLE001 — best effort, log only.
+    except Exception as exc:
         print(f"best-effort revert {endpoint}: {exc}")
 
 
@@ -155,7 +156,7 @@ async def test_subscribe_canvas_permissions_live() -> None:
                 kind, payload = await asyncio.wait_for(
                     event_queue.get(), timeout=10.0
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pytest.fail(
                     "FAIL: no change event on subscribe stream within 10s "
                     "after permissions PATCH"
@@ -191,14 +192,12 @@ async def test_subscribe_canvas_permissions_live() -> None:
         finally:
             # Stop the consumer (will tear down the underlying stream).
             consumer.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await consumer
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
             # Cleanup canvas.
             try:
                 await mut_client.canvases.delete(canvas_id)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 print(f"cleanup: delete canvas {canvas_id} failed: {exc}")
     finally:
         await sub_client.aclose()
