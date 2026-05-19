@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"google.golang.org/genai"
+
+	sharedllm "github.com/jaypaulb/MT-Canvus-Tools/go/internal/llm"
 )
 
 const (
@@ -33,13 +35,15 @@ func ExtractPostitNotes(input ExtractInput) ([]Note, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), geminiTimeout)
 	defer cancel()
 
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
+	shared, err := sharedllm.NewClient(ctx, sharedllm.Config{
+		APIKey: apiKey,
+		Model:  geminiModel,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ExtractPostitNotes: create Gemini client: %w", err)
 	}
+	defer shared.Close()
+	client := shared.Raw()
 
 	cfg := &genai.GenerateContentConfig{
 		ResponseMIMEType: "application/json",

@@ -15,6 +15,7 @@ use (
 	./examples/projects/note-mapper
 	./examples/projects/llm-canvas-companion
 	./examples/projects/ai-personas
+	./internal/llm
 	./sdk
 	./tools/translator
 	./tools/db-solver
@@ -26,3 +27,8 @@ use (
 // at the in-tree sdk module so the resolver doesn't reach for the module
 // proxy.
 replace github.com/jaypaulb/MT-Canvus-Tools/go/sdk v0.0.0-00010101000000-000000000000 => ./sdk
+
+// The shared LLM helper at ./internal/llm is referenced by consumers via a
+// placeholder version (matching the SDK pattern) so workspace builds resolve
+// to the in-tree module without going to the module proxy.
+replace github.com/jaypaulb/MT-Canvus-Tools/go/internal/llm v0.0.0-00010101000000-000000000000 => ./internal/llm

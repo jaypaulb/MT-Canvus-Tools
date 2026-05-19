@@ -16,6 +16,7 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/jaypaulb/MT-Canvus-Tools/go/examples/projects/ai-personas/internal/atom"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/internal/llm"
 )
 
 // Gemini retry configuration.
@@ -34,19 +35,25 @@ type Gemini struct {
 }
 
 // NewGemini constructs a Gemini client with the given API key and model defaults.
+// Client construction is delegated to the shared llm helper; the personas-model,
+// chat-model split is kept locally because ai-personas uses two distinct models
+// across persona generation and chat sessions.
 func NewGemini(ctx context.Context, apiKey, personasModel, chatModel string, temperature float32) (*Gemini, error) {
-	if apiKey == "" {
-		return nil, fmt.Errorf("ai.NewGemini: GEMINI_API_KEY is required")
+	// llm.NewClient validates apiKey; we still validate model fields locally so
+	// the error names the ai-personas-specific config keys.
+	if personasModel == "" {
+		return nil, fmt.Errorf("ai.NewGemini: personasModel is required")
 	}
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
+	shared, err := llm.NewClient(ctx, llm.Config{
+		APIKey:      apiKey,
+		Model:       personasModel,
+		Temperature: temperature,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai.NewGemini: %w", err)
 	}
 	return &Gemini{
-		client:        client,
+		client:        shared.Raw(),
 		personasModel: personasModel,
 		chatModel:     chatModel,
 		temperature:   temperature,

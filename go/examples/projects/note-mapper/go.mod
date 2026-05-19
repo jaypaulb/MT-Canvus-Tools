@@ -5,10 +5,13 @@ go 1.22
 toolchain go1.23.0
 
 require (
+	github.com/jaypaulb/MT-Canvus-Tools/go/internal/llm v0.0.0-00010101000000-000000000000
 	github.com/jaypaulb/MT-Canvus-Tools/go/sdk v0.0.0-00010101000000-000000000000
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	google.golang.org/genai v1.34.0
 )
+
+replace github.com/jaypaulb/MT-Canvus-Tools/go/internal/llm v0.0.0-00010101000000-000000000000 => ../../../internal/llm
 
 require (
 	cloud.google.com/go v0.116.0 // indirect

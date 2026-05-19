@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"google.golang.org/genai"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/internal/llm"
 )
 
 const (
@@ -15,12 +15,12 @@ const (
 	defaultModel = "gemini-2.0-flash"
 )
 
-// GeminiClient wraps the google.golang.org/genai client for translation tasks.
-// It uses the unified Gemini/Vertex SDK that replaced the deprecated
-// github.com/google/generative-ai-go/genai package.
+// GeminiClient wraps the shared llm.Client for translation tasks.
+// The shared helper owns construction of the google.golang.org/genai client
+// (the unified Gemini/Vertex SDK that replaced the deprecated
+// github.com/google/generative-ai-go/genai package).
 type GeminiClient struct {
-	client *genai.Client
-	model  string
+	client *llm.Client
 }
 
 // NewGeminiClient creates a GeminiClient authenticated with apiKey.
@@ -28,14 +28,11 @@ type GeminiClient struct {
 // directly, but we require the caller to pass the key explicitly so
 // config ownership stays in LoadConfig.
 func NewGeminiClient(ctx context.Context, apiKey string) (*GeminiClient, error) {
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
-	})
+	c, err := llm.NewClient(ctx, llm.Config{APIKey: apiKey, Model: defaultModel})
 	if err != nil {
 		return nil, fmt.Errorf("NewGeminiClient: %w", err)
 	}
-	return &GeminiClient{client: client, model: defaultModel}, nil
+	return &GeminiClient{client: c}, nil
 }
 
 // TranslateText translates text into targetLanguage using Gemini.
@@ -57,14 +54,9 @@ func (g *GeminiClient) TranslateText(ctx context.Context, text, targetLanguage s
 
 	slog.Debug("gemini translate", "target_language", targetLanguage, "text_len", len(text))
 
-	result, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), nil)
+	raw, err := g.client.Complete(ctx, prompt)
 	if err != nil {
-		return "", fmt.Errorf("TranslateText: GenerateContent: %w", err)
-	}
-
-	raw := result.Text()
-	if raw == "" {
-		return "", fmt.Errorf("TranslateText: empty response from Gemini")
+		return "", fmt.Errorf("TranslateText: %w", err)
 	}
 
 	translated := formatTranslation(targetLanguage, raw)
