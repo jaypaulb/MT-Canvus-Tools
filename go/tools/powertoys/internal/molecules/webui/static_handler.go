@@ -1,12 +1,13 @@
 package webui
 
 import (
-	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/logger"
 )
 
 // StaticHandler handles serving static frontend files.
@@ -28,14 +29,14 @@ func NewStaticHandler() *StaticHandler {
 		// Try to find webui/public relative to current working directory or executable
 		devPath := findWebUIPublicDir()
 		if devPath != "" {
-			fmt.Printf("[StaticHandler] Development mode enabled - serving from: %s\n", devPath)
+			logger.Logf("[StaticHandler] Development mode enabled - serving from: %s\n", devPath)
 			handler = &StaticHandler{
 				fileSystem: os.DirFS(devPath),
 				devMode:    true,
 				devPath:    devPath,
 			}
 		} else {
-			fmt.Printf("[StaticHandler] Development mode enabled but webui/public not found, falling back to embedded assets\n")
+			logger.Logf("[StaticHandler] Development mode enabled but webui/public not found, falling back to embedded assets\n")
 			handler = &StaticHandler{
 				fileSystem: embeddedAssets,
 				devMode:    false,
@@ -203,7 +204,7 @@ func (sh *StaticHandler) ServeFiles(mux *http.ServeMux) {
 		}
 
 		// Not found
-		fmt.Printf("[StaticHandler] File not found for path: %s\n", r.URL.Path)
+		logger.Logf("[StaticHandler] File not found for path: %s\n", r.URL.Path)
 		http.NotFound(w, r)
 	})
 }
@@ -246,16 +247,16 @@ func (sh *StaticHandler) serveFile(w http.ResponseWriter, r *http.Request, fileP
 	filePath = strings.TrimPrefix(filePath, "./") // Remove any leading ./
 
 	// Debug: Log what we're trying to access
-	fmt.Printf("[StaticHandler] Attempting to serve file: %s (request: %s)\n", filePath, r.URL.Path)
+	logger.Logf("[StaticHandler] Attempting to serve file: %s (request: %s)\n", filePath, r.URL.Path)
 
 	// Check if file exists first
 	if _, err := fs.Stat(sh.fileSystem, filePath); err != nil {
-		fmt.Printf("[StaticHandler] File not found: %s, error: %v\n", filePath, err)
+		logger.Logf("[StaticHandler] File not found: %s, error: %v\n", filePath, err)
 		// Try to list what's in the filesystem root for debugging
 		if entries, listErr := fs.ReadDir(sh.fileSystem, "."); listErr == nil {
-			fmt.Printf("[StaticHandler] Filesystem root contents:\n")
+			logger.Logf("[StaticHandler] Filesystem root contents:\n")
 			for _, entry := range entries {
-				fmt.Printf("  - %s (dir: %v)\n", entry.Name(), entry.IsDir())
+				logger.Logf("  - %s (dir: %v)\n", entry.Name(), entry.IsDir())
 			}
 		}
 		http.NotFound(w, r)
@@ -265,12 +266,12 @@ func (sh *StaticHandler) serveFile(w http.ResponseWriter, r *http.Request, fileP
 	// Read file from embedded filesystem
 	data, err := fs.ReadFile(sh.fileSystem, filePath)
 	if err != nil {
-		fmt.Printf("[StaticHandler] Error reading file %s: %v\n", filePath, err)
+		logger.Logf("[StaticHandler] Error reading file %s: %v\n", filePath, err)
 		http.NotFound(w, r)
 		return
 	}
 
-	fmt.Printf("[StaticHandler] Successfully serving file: %s (size: %d bytes)\n", filePath, len(data))
+	logger.Logf("[StaticHandler] Successfully serving file: %s (size: %d bytes)\n", filePath, len(data))
 
 	// Set content type based on file extension
 	ext := filepath.Ext(filePath)

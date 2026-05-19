@@ -1,9 +1,11 @@
 package webui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/logger"
 	webuiatoms "github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/webui"
 )
 
@@ -33,7 +35,7 @@ func (mo *MacrosOperations) GetZoneAndWidgets(zoneID string) (*webuiatoms.ZoneBo
 		return nil, nil, fmt.Errorf("failed to get zone: %w", err)
 	}
 
-	allWidgets, err := webuiatoms.GetAllWidgets(mo.apiClient, canvasID)
+	allWidgets, err := webuiatoms.GetAllWidgets(context.Background(), mo.apiClient, canvasID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get widgets: %w", err)
 	}
@@ -43,7 +45,7 @@ func (mo *MacrosOperations) GetZoneAndWidgets(zoneID string) (*webuiatoms.ZoneBo
 
 // FilterWidgetsInZone filters widgets that are within a zone, excluding anchors and connectors.
 func FilterWidgetsInZone(widgets []webuiatoms.Widget, zoneBB *webuiatoms.ZoneBoundingBox, excludeZoneID string) []webuiatoms.Widget {
-	fmt.Printf("[FilterWidgetsInZone] Filtering %d widgets, zoneBB: X=%.2f, Y=%.2f, W=%.2f, H=%.2f\n",
+	logger.Logf("[FilterWidgetsInZone] Filtering %d widgets, zoneBB: X=%.2f, Y=%.2f, W=%.2f, H=%.2f\n",
 		len(widgets), zoneBB.X, zoneBB.Y, zoneBB.Width, zoneBB.Height)
 
 	var filtered []webuiatoms.Widget
@@ -67,11 +69,11 @@ func FilterWidgetsInZone(widgets []webuiatoms.Widget, zoneBB *webuiatoms.ZoneBou
 		checkedCount++
 		if webuiatoms.WidgetIsInZone(&w, zoneBB) {
 			filtered = append(filtered, w)
-			fmt.Printf("[FilterWidgetsInZone] Widget %s (%s) is IN zone\n", w.ID[:8], w.WidgetType)
+			logger.Logf("[FilterWidgetsInZone] Widget %s (%s) is IN zone\n", w.ID[:8], w.WidgetType)
 		}
 	}
 
-	fmt.Printf("[FilterWidgetsInZone] Result: %d widgets in zone (checked %d, skipped %d)\n", len(filtered), checkedCount, skippedCount)
+	logger.Logf("[FilterWidgetsInZone] Result: %d widgets in zone (checked %d, skipped %d)\n", len(filtered), checkedCount, skippedCount)
 	return filtered
 }
 
@@ -82,35 +84,35 @@ func (mo *MacrosOperations) UpdateWidgetWithRetry(canvasID, widgetID, widgetType
 	baseEndpoint := webuiatoms.GetWidgetPatchEndpoint(widgetType)
 	endpoint := fmt.Sprintf("/api/v1/canvases/%s%s/%s", canvasID, baseEndpoint, widgetID)
 
-	fmt.Printf("[UpdateWidgetWithRetry] Updating widget %s (type: %s) via %s\n", widgetID[:8], widgetType, endpoint)
+	logger.Logf("[UpdateWidgetWithRetry] Updating widget %s (type: %s) via %s\n", widgetID[:8], widgetType, endpoint)
 
 	var lastErr error
 	for tries := 0; tries < 3; tries++ {
 		_, err := mo.apiClient.Patch(endpoint, payload)
 		if err == nil {
-			fmt.Printf("[UpdateWidgetWithRetry] Successfully updated widget %s\n", widgetID[:8])
+			logger.Logf("[UpdateWidgetWithRetry] Successfully updated widget %s\n", widgetID[:8])
 			return nil
 		}
-		fmt.Printf("[UpdateWidgetWithRetry] Attempt %d failed for widget %s: %v\n", tries+1, widgetID[:8], err)
+		logger.Logf("[UpdateWidgetWithRetry] Attempt %d failed for widget %s: %v\n", tries+1, widgetID[:8], err)
 		lastErr = err
 	}
-	fmt.Printf("[UpdateWidgetWithRetry] ERROR: Failed to update widget %s after 3 attempts: %v\n", widgetID[:8], lastErr)
+	logger.Logf("[UpdateWidgetWithRetry] ERROR: Failed to update widget %s after 3 attempts: %v\n", widgetID[:8], lastErr)
 	return fmt.Errorf("failed after 3 attempts: %w", lastErr)
 }
 
 // BatchUpdateWidgets updates multiple widgets and returns count of successful updates.
 func (mo *MacrosOperations) BatchUpdateWidgets(canvasID string, updates []WidgetUpdate) int {
-	fmt.Printf("[BatchUpdateWidgets] Updating %d widgets\n", len(updates))
+	logger.Logf("[BatchUpdateWidgets] Updating %d widgets\n", len(updates))
 	successCount := 0
 	for i, update := range updates {
 		if err := mo.UpdateWidgetWithRetry(canvasID, update.WidgetID, update.WidgetType, update.Payload); err == nil {
 			successCount++
 		} else {
-			fmt.Printf("[BatchUpdateWidgets] Failed to update widget %d/%d (ID: %s, Type: %s): %v\n",
+			logger.Logf("[BatchUpdateWidgets] Failed to update widget %d/%d (ID: %s, Type: %s): %v\n",
 				i+1, len(updates), update.WidgetID[:8], update.WidgetType, err)
 		}
 	}
-	fmt.Printf("[BatchUpdateWidgets] Successfully updated %d/%d widgets\n", successCount, len(updates))
+	logger.Logf("[BatchUpdateWidgets] Successfully updated %d/%d widgets\n", successCount, len(updates))
 	return successCount
 }
 
@@ -154,11 +156,11 @@ func CalculateCellDimensions(zoneBB *webuiatoms.ZoneBoundingBox, rows, cols int)
 
 // PositionWidgetGroups positions widget groups horizontally with vertical stacking within groups.
 func (mo *MacrosOperations) PositionWidgetGroups(groups map[string][]webuiatoms.Widget, zoneBB *webuiatoms.ZoneBoundingBox, canvasID string) int {
-	fmt.Printf("[PositionWidgetGroups] Positioning %d groups in zone\n", len(groups))
+	logger.Logf("[PositionWidgetGroups] Positioning %d groups in zone\n", len(groups))
 	groupedCount := 0
 	xOffset := zoneBB.X + 100
 	for groupKey, widgets := range groups {
-		fmt.Printf("[PositionWidgetGroups] Group '%s': %d widgets\n", groupKey, len(widgets))
+		logger.Logf("[PositionWidgetGroups] Group '%s': %d widgets\n", groupKey, len(widgets))
 		yOffset := zoneBB.Y + 100
 		for _, widget := range widgets {
 			// Use type-specific endpoint (not /widgets which is read-only)
@@ -167,20 +169,20 @@ func (mo *MacrosOperations) PositionWidgetGroups(groups map[string][]webuiatoms.
 			payload := map[string]interface{}{
 				"location": map[string]float64{"x": xOffset, "y": yOffset},
 			}
-			fmt.Printf("[PositionWidgetGroups] Patching widget %s (%s) to (%.2f, %.2f) via %s\n",
+			logger.Logf("[PositionWidgetGroups] Patching widget %s (%s) to (%.2f, %.2f) via %s\n",
 				widget.ID[:8], widget.WidgetType, xOffset, yOffset, endpoint)
 			_, err := mo.apiClient.Patch(endpoint, payload)
 			if err == nil {
 				groupedCount++
-				fmt.Printf("[PositionWidgetGroups] Successfully positioned widget %s\n", widget.ID[:8])
+				logger.Logf("[PositionWidgetGroups] Successfully positioned widget %s\n", widget.ID[:8])
 			} else {
-				fmt.Printf("[PositionWidgetGroups] ERROR: Failed to position widget %s: %v\n", widget.ID[:8], err)
+				logger.Logf("[PositionWidgetGroups] ERROR: Failed to position widget %s: %v\n", widget.ID[:8], err)
 			}
 			yOffset += 200
 		}
 		xOffset += 300
 	}
-	fmt.Printf("[PositionWidgetGroups] Completed: %d widgets positioned\n", groupedCount)
+	logger.Logf("[PositionWidgetGroups] Completed: %d widgets positioned\n", groupedCount)
 	return groupedCount
 }
 

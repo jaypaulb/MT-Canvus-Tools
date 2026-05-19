@@ -3,6 +3,7 @@ package webui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,9 +20,13 @@ type CanvasService struct {
 	ctx                context.Context
 	cancel             context.CancelFunc
 	clientID           string
+	clientName         string
+	installationName   string
+	overrideClientName string
 	mu                 sync.RWMutex
 	hasReceivedEvents  bool
 	lastEventTime      time.Time
+	subscriptionStart  time.Time
 }
 
 // NewCanvasService creates a canvas service.
@@ -42,6 +47,9 @@ func (cs *CanvasService) Start() error {
 	if err != nil {
 		return fmt.Errorf("CanvasService.Start: %w", err)
 	}
+	cs.mu.Lock()
+	cs.installationName = installationName
+	cs.mu.Unlock()
 
 	clientID, err := cs.clientResolver.ResolveClientID(cs.ctx, cs.session, installationName)
 	if err != nil {
@@ -53,7 +61,20 @@ func (cs *CanvasService) Start() error {
 		return nil
 	}
 
+	cs.mu.Lock()
 	cs.clientID = clientID
+	cs.subscriptionStart = time.Now()
+	cs.mu.Unlock()
+
+	// Fetch client name asynchronously.
+	go cs.refreshClientName()
+
+	cs.startSubscription(clientID)
+	return nil
+}
+
+// startSubscription subscribes to workspace events for the given clientID.
+func (cs *CanvasService) startSubscription(clientID string) {
 	subscriber := webuiatoms.NewWorkspaceSubscriber(cs.session, clientID)
 	eventChan, errChan := subscriber.Subscribe(cs.ctx)
 
@@ -80,18 +101,161 @@ func (cs *CanvasService) Start() error {
 			}
 		}
 	}()
+}
 
-	return nil
+// refreshClientName fetches the client name from the server by matching the stored clientID.
+func (cs *CanvasService) refreshClientName() {
+	cs.mu.RLock()
+	clientID := cs.clientID
+	cs.mu.RUnlock()
+
+	if clientID == "" {
+		return
+	}
+
+	clients, err := cs.session.ListClients(cs.ctx)
+	if err != nil {
+		return
+	}
+
+	for _, c := range clients {
+		if c.ID == clientID {
+			cs.mu.Lock()
+			cs.clientName = c.InstallationName
+			cs.mu.Unlock()
+			return
+		}
+	}
 }
 
 // Stop cancels the workspace subscription.
 func (cs *CanvasService) Stop() { cs.cancel() }
 
+// Restart restarts the canvas service subscription, re-resolving or using override client name.
+func (cs *CanvasService) Restart() error {
+	cs.Stop()
+	time.Sleep(200 * time.Millisecond)
+
+	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+
+	cs.mu.Lock()
+	cs.hasReceivedEvents = false
+	cs.lastEventTime = time.Time{}
+	override := cs.overrideClientName
+	installationName := cs.installationName
+	cs.mu.Unlock()
+
+	name := override
+	if name == "" {
+		name = installationName
+	}
+	if name == "" {
+		return fmt.Errorf("Restart: no client name available")
+	}
+	return cs.restartWithClientName(name)
+}
+
+// OverrideClient manually sets a client name to monitor.
+func (cs *CanvasService) OverrideClient(clientName string) error {
+	cs.mu.Lock()
+	if clientName == "" {
+		cs.overrideClientName = ""
+	} else {
+		cs.overrideClientName = clientName
+	}
+	cs.mu.Unlock()
+	return cs.restartWithClientName(clientName)
+}
+
+// restartWithClientName restarts the workspace subscription using a specific client name.
+func (cs *CanvasService) restartWithClientName(clientName string) error {
+	cs.Stop()
+	time.Sleep(100 * time.Millisecond)
+
+	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+
+	clients, err := cs.session.ListClients(cs.ctx)
+	if err != nil {
+		return fmt.Errorf("restartWithClientName: list clients: %w", err)
+	}
+
+	clientNameLower := strings.ToLower(clientName)
+	var clientID string
+	var foundName string
+	for _, c := range clients {
+		if strings.ToLower(c.InstallationName) == clientNameLower || strings.ToLower(c.Name) == clientNameLower {
+			clientID = c.ID
+			foundName = c.InstallationName
+			break
+		}
+	}
+
+	if clientID == "" {
+		available := make([]string, 0, len(clients))
+		for _, c := range clients {
+			available = append(available, c.InstallationName)
+		}
+		return fmt.Errorf("restartWithClientName: no client with name %q; available: %v", clientName, available)
+	}
+
+	cs.mu.Lock()
+	cs.clientID = clientID
+	cs.clientName = foundName
+	cs.hasReceivedEvents = false
+	cs.lastEventTime = time.Time{}
+	cs.subscriptionStart = time.Now()
+	cs.mu.Unlock()
+
+	cs.startSubscription(clientID)
+	return nil
+}
+
 // GetCanvasID returns the currently active canvas ID.
 func (cs *CanvasService) GetCanvasID() string { return cs.canvasTracker.GetCanvasID() }
 
+// GetCanvasName returns the currently active canvas name.
+func (cs *CanvasService) GetCanvasName() string { return cs.canvasTracker.GetCanvasName() }
+
 // SetClientID manually overrides the client ID used for workspace subscription.
-func (cs *CanvasService) SetClientID(id string) { cs.clientID = id }
+func (cs *CanvasService) SetClientID(id string) {
+	cs.mu.Lock()
+	cs.clientID = id
+	cs.mu.Unlock()
+}
 
 // GetClientID returns the resolved or overridden client ID.
-func (cs *CanvasService) GetClientID() string { return cs.clientID }
+func (cs *CanvasService) GetClientID() string {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.clientID
+}
+
+// GetClientName returns the client's installation name from the server.
+func (cs *CanvasService) GetClientName() string {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.clientName
+}
+
+// GetInstallationName returns the local installation name read from mt-canvus.ini.
+func (cs *CanvasService) GetInstallationName() string {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.installationName
+}
+
+// IsConnected returns whether the service has a client ID and is subscribed.
+func (cs *CanvasService) IsConnected() bool {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	if cs.clientID == "" {
+		return false
+	}
+	if cs.hasReceivedEvents {
+		return true
+	}
+	if !cs.subscriptionStart.IsZero() {
+		return time.Since(cs.subscriptionStart) < 30*time.Second
+	}
+	return true
+}

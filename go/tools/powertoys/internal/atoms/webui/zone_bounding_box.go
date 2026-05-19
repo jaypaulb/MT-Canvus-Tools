@@ -3,6 +3,8 @@ package webui
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/logger"
 )
 
 // ZoneBoundingBox represents a zone's bounding box from an anchor.
@@ -21,10 +23,10 @@ func GetZoneBoundingBox(apiClient *APIClient, canvasID, zoneID string) (*ZoneBou
 	}
 
 	endpoint := fmt.Sprintf("/api/v1/canvases/%s/anchors/%s", canvasID, zoneID)
-	fmt.Printf("[GetZoneBoundingBox] Fetching zone %s from %s\n", zoneID, endpoint)
+	logger.Logf("[GetZoneBoundingBox] Fetching zone %s from %s\n", zoneID, endpoint)
 	data, err := apiClient.Get(endpoint)
 	if err != nil {
-		fmt.Printf("[GetZoneBoundingBox] ERROR: Failed to get anchor: %v\n", err)
+		logger.Logf("[GetZoneBoundingBox] ERROR: Failed to get anchor: %v\n", err)
 		return nil, fmt.Errorf("failed to get anchor: %w", err)
 	}
 
@@ -40,13 +42,13 @@ func GetZoneBoundingBox(apiClient *APIClient, canvasID, zoneID string) (*ZoneBou
 		Scale float64 `json:"scale"`
 	}
 	if err := json.Unmarshal(data, &anchor); err != nil {
-		fmt.Printf("[GetZoneBoundingBox] ERROR: Failed to parse anchor JSON: %v\n", err)
-		fmt.Printf("[GetZoneBoundingBox] Raw response: %s\n", string(data))
+		logger.Logf("[GetZoneBoundingBox] ERROR: Failed to parse anchor JSON: %v\n", err)
+		logger.Logf("[GetZoneBoundingBox] Raw response: %s\n", string(data))
 		return nil, fmt.Errorf("failed to parse anchor: %w", err)
 	}
 
 	if anchor.Location == nil || anchor.Size == nil {
-		fmt.Printf("[GetZoneBoundingBox] ERROR: Invalid anchor data - Location=%v, Size=%v\n", anchor.Location, anchor.Size)
+		logger.Logf("[GetZoneBoundingBox] ERROR: Invalid anchor data - Location=%v, Size=%v\n", anchor.Location, anchor.Size)
 		return nil, fmt.Errorf("invalid anchor data for zone ID: %s", zoneID)
 	}
 
@@ -58,7 +60,7 @@ func GetZoneBoundingBox(apiClient *APIClient, canvasID, zoneID string) (*ZoneBou
 		Scale:  anchor.Scale,
 	}
 
-	fmt.Printf("[GetZoneBoundingBox] Zone %s: X=%.2f, Y=%.2f, W=%.2f, H=%.2f, Scale=%.2f\n",
+	logger.Logf("[GetZoneBoundingBox] Zone %s: X=%.2f, Y=%.2f, W=%.2f, H=%.2f, Scale=%.2f\n",
 		zoneID, bb.X, bb.Y, bb.Width, bb.Height, bb.Scale)
 
 	return bb, nil
@@ -93,7 +95,7 @@ func WidgetIsInZone(widget *Widget, zoneBB *ZoneBoundingBox) bool {
 		distX := wx - zoneBB.X
 		distY := wy - zoneBB.Y
 		if distX < 100 && distX > -100 && distY < 100 && distY > -100 {
-			fmt.Printf("[WidgetIsInZone] Widget %s (%s) near zone but not in: location=(%.2f, %.2f), zone=(%.2f-%.2f, %.2f-%.2f), dist=(%.2f, %.2f)\n",
+			logger.Logf("[WidgetIsInZone] Widget %s (%s) near zone but not in: location=(%.2f, %.2f), zone=(%.2f-%.2f, %.2f-%.2f), dist=(%.2f, %.2f)\n",
 				widget.ID[:8], widget.WidgetType, wx, wy, zoneMinX, zoneMaxX, zoneMinY, zoneMaxY, distX, distY)
 		}
 	}

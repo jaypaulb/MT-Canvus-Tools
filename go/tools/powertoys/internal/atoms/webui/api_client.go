@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"path/filepath"
 
 	canvus "github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 )
@@ -92,6 +94,52 @@ func (c *APIClient) doJSON(method, endpoint string, data interface{}) ([]byte, e
 		return nil, fmt.Errorf("%s: failed to create request: %w", method, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	return c.doHTTP(req)
+}
+
+// PostMultipart performs a multipart POST request uploading a file alongside JSON metadata.
+// Provided for backward compatibility with handlers that upload binary content.
+func (c *APIClient) PostMultipart(endpoint string, jsonPayload interface{}, fileData io.Reader, fileName string) ([]byte, error) {
+	url := c.baseURL + endpoint
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	// Add JSON metadata part
+	jsonBytes, err := json.Marshal(jsonPayload)
+	if err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to marshal payload: %w", err)
+	}
+	jsonPart, err := writer.CreateFormField("json")
+	if err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to create json field: %w", err)
+	}
+	if _, err := jsonPart.Write(jsonBytes); err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to write json: %w", err)
+	}
+
+	// Add file data part
+	ext := filepath.Ext(fileName)
+	if ext == "" {
+		ext = ".bin"
+	}
+	filePart, err := writer.CreateFormFile("data", fileName)
+	if err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to create file field: %w", err)
+	}
+	if _, err := io.Copy(filePart, fileData); err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to copy file data: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to close multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("PostMultipart: failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return c.doHTTP(req)
 }
 
