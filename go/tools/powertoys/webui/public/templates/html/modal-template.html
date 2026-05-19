@@ -1,0 +1,63 @@
+<div class=modal-overlay id=modalOverlay><div class=modal id=modal><div class=modal-header><h2 class=modal-title id=modalTitle>{{MODAL_TITLE}}</h2><button class=modal-close id=modalClose aria-label="Close modal">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg></button></div><div class=modal-body id=modalBody>{{MODAL_CONTENT}}</div><div class=modal-footer id=modalFooter>{{MODAL_FOOTER}}</div></div></div><script>
+  // Modal utility functions
+  function showModal(title, content, footer = '') {
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalFooter = document.getElementById('modalFooter');
+
+    modalTitle.textContent = title;
+    modalBody.innerHTML = content;
+    modalFooter.innerHTML = footer;
+
+    overlay.style.display = 'flex';
+    overlay.classList.remove('closing');
+    modal.classList.remove('closing');
+
+    // Focus management
+    const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (firstFocusable) {
+      firstFocusable.focus();
+    }
+  }
+
+  function hideModal() {
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('modal');
+
+    overlay.classList.add('closing');
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 250);
+  }
+
+  // Close button handler
+  const modalClose = document.getElementById('modalClose');
+  if (modalClose) {
+    modalClose.addEventListener('click', hideModal);
+  }
+
+  // Close on overlay click
+  const modalOverlay = document.getElementById('modalOverlay');
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        hideModal();
+      }
+    });
+  }
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
+      hideModal();
+    }
+  });
+</script><link rel=stylesheet href=/templates/css/modal-template.css>

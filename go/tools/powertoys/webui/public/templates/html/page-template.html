@@ -1,0 +1,69 @@
+<!doctype html><html lang=en><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>{{PAGE_TITLE}} - Canvus PowerToys</title><link rel=stylesheet href=/css/design-system.css><link rel=stylesheet href=/css/dark-theme.css><link rel=stylesheet href=/css/responsive.css><link rel=stylesheet href=/templates/css/page-template.css><link rel=stylesheet href=/atoms/css/button.css><link rel=stylesheet href=/atoms/css/input.css><link rel=stylesheet href=/atoms/css/card.css><link rel=stylesheet href=/atoms/css/badge.css><link rel=stylesheet href=/atoms/css/link.css><link rel=stylesheet href=/molecules/css/navbar.css><link rel=stylesheet href=/molecules/css/canvas-header.css><link rel=stylesheet href=/molecules/css/form-group.css><link rel=stylesheet href=/molecules/css/page-card.css><div class=page><header class=page-header><nav class=navbar><a href=/ class=navbar-brand>Canvus PowerToys</a><div class=nav-mobile><button class=nav-mobile-toggle id=mobileMenuToggle aria-label="Toggle menu">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg></button><div class=nav-mobile-menu id=mobileMenu><a href=/ class=navbar-link>Home</a>
+<a href=/pages.html class=navbar-link>Pages</a>
+<a href=/macros.html class=navbar-link>Macros</a>
+<a href=/remote-upload.html class=navbar-link>Remote Upload</a>
+<a href=/rcu.html class=navbar-link>RCU</a></div></div><ul class="navbar-nav nav-desktop"><li><a href=/ class=navbar-link>Home</a><li><a href=/pages.html class=navbar-link>Pages</a><li><a href=/macros.html class=navbar-link>Macros</a><li><a href=/remote-upload.html class=navbar-link>Remote Upload</a><li><a href=/rcu.html class=navbar-link>RCU</a></ul></nav><div class=canvas-header><div class=canvas-header-info><div class=canvas-header-title id=canvasHeaderTitle>Currently tracking <span id=installationName>...</span></div><div class=canvas-header-subtitle id=canvasHeaderSubtitle>Showing <span id=canvasName>...</span></div></div><div class=canvas-header-status><span class=status-indicator id=statusIndicator></span>
+<span class=status-text id=statusText>Connecting...</span></div></div></header><main class=page-main><div class=page-content>{{PAGE_CONTENT}}</div></main><footer class=page-footer><p>Canvus PowerToys WebUI &copy; 2024</footer></div><script src=/molecules/js/workspace-client.js></script><script>
+    // Mobile menu toggle
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    if (mobileMenuToggle && mobileMenu) {
+      mobileMenuToggle.addEventListener('click', () => {
+        mobileMenu.classList.toggle('open');
+      });
+    }
+
+    // Initialize workspace client
+    const workspaceClient = new WorkspaceClient();
+    const baseURL = window.location.origin;
+
+    workspaceClient.on('connected', () => {
+      updateStatus('connected', 'Connected');
+    });
+
+    workspaceClient.on('disconnected', () => {
+      updateStatus('disconnected', 'Disconnected');
+    });
+
+    workspaceClient.on('reconnecting', (attempts) => {
+      updateStatus('connecting', `Reconnecting (${attempts})...`);
+    });
+
+    workspaceClient.on('canvas_update', (data) => {
+      if (data.canvas_name) {
+        document.getElementById('canvasName').textContent = data.canvas_name;
+      }
+    });
+
+    function updateStatus(status, text) {
+      const indicator = document.getElementById('statusIndicator');
+      const statusText = document.getElementById('statusText');
+
+      indicator.className = `status-indicator ${status}`;
+      statusText.textContent = text;
+    }
+
+    // Fetch installation info
+    fetch(`${baseURL}/api/installation/info`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.installation_name) {
+          document.getElementById('installationName').textContent = data.installation_name;
+        }
+      })
+      .catch(error => {
+        // Only log in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          console.error('Error fetching installation info:', error);
+        }
+      });
+
+    // Connect to workspace subscription
+    workspaceClient.connect(baseURL);
+  </script>
