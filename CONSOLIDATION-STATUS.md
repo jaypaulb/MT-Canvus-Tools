@@ -1,8 +1,8 @@
 # MT-Canvus-Tools Consolidation Status
 
-**As of:** 2026-05-19 (post-Phase 4d)
-**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes), 4d (+ review-driven fixes)
-**Next phase:** 5 (PowerToys port + Phase 4d carry-over) — pending Jaypaul go-ahead
+**As of:** 2026-05-19 (post-Phase 6)
+**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes), 4d (+ review-driven fixes), 5 (PowerToys port + carry-over), 6 (top-level documentation)
+**Next phase:** 7 (CI/CD)
 **Upstream doc fix tracker:** [`canvus-server#96`](https://gitlab.multitaction.com/swrd/conan/canvus/canvus-server/-/work_items/96)
 
 ---
@@ -49,6 +49,15 @@
 | 4d.B | Round B SDK additions: WithVerifyTLS, SubscribeBuffer, createAnyWithAsset doc, TS READMEs + spec back-applies, review fixes | `636da9f`, `25ffede`, `ad2ac3f`, `e1dc39d`, `ba3759d` |
 | 4d.C | Round C refactor + coverage + baseline: TS coverage reclaim, export/import roundtrip tests, Python mypy 39→0, TS lint 64→26, Gemini helper extraction, Generic refactor, import_ var fix | `cf874e9`, `b26096d`, `b5cb116`, `798ee09`, `1bee991`, `9173fa8`, `bcdd7d5` |
 | 4d.D | Round D live verify + MCP LLM port (16 tools): OllamaClient httpx, SQLite cache, PDF pipeline, Settings, llm/brainstorming/correlation/reports tools, permissions live-verify, mypy/ruff/tests, LLM docs, correlation silent-fallback fix | `f6e5327`, `761c1a6`, `c3b626b`, `b757ec5`, `fe8e162`, `224fad1`, `e0c72ec`, `c7714b8`, `1807060`, `e60b75e`, `ec436a2`, `5ec29ae` |
+| 5.plan | Phase 5 plan (PowerToys port + Phase 4d carry-over) | `8b918e9` |
+| 5.1 | Go: powertoys scaffold + SDK shim + type aliases | `0b5852e`, `3a81f3b` |
+| 5.2 | Go: powertoys Phase A verbatim copy + atoms/webui subscriber + client resolver | `27271b7`, `5aef00b` |
+| 5.3 | Go: powertoys molecules — canvas_service SDK rewire + goroutine lifecycle fixes | `7dc93bf`, `58740cd`, `5dd4f26` |
+| 5.4 | Go: powertoys molecules — rcu_handler + Phase A organism handlers | `132216d`, `e0da83d`, `61a4ebd` |
+| 5.5 | Go: powertoys — canvas_service ctx race fix + Manager decompose (ui/config/lifecycle) + insecureTLS wiring | `d2f4667`, `083bb42`, `caba525`, `9f8925b` |
+| 5.carry | Python FolderPermissions + FoldersResource.subscribe_permissions; TS UserId/GroupId narrowed to number + allowNumber lint rule | `cd49f54`, `cdde5ab` |
+| 5.r | Review fix: performConnectionTests insecureTLS + workspace tidy + binary gitignore | `ae170ea`, `53efe75` |
+| 6 | Top-level documentation: root README, per-language READMEs, getting-started guides, CONTRIBUTING, docs/contributing/ | `3bc0f38`, `810e5be`, `f4f0e34`, `bd3e01f`, `49f61a9`, `a48d088`, `57ff572`, `fa332dd`, `640e56e`, `882f9b3`, `09db7ec`, `b4aae25`, `73607f6` |
 
 **Repo:** `github.com/jaypaulb/MT-Canvus-Tools` (private)
 
@@ -57,8 +66,8 @@
 | SDK | Endpoint coverage | Subscribe coverage | Extras subpackage | Toolchain status |
 |---|---|---|---|---|
 | Go | **147 / 147** | **36 / 36** typed helpers (permissions live-verified Phase 4d D1) | 5 modules (geometry, filters, zones, batch_widgets, search) | build / vet / test clean; `gofmt -s -l` empty |
-| Python | **147 / 147** | **27 / 27** typed AsyncIterators (Canvas permissions live-verified Phase 4d D1; FoldersResource `subscribe_permissions` still pending — Phase 5) | 10 modules + `__init__` | ruff clean, all pytest pass (incl. SDK + mcp-server + roundtrip + live opt-ins); **mypy --strict 0 errors** at workspace level |
-| TypeScript | **147 / 147** | **27 / 27** typed async iterators | 9 modules + index | typecheck / build clean, 167/167 vitest pass; **lint 26 errors** (deferred floor: `UserId`/`GroupId` template-literal interpolation, deferred to Phase 5); coverage `70.92 / 74.49 / 64.11 / 70.92` (statements/branches/functions/lines) |
+| Python | **147 / 147** | **49** typed subscribe methods (Canvas + Folder permissions live-verified Phase 4d D1; FoldersResource `subscribe_permissions` added Phase 5 carry-over `cd49f54`) | 10 modules + `__init__` | ruff clean, all pytest pass (incl. SDK + mcp-server + roundtrip + live opt-ins); **mypy --strict 0 errors** at workspace level |
+| TypeScript | **147 / 147** | **27 / 27** typed async iterators | 9 modules + index | typecheck / build clean, 167/167 vitest pass; **lint 0 errors** (`UserId`/`GroupId` narrowed to `number` + `allowNumber: true` ESLint rule, Phase 5 carry-over `cdde5ab`); coverage `70.92 / 74.49 / 64.11 / 70.92` (statements/branches/functions/lines) |
 
 Three endpoints deliberately omitted across all SDKs per changelog §1 + §2.
 Permissions-subscribe helpers in Go (`SubscribeCanvasPermissions`, `SubscribeFolderPermissions`) and Python (`canvases.subscribe_permissions`) are now live-verified against `dev-mtcs.multitaction.com` (Phase 4d Task D1, 2026-05-19). Live tests at `go/sdk/canvus/permissions_subscribe_live_test.go` (build tag `live`) and `python/sdk/tests/test_permissions_live.py` (`pytest -m live`). The Python `FoldersResource` does not yet expose `subscribe_permissions` — captured as a Phase 5 follow-up parity item, not a verification gap (see parity-matrix §5.5).
@@ -288,11 +297,13 @@ Deferred items surfaced during Phase 4d, captured below for Phase 5 planning:
 
 ---
 
-## Deferred to Phase 5 (CanvusPowerToys port + Phase 4d carry-over)
+## Deferred to Phase 7 (CI/CD)
 
-Standalone phase, separate plan to be written when Jaypaul gives the go-ahead. Decisions already locked in (in `docs/superpowers/plans/2026-05-18-mt-canvus-tools-phase4c-per-item-refresh.md` and conversation 2026-05-18):
+Single agent: GitHub Actions workflows. Per-language matrix jobs (lint, test, build). Optional spec-drift detector comparing `docs/api-reference/` to `mt-restapi-client` on a schedule.
 
-- **Opt-in TLS insecure mode** via BOTH `--insecure-tls` flag AND `CANVUS_INSECURE_TLS` env var. Uses the SDK `WithVerifyTLS(bool)` option shipped in Phase 4d (`ad2ac3f` + `ba3759d`).
-- **Split client architecture** — SDK-backed `APIClient` for canvus-server calls + separate `RCUClient` struct targeting `http://127.0.0.1:<webui-port>` with `WEBUI_PWD` Bearer auth (matching the Phase 4c Round 2 webui server's auth gate at `typescript/examples/webui/src/routes/rcu.ts`).
-- **Decompose `manager.go`** (1,100-LOC god-organism) and local-typed `Widget`/`Location`/`Size` (referenced from 10+ files) — the work that caused the Round 3 implementer to BLOCK rather than half-implement.
-- **RCU endpoint reality check** — `docs/api-reference/per-item-refresh-audit.md:423` open question. The webui Round 2 implementer noted source `rcu.html` was actually "Remote Content Upload" (user-facing upload form), NOT an admin API. Phase 5 confirms whether `/api/v1/canvases/{id}/rcu/*` is a real custom server feature before porting both items' RCU handlers.
+All Phase 4d and Phase 5 carry-over items are now resolved:
+
+- ✅ **Python `FoldersResource.subscribe_permissions`** — shipped Phase 5 carry-over (`cd49f54`)
+- ✅ **TS lint floor** — `UserId`/`GroupId` narrowed to `number` + `allowNumber: true` rule (`cdde5ab`); floor is now 0
+- **Python `client.py:105` unused-ignore** — `# type: ignore[call-arg]` on `Settings()` — verify still needed with `uv run mypy --strict sdk/src`; drop in Phase 7 sweep if resolved
+- **CloneWidget per-type wrappers** — retained as "not needed unless callers report friction" design decision; revisit only on user request
