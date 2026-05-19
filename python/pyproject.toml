@@ -49,4 +49,5 @@ asyncio_mode = "auto"
 markers = [
     "integration: requires a live Canvus server (CANVUS_API_URL + CANVUS_API_KEY)",
     "slow: takes more than a few seconds; deselect with -m 'not slow'",
+    "live: hits the dev/test Canvus server (CANVUS_DEV_BASE_URL + CANVUS_DEV_API_KEY); skipped when env vars unset",
 ]

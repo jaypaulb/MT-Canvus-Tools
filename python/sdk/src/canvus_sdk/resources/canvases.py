@@ -284,13 +284,10 @@ class CanvasesResource(Resource):
     ) -> AsyncIterator[CanvasPermissions]:
         """Subscribe to a canvas's permissions block.
 
-        .. warning::
-           This helper is **not yet live-verified** against the Canvus
-           server. The streaming spec lists ``/canvases/{id}/permissions``
-           as supported but the live behaviour has not been confirmed
-           (parity-matrix §5.5). Callers should detect 404/501 responses
-           and degrade gracefully until the helper is verified in a
-           live-server test pass.
+        Live-verified 2026-05-19 against ``dev-mtcs.multitaction.com``
+        (parity-matrix §5.5): the server emits an initial snapshot
+        followed by a change event each time the canvas permissions are
+        POSTed.
         """
         return self._typed_subscribe(
             CanvasPermissions,

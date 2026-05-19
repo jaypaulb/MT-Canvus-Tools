@@ -23,9 +23,9 @@ func (s *Session) SubscribeCanvas(ctx context.Context, canvasID string) (<-chan 
 }
 
 // SubscribeCanvasPermissions streams canvas-permission updates.
-// Phase 4b §4.1 #10. Note: per parity-matrix §5.5 the streamability of this
-// endpoint is documented but not yet live-verified; consumers should detect
-// 404/501 and degrade gracefully.
+// Phase 4b §4.1 #10. Live-verified 2026-05-19 against dev-mtcs.multitaction.com
+// (parity-matrix §5.5): the server emits an initial snapshot followed by a
+// change event each time the canvas permissions are POSTed.
 func (s *Session) SubscribeCanvasPermissions(ctx context.Context, canvasID string) (<-chan CanvasPermissions, error) {
 	return subscribeStream[CanvasPermissions](ctx, s, fmt.Sprintf("canvases/%s/permissions", canvasID))
 }
@@ -41,7 +41,9 @@ func (s *Session) SubscribeFolder(ctx context.Context, folderID string) (<-chan 
 }
 
 // SubscribeFolderPermissions streams folder-permission updates.
-// Phase 4b §4.1 #10. Same caveat as SubscribeCanvasPermissions.
+// Phase 4b §4.1 #10. Live-verified 2026-05-19 against dev-mtcs.multitaction.com
+// (parity-matrix §5.5): the server emits an initial snapshot followed by a
+// change event each time the folder permissions are POSTed.
 func (s *Session) SubscribeFolderPermissions(ctx context.Context, folderID string) (<-chan FolderPermissions, error) {
 	return subscribeStream[FolderPermissions](ctx, s, fmt.Sprintf("canvas-folders/%s/permissions", folderID))
 }
