@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies (Fyne + systray)
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libgtk-3-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libgtk-3-dev libayatana-appindicator3-dev
 
       - uses: actions/setup-go@v5
         with:
