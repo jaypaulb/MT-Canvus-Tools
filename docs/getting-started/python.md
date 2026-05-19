@@ -98,7 +98,7 @@ async with Client.from_env() as client:
 
 | Tool | Path | Run |
 |---|---|---|
-| MCP server | `python/tools/mcp-server/` | `uv run python -m canvus_mcp` |
+| MCP server | `python/tools/mcp-server/` | `uv run python -m canvus_mcp_server` |
 
 ## Next steps
 
