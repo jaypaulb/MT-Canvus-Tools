@@ -12,10 +12,11 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
-      // Phase 4b: thresholds reduced to match the actual surface tested by
-      // unit tests. Resource files (auth, users, server) are exercised by
-      // examples + integration tests, not unit tests.
-      thresholds: { lines: 50, branches: 60, functions: 40, statements: 50 },
+      // Phase 4d Round C: thresholds reclaimed after auth/users/server unit
+      // coverage was added (those resource files now hit ~100% statements).
+      // Values sit ~5pp below the actual numbers to leave a small drift
+      // margin without permitting silent regressions.
+      thresholds: { lines: 65, branches: 70, functions: 60, statements: 65 },
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/index.ts", "src/extras/index.ts"],
     },
