@@ -1,8 +1,8 @@
 # MT-Canvus-Tools Consolidation Status
 
-**As of:** 2026-05-18 (late evening, post-Phase 4c)
-**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes)
-**Next phase:** 4d (cleanup) or 5 (PowerToys port) — pending Jaypaul go-ahead
+**As of:** 2026-05-19 (post-Phase 4d)
+**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes), 4d (+ review-driven fixes)
+**Next phase:** 5 (PowerToys port + Phase 4d carry-over) — pending Jaypaul go-ahead
 **Upstream doc fix tracker:** [`canvus-server#96`](https://gitlab.multitaction.com/swrd/conan/canvus/canvus-server/-/work_items/96)
 
 ---
@@ -44,19 +44,26 @@
 | 4c.3.1 | Go: canvus-cli port | `2e15a32` |
 | 4c.3.2 | Python: mcp-server port | `e51f341` |
 | 4c.r | Review-driven fixes (Round 3: env-var alignment + gofmt sweep + ruff tests) | `34d8965` |
+| 4d plan | Phase 4d Cleanup + MCP LLM Port plan | `3fcedc9` |
+| 4d.A | Round A cleanups: Go SDK dead code, note-mapper genai, ai-personas Subscribe, Python users.current, go conventions §11, gofmt drift, wait_test | `b478961`, `49936b8`, `0f9b149`, `76e995d`, `4425fd2`, `d832f69`, `96b7699` |
+| 4d.B | Round B SDK additions: WithVerifyTLS, SubscribeBuffer, createAnyWithAsset doc, TS READMEs + spec back-applies, review fixes | `636da9f`, `25ffede`, `ad2ac3f`, `e1dc39d`, `ba3759d` |
+| 4d.C | Round C refactor + coverage + baseline: TS coverage reclaim, export/import roundtrip tests, Python mypy 39→0, TS lint 64→26, Gemini helper extraction, Generic refactor, import_ var fix | `cf874e9`, `b26096d`, `b5cb116`, `798ee09`, `1bee991`, `9173fa8`, `bcdd7d5` |
+| 4d.D | Round D live verify + MCP LLM port (16 tools): OllamaClient httpx, SQLite cache, PDF pipeline, Settings, llm/brainstorming/correlation/reports tools, permissions live-verify, mypy/ruff/tests, LLM docs, correlation silent-fallback fix | `f6e5327`, `761c1a6`, `c3b626b`, `b757ec5`, `fe8e162`, `224fad1`, `e0c72ec`, `c7714b8`, `1807060`, `e60b75e`, `ec436a2`, `5ec29ae` |
 
 **Repo:** `github.com/jaypaulb/MT-Canvus-Tools` (private)
 
-### Coverage snapshot (verified endpoint-by-endpoint)
+### Coverage snapshot (verified endpoint-by-endpoint, post-Phase 4d)
 
 | SDK | Endpoint coverage | Subscribe coverage | Extras subpackage | Toolchain status |
 |---|---|---|---|---|
-| Go | **147 / 147** | **36 / 36** typed helpers | 5 modules (geometry, filters, zones, batch_widgets, search) | build / vet / test clean |
-| Python | **147 / 147** | **~28 / 28** typed AsyncIterators | 10 modules + `__init__` (geometry, filters, widget_operations, search, export, import_, batch, color, warnings) | ruff clean, 102/102 pytest pass; mypy strict 39 errors (pre-existing baseline 38) |
-| TypeScript | **147 / 147** | **27 / 27** typed async iterators | 9 modules + index (geometry, filters, widgetOperations, search, export, import, batch, color, warnings) | typecheck / build clean, 82/82 vitest pass; lint 64 pre-existing errors (baseline 85) |
+| Go | **147 / 147** | **36 / 36** typed helpers (permissions live-verified Phase 4d D1) | 5 modules (geometry, filters, zones, batch_widgets, search) | build / vet / test clean; `gofmt -s -l` empty |
+| Python | **147 / 147** | **27 / 27** typed AsyncIterators (Canvas permissions live-verified Phase 4d D1; FoldersResource `subscribe_permissions` still pending — Phase 5) | 10 modules + `__init__` | ruff clean, all pytest pass (incl. SDK + mcp-server + roundtrip + live opt-ins); **mypy --strict 0 errors** at workspace level |
+| TypeScript | **147 / 147** | **27 / 27** typed async iterators | 9 modules + index | typecheck / build clean, 167/167 vitest pass; **lint 26 errors** (deferred floor: `UserId`/`GroupId` template-literal interpolation, deferred to Phase 5); coverage `70.92 / 74.49 / 64.11 / 70.92` (statements/branches/functions/lines) |
 
 Three endpoints deliberately omitted across all SDKs per changelog §1 + §2.
-Permissions-subscribe helpers in Go (`SubscribeCanvasPermissions`, `SubscribeFolderPermissions`) and Python (`subscribe_permissions`) ship behind documented "not yet live-verified" warnings (parity-matrix §5.5); deferred to Phase 4d live-verification.
+Permissions-subscribe helpers in Go (`SubscribeCanvasPermissions`, `SubscribeFolderPermissions`) and Python (`canvases.subscribe_permissions`) are now live-verified against `dev-mtcs.multitaction.com` (Phase 4d Task D1, 2026-05-19). Live tests at `go/sdk/canvus/permissions_subscribe_live_test.go` (build tag `live`) and `python/sdk/tests/test_permissions_live.py` (`pytest -m live`). The Python `FoldersResource` does not yet expose `subscribe_permissions` — captured as a Phase 5 follow-up parity item, not a verification gap (see parity-matrix §5.5).
+
+MCP server (Python, `python/tools/mcp-server/`) toolchain: **mypy --strict 0 errors**, ruff clean, 44/44 pytest pass. All 16 originally-stubbed LLM/brainstorming/correlation/reports tools now real implementations (Phase 4d Round D2).
 
 ---
 
@@ -227,39 +234,65 @@ cli behavioural diffs from source (all documented in `go/cli/README.md`):
 
 ---
 
-## Deferred to Phase 4d (cleanup)
+## Phase 4d outcome — DONE
 
-Pre-Phase-4b items:
-- Go SDK dead code removal (`setToken` — `doRequestWithHeaders` was Chesterton-fence-resolved during 4b; it IS the backbone of the new subscribeStream primitive) — Tier 3 #10 remainder.
-- TS SDK README inaccuracies sweep — six READMEs had "Expected output" sections referencing wire-shape fields that don't exist on the server (cascade from C1).
-- Spec doc errors at `docs/api-reference/endpoints/server.md` and `auth.md` (per VERIFIED-CORRECTIONS) — currently captured as a delta in `VERIFIED-CORRECTIONS.md`; can be back-applied after `canvus-server#96` resolves.
+Cleanup sweep + MCP LLM port. 32 commits between `1820a01` (post-Phase 4c) and HEAD. Executed in 4 rounds + plan commit + final review.
 
-Added by Phase 4b review gate:
-- **Reclaim TS coverage thresholds** (50/60/40/50 → 60/70/60/60 or higher) by adding focused unit tests for `auth.ts`, `users.ts`, `server.ts` resource error mapping. Current relaxation is the agent's pragmatic call to ship; needs proper coverage in 4d.
-- **Live-verification of `SubscribeCanvasPermissions` / `SubscribeFolderPermissions`** against `dev-mtcs.multitaction.com`; remove "not yet verified" warnings if pass, escalate to skipped helpers if fail.
-- **Asset roundtrip integration tests** for export/import in TS and Python (current TS tests cover image-write but not the full roundtrip; Go's existing integration test stands).
-- **Reduce Python mypy strict baseline below 38** — 4 errors share the same `list[T] annotation vs .list() method` pattern; either rename methods or globally fix via `from builtins import list as _list`.
-- **Reduce TS lint baseline below 64** — bulk of remaining errors are `UserId` template-literal interpolation, `request<void>` returns, `ReadonlyArray<T>` syntax, tsconfig-include for tests. ~1 day cleanup.
-- **`WithSubscribeBuffer(int)` option in Go** and equivalent in Python/TS for high-throughput consumers — currently hardcoded buffer=4.
-- **`createAnyWithAsset(canvasId, payload, blob, contentType)` in TS** for symmetry with Go's `CreateWidget(io.Reader)` — or document the asymmetry permanently in conventions.
-- **CloneWidget per-type wrappers** — all three SDKs implement clone as single method with type-param (matches changelog §1 literal text). Not needed unless callers report friction; parity-matrix §5.2 recommends NOT adding sugar.
+### Per-item delivery (17 items)
 
-Added by Phase 4c final-review gate:
-- **Align note-mapper Gemini dependency** — migrate `go/examples/projects/note-mapper/go.mod` from deprecated `github.com/google/generative-ai-go v0.19.0` to `google.golang.org/genai v1.34.0`, matching translator + ai-personas.
-- **Extract shared Gemini helper** — three-item duplication (translator, ai-personas, note-mapper) satisfies rule-of-three. Target: `go/examples/internal/llm/gemini.go` (or a new `go/sdk/extras/llm/` if promoted SDK-side).
-- **Add Go SDK `WithVerifyTLS(bool)` option** — four sites worked around the gap via hand-built insecure `*http.Client` (`go/tools/db-solver/internal/commands/session.go:15`, `go/tools/db-solver/internal/commands/lookup_hash.go:242`, `go/cli/internal/session/session.go:42`, `go/cli/internal/commands/login.go:111`). Add a first-class option to `go/sdk/canvus/options.go`; remove the workarounds.
-- **ai-personas `qa/wait.go` Subscribe migration** — replace the 500ms `GetNote` poll loop with `SubscribeWidget` (Phase 4b §4.1 #7). Low priority — currently bounded by 10s error tolerance + documented as deferral.
-- **mcp-server-python LLM tools port** — 13 deferred tools across `python/tools/mcp-server/src/canvus_mcp_server/mcp_tools/{llm,brainstorming,correlation,reports}.py`. Re-implement the legacy 541-LOC Ollama client against monorepo conventions: `httpx` (not `aiohttp`), settings constructor (not module globals), structlog, mypy --strict clean. Also: SQLite cache + PDF processing pipelines paired with the LLM port.
-- **mcp-server-python `/users/current` escape hatch** — `python/tools/mcp-server/src/canvus_mcp_server/mcp_tools/users.py:116` reaches into SDK private `client._transport.request()`. Add typed `client.users.current()` to the Python SDK (one-line mirror of `canvases.py:92`) and update the consumer.
-- **Document cli `FromEnv` deviation** — `go/cli/internal/config/config.go` uses viper flag/file/env precedence instead of the SDK's `FromEnv`. Per `docs/conventions/go.md §11` this should be added as a dated Amendment.
+| # | Item | Status | Commit(s) |
+|---|---|---|---|
+| 1 | Go SDK dead code removal (`setToken`, `warnAlways`) | ✅ shipped | `b478961` |
+| 2 | TS SDK README inaccuracies sweep | ✅ shipped (no-change verified) | `25ffede` |
+| 3 | Spec doc back-applies from VERIFIED-CORRECTIONS (`server.md`, `auth.md`) | ✅ shipped | `25ffede` |
+| 4 | Reclaim TS coverage thresholds | ✅ shipped (167/167 pass, 70.92/74.49/64.11/70.92) | `b26096d` |
+| 5 | Live-verify `SubscribeCanvasPermissions`/`SubscribeFolderPermissions` (Go) + `canvases.subscribe_permissions` (Python) | ✅ shipped (Canvas PASS, Folder PASS; warnings dropped) | `1807060` |
+| 6 | Asset roundtrip integration tests (TS + Python) | ✅ shipped | `cf874e9` |
+| 7 | Reduce Python mypy --strict baseline below 38 | ✅ shipped (39 → 0 at workspace level) | `b5cb116`, `9173fa8`, `bcdd7d5` |
+| 8 | Reduce TS lint baseline below 64 | ✅ shipped (64 → 26; remaining 26 are `UserId`/`GroupId` template-literal floor) | `798ee09` |
+| 9 | `WithSubscribeBuffer` / `subscribe_buffer` option across Go/Python/TS | ✅ shipped (incl. validation + env wiring) | `e1dc39d`, `ba3759d` |
+| 10 | TS `createAnyWithAsset` for symmetry with Go | ✅ shipped (Option B: documented asymmetry in `docs/conventions/typescript.md`) | `636da9f` |
+| 11 | CloneWidget per-type wrappers | ⏸ no-op (parity-matrix §5.2 recommends NOT adding sugar — design decision retained) | n/a |
+| 12 | note-mapper Gemini dep migration to `google.golang.org/genai` | ✅ shipped | `4425fd2` |
+| 13 | Shared Gemini helper extraction (`go/internal/llm/gemini.go`) | ✅ shipped | `1bee991` |
+| 14 | Go SDK `WithVerifyTLS(bool)` option + remove 4 hand-rolled insecure clients | ✅ shipped (incl. `WithAPIKey` split: auth ≠ transport) | `ad2ac3f`, `ba3759d` |
+| 15 | ai-personas `qa/wait.go` Subscribe migration (poll → `SubscribeNote`) | ✅ shipped (+ `wait_test.go` covering 4 scenarios) | `76e995d`, `96b7699` |
+| 16 | mcp-server LLM tools port (13+ tools across llm/brainstorming/correlation/reports + SQLite cache + PDF pipeline + Ollama httpx client + Settings extension) | ✅ shipped (16 tools real, mypy --strict 0, ruff clean, 44/44 pytest pass) | `f6e5327`, `761c1a6`, `c3b626b`, `b757ec5`, `fe8e162`, `224fad1`, `e0c72ec`, `c7714b8`, `e60b75e`, `ec436a2`, `5ec29ae` |
+| 17 | mcp-server `/users/current` escape hatch (Python SDK `users.current()`) | ✅ shipped | `0f9b149` |
+
+**16 of 17 items shipped; 1 is a documented no-op design decision.**
+
+### Round-by-round review-gate summary
+
+- **Round A** (7 commits): spec ✅ / quality ⚠️ → fixed inline (`96b7699` added `wait_test.go`).
+- **Round B** (5 commits): spec ✅ / quality ⚠️ → fixed inline (`ba3759d` resolved Critical `WithAPIKey` TLS-split + Python stream error swallow + TS env-wire).
+- **Round C** (7 commits): clean (1 minor mypy regression surfaced + fixed in `bcdd7d5`).
+- **Round D** (11 commits): live-verify D1 PASS; D2 LLM port quality review surfaced 1 silent-fallback in `correlation.py` → fixed inline (`5ec29ae`).
+- **Final review (this gate)**: ZERO Critical findings. Phase 4d **COMPLETE**.
+
+### D1 live-verify result (2026-05-19, dev-mtcs.multitaction.com)
+
+- **Canvas permissions subscribe** (Go + Python): PASS. Initial snapshot followed by change event on `POST /canvases/{id}/permissions`.
+- **Folder permissions subscribe** (Go): PASS. Initial snapshot followed by change event on `POST /canvas-folders/{id}/permissions`.
+- **Python `FoldersResource.subscribe_permissions`**: GAP — Python SDK does not yet expose this on `FoldersResource` (Canvas-level helper exists). Captured as Phase 5 follow-up parity item; not a verification failure.
+- "Not yet live-verified" warnings dropped from parity-matrix §5.5.
+
+### Phase 4d carry-over to Phase 5
+
+Deferred items surfaced during Phase 4d, captured below for Phase 5 planning:
+
+- **Python `FoldersResource.subscribe_permissions`** — add helper to mirror `CanvasesResource.subscribe_permissions` for folder-permission events. One-method parity fill.
+- **TS lint floor (26 errors)** — `UserId`/`GroupId` template-literal interpolation in `resources/users.ts`. Requires either (a) widening the branded-type interpolation in `@typescript-eslint/restrict-template-expressions` config, or (b) renaming the branded types to `string & {…}` aliases. Design decision deferred.
+- **Python `client.py:105` unused-ignore** — `# type: ignore[call-arg]` on `Settings()` no longer needed at sdk-only mypy run (workspace-level mypy is clean). Drop comment in next sweep.
+- **CloneWidget per-type wrappers** — retained as a "not needed unless callers report friction" deferral; surface again only on user request.
 
 ---
 
-## Deferred to Phase 5 (CanvusPowerToys port)
+## Deferred to Phase 5 (CanvusPowerToys port + Phase 4d carry-over)
 
 Standalone phase, separate plan to be written when Jaypaul gives the go-ahead. Decisions already locked in (in `docs/superpowers/plans/2026-05-18-mt-canvus-tools-phase4c-per-item-refresh.md` and conversation 2026-05-18):
 
-- **Opt-in TLS insecure mode** via BOTH `--insecure-tls` flag AND `CANVUS_INSECURE_TLS` env var. Will use the new SDK `WithVerifyTLS(bool)` option once Phase 4d ships it.
+- **Opt-in TLS insecure mode** via BOTH `--insecure-tls` flag AND `CANVUS_INSECURE_TLS` env var. Uses the SDK `WithVerifyTLS(bool)` option shipped in Phase 4d (`ad2ac3f` + `ba3759d`).
 - **Split client architecture** — SDK-backed `APIClient` for canvus-server calls + separate `RCUClient` struct targeting `http://127.0.0.1:<webui-port>` with `WEBUI_PWD` Bearer auth (matching the Phase 4c Round 2 webui server's auth gate at `typescript/examples/webui/src/routes/rcu.ts`).
 - **Decompose `manager.go`** (1,100-LOC god-organism) and local-typed `Widget`/`Location`/`Size` (referenced from 10+ files) — the work that caused the Round 3 implementer to BLOCK rather than half-implement.
 - **RCU endpoint reality check** — `docs/api-reference/per-item-refresh-audit.md:423` open question. The webui Round 2 implementer noted source `rcu.html` was actually "Remote Content Upload" (user-facing upload form), NOT an admin API. Phase 5 confirms whether `/api/v1/canvases/{id}/rcu/*` is a real custom server feature before porting both items' RCU handlers.
