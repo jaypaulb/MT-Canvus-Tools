@@ -16,6 +16,7 @@ from .ollama import (
     OllamaError,
     OllamaInferenceError,
 )
+from .pdf import PDFExtractError, PDFProcessor, PDFProcessorConfig, PDFSummary
 
 __all__ = [
     "CacheError",
@@ -27,4 +28,8 @@ __all__ = [
     "OllamaConnectionError",
     "OllamaError",
     "OllamaInferenceError",
+    "PDFExtractError",
+    "PDFProcessor",
+    "PDFProcessorConfig",
+    "PDFSummary",
 ]
