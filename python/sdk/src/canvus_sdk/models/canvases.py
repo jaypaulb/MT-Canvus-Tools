@@ -84,6 +84,30 @@ class ColorPresets(CanvusModel):
     presets: dict[str, Any] = Field(default_factory=dict)
 
 
+class FolderUserPermission(CanvusModel):
+    """A single user permission entry on a canvas folder."""
+
+    id: int
+    permission: str
+    inherited: bool = False
+
+
+class FolderGroupPermission(CanvusModel):
+    """A single group permission entry on a canvas folder."""
+
+    id: int
+    permission: str
+    inherited: bool = False
+
+
+class FolderPermissions(CanvusModel):
+    """Permission set for a canvas folder."""
+
+    editors_can_share: bool = False
+    users: list[FolderUserPermission] = Field(default_factory=list)
+    groups: list[FolderGroupPermission] = Field(default_factory=list)
+
+
 __all__ = [
     "Canvas",
     "CanvasBackground",
@@ -91,4 +115,7 @@ __all__ = [
     "CanvasPermissionOverride",
     "CanvasPermissions",
     "ColorPresets",
+    "FolderGroupPermission",
+    "FolderPermissions",
+    "FolderUserPermission",
 ]
