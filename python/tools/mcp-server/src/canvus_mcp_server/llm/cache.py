@@ -105,12 +105,11 @@ class LLMCache:
             async with aiosqlite.connect(
                 self._config.database_path,
                 timeout=self._config.timeout_seconds,
-            ) as conn:
-                async with conn.execute(
-                    "SELECT value, created_at FROM llm_responses WHERE key = ?",
-                    (key,),
-                ) as cursor:
-                    row = await cursor.fetchone()
+            ) as conn, conn.execute(
+                "SELECT value, created_at FROM llm_responses WHERE key = ?",
+                (key,),
+            ) as cursor:
+                row = await cursor.fetchone()
         except aiosqlite.Error as exc:
             raise CacheError(f"cache read failed: {exc}") from exc
 

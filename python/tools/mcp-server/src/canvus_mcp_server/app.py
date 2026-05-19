@@ -157,9 +157,9 @@ def build_registry(client: Client, ollama: OllamaClient) -> MCPToolRegistry:
         UserCreateTool(client),
         GetCanvasPermissionsTool(client),
         # Correlation
-        ElementRelationshipAnalysisTool(client),
-        AutomaticConnectorSuggestionTool(client),
-        ConnectorVisualizationTool(client),
+        ElementRelationshipAnalysisTool(client, ollama),
+        AutomaticConnectorSuggestionTool(client, ollama),
+        ConnectorVisualizationTool(client, ollama),
         # LLM
         LLMHealthCheckTool(ollama),
         LLMTextAnalysisTool(ollama),

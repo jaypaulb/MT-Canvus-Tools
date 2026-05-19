@@ -11,7 +11,7 @@ handling — no silent fallbacks).
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, ClassVar
 
 import structlog
 
@@ -66,7 +66,7 @@ class LLMHealthCheckTool(BaseMCPTool):
 class LLMTextAnalysisTool(BaseMCPTool):
     """Run similarity / keyword / summary analysis on free text."""
 
-    _ALLOWED_TYPES = {"similarity", "keywords", "summary"}
+    _ALLOWED_TYPES: ClassVar[set[str]] = {"similarity", "keywords", "summary"}
 
     def __init__(self, ollama: OllamaClient) -> None:
         super().__init__(
@@ -417,7 +417,7 @@ class LLMEnhancedCorrelationTool(BaseMCPTool):
 class LLMBrainstormingEnhancementTool(BaseMCPTool):
     """LLM-driven enhancement of a brainstorming session payload."""
 
-    _ALLOWED_TYPES = {"analysis", "ideas", "connections", "summary"}
+    _ALLOWED_TYPES: ClassVar[set[str]] = {"analysis", "ideas", "connections", "summary"}
 
     def __init__(self, ollama: OllamaClient) -> None:
         super().__init__(

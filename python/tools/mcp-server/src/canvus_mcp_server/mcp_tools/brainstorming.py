@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 import structlog
+
 from canvus_sdk import Client
 
 from ..llm import OllamaClient, OllamaError
@@ -95,10 +96,9 @@ class BrainstormingNoteRetrievalTool(BaseMCPTool):
                 and str(n.get("background_color") or n.get("color") or "") == filter_by_color
             ]
 
-        if group_by == "color":
-            grouped = _group_by_color(notes)
-        else:
-            grouped = {"all": notes}
+        grouped: dict[str, list[Any]] = (
+            _group_by_color(notes) if group_by == "color" else {"all": notes}
+        )
 
         return {
             "canvas_id": canvas_id,

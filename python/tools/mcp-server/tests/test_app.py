@@ -6,9 +6,14 @@ import httpx
 import respx
 from canvus_mcp_server.app import build_registry, create_app
 from canvus_mcp_server.config import Settings
+from canvus_mcp_server.llm import OllamaClient
 from fastapi.testclient import TestClient
 
 from canvus_sdk import Client
+
+
+def _make_ollama(settings: Settings) -> OllamaClient:
+    return OllamaClient(settings.build_ollama_config())
 
 
 def _make_settings() -> Settings:
@@ -26,7 +31,8 @@ def test_build_registry_registers_all_known_tools() -> None:
     client = Client(
         settings.api_url, settings.api_key, verify_ssl=False, max_retries=0
     )
-    registry = build_registry(client)
+    ollama = _make_ollama(settings)
+    registry = build_registry(client, ollama)
     # The legacy server exposed 41+ tools; we register all of them (each
     # user-visible MCP tool is preserved across the port — see audit
     # constraint).
@@ -51,7 +57,8 @@ def test_http_health_endpoint() -> None:
     client = Client(
         settings.api_url, settings.api_key, verify_ssl=False, max_retries=0
     )
-    registry = build_registry(client)
+    ollama = _make_ollama(settings)
+    registry = build_registry(client, ollama)
     app = create_app(settings=settings, client=client, registry=registry)
     with TestClient(app) as http:
         response = http.get("/health")
@@ -66,7 +73,8 @@ def test_http_tools_listing_and_404() -> None:
     client = Client(
         settings.api_url, settings.api_key, verify_ssl=False, max_retries=0
     )
-    registry = build_registry(client)
+    ollama = _make_ollama(settings)
+    registry = build_registry(client, ollama)
     app = create_app(settings=settings, client=client, registry=registry)
     with TestClient(app) as http:
         response = http.get("/tools")
@@ -83,7 +91,8 @@ def test_http_execute_canvas_list_with_mocked_backend() -> None:
     client = Client(
         settings.api_url, settings.api_key, verify_ssl=False, max_retries=0
     )
-    registry = build_registry(client)
+    ollama = _make_ollama(settings)
+    registry = build_registry(client, ollama)
     app = create_app(settings=settings, client=client, registry=registry)
     with respx.mock(
         base_url=settings.api_url, assert_all_called=False

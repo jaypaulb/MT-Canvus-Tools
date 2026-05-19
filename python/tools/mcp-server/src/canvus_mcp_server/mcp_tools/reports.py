@@ -10,9 +10,10 @@ from __future__ import annotations
 import csv
 import io
 import json
-from typing import Any
+from typing import Any, ClassVar
 
 import structlog
+
 from canvus_sdk import Client
 
 from ..llm import OllamaClient, OllamaError
@@ -181,7 +182,7 @@ class BrainstormingExportTool(BaseMCPTool):
     downstream consumers (per Phase 4d audit).
     """
 
-    _ALLOWED_FORMATS = {"json", "markdown", "csv"}
+    _ALLOWED_FORMATS: ClassVar[set[str]] = {"json", "markdown", "csv"}
 
     def __init__(self, client: Client, ollama: OllamaClient) -> None:
         super().__init__(
@@ -277,7 +278,8 @@ class BrainstormingExportTool(BaseMCPTool):
         for note in data.get("notes", []):
             if not isinstance(note, dict):
                 continue
-            pos = note.get("position") if isinstance(note.get("position"), dict) else {}
+            raw_pos = note.get("position")
+            pos: dict[str, Any] = raw_pos if isinstance(raw_pos, dict) else {}
             writer.writerow(
                 [
                     note.get("id", ""),

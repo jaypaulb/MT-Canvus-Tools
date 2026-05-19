@@ -14,6 +14,7 @@ import math
 from typing import Any
 
 import structlog
+
 from canvus_sdk import Client
 
 from ..llm import OllamaClient, OllamaError
@@ -286,8 +287,10 @@ class ConnectorVisualizationTool(BaseMCPTool):
         for c in connectors:
             if not isinstance(c, dict):
                 continue
-            src = c.get("src") if isinstance(c.get("src"), dict) else {}
-            dst = c.get("dst") if isinstance(c.get("dst"), dict) else {}
+            raw_src = c.get("src")
+            raw_dst = c.get("dst")
+            src: dict[str, Any] = raw_src if isinstance(raw_src, dict) else {}
+            dst: dict[str, Any] = raw_dst if isinstance(raw_dst, dict) else {}
             edges.append(
                 {
                     "id": c.get("id"),
