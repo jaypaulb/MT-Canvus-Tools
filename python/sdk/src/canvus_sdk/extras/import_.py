@@ -83,25 +83,25 @@ class WidgetImporter:
                 continue
             if widget_type == "pdf":
                 data = exported.asset_bytes(widget_id)
-                created = await self.client.widgets.pdfs.upload(
+                created_pdf = await self.client.widgets.pdfs.upload(
                     canvas_id,
                     data,
                     f"imported_{widget_id}.pdf",
                     content_type="application/pdf",
                     metadata=_asset_meta(scaled),
                 )
-                new_ids.append(_get_str_id(created))
+                new_ids.append(_get_str_id(created_pdf))
                 continue
             if widget_type == "video":
                 data = exported.asset_bytes(widget_id)
-                created = await self.client.widgets.videos.upload(
+                created_video = await self.client.widgets.videos.upload(
                     canvas_id,
                     data,
                     f"imported_video_{widget_id}.mp4",
                     content_type="video/mp4",
                     metadata=_asset_meta(scaled),
                 )
-                new_ids.append(_get_str_id(created))
+                new_ids.append(_get_str_id(created_video))
                 continue
 
             # Non-asset widget: round-trip via the generic create_any dispatcher.
