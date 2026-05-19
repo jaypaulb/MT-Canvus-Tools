@@ -33,7 +33,7 @@ func (r *ClientResolver) GetInstallationName() (string, error) {
 	}
 	iniFile, err := r.iniParser.Read(iniPath)
 	if err != nil {
-		return GetDeviceName()
+		return "", fmt.Errorf("GetInstallationName: read INI: %w", err)
 	}
 	sec := iniFile.Section("canvas")
 	if sec == nil {

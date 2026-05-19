@@ -51,7 +51,8 @@ func (ws *WorkspaceSubscriber) Subscribe(ctx context.Context) (<-chan CanvasEven
 			if err != nil {
 				select {
 				case errChan <- fmt.Errorf("WorkspaceSubscriber: open: %w", err):
-				default:
+				case <-ctx.Done():
+					return
 				}
 				select {
 				case <-ctx.Done():

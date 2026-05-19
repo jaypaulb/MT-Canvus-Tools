@@ -1,6 +1,7 @@
 package webui_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,16 +29,36 @@ func TestCanvasEventFromWorkspace(t *testing.T) {
 	}
 }
 
-func TestNewWorkspaceSubscriber(t *testing.T) {
-	// Just verify construction doesn't panic with nil session.
-	// (Cannot test stream without a live server.)
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("NewWorkspaceSubscriber panicked: %v", r)
+func TestSubscribe_ContextCancelClosesChannels(t *testing.T) {
+	// Build a real but non-functional session pointing at a non-existent server.
+	// The subscriber will fail to connect, hit the error path and surface the
+	// error via errCh (not drop it silently), then see ctx.Done() and exit —
+	// exercising the cancellation and error-surfacing path.
+	cfg := canvus.DefaultSessionConfig()
+	cfg.BaseURL = "http://127.0.0.1:19999" // nothing listening here
+	session := canvus.NewSession(cfg)
+
+	sub := webui.NewWorkspaceSubscriber(session, "test-client")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	eventCh, errCh := sub.Subscribe(ctx)
+
+	// Wait for either an error or timeout.
+	select {
+	case err, ok := <-errCh:
+		if ok && err == nil {
+			t.Error("expected non-nil error from unreachable server")
 		}
-	}()
-	sub := webui.NewWorkspaceSubscriber(nil, "client-1")
-	if sub == nil {
-		t.Fatal("expected non-nil WorkspaceSubscriber")
+		// Got a non-nil error or channel closed — both acceptable.
+		// Cancel and drain remaining channel updates.
+		cancel()
+		for range eventCh {
+		}
+		for range errCh {
+		}
+	case <-ctx.Done():
+		t.Error("timed out waiting for error from unreachable server")
 	}
 }
