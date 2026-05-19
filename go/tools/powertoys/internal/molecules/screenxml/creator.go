@@ -27,7 +27,7 @@ type Creator struct {
 	addRowBtn      *widget.Button  // Reference to add row button
 	topBar         *fyne.Container // Reference to top bar for UI updates
 	mainContainer  *fyne.Container // Reference to main container for updates
-	centerArea     *fyne.Container  // Reference to center area container
+	centerArea     *fyne.Container // Reference to center area container
 }
 
 // NewCreator creates a new Screen.xml Creator.
@@ -102,9 +102,9 @@ func (c *Creator) CreateUI(window fyne.Window) fyne.CanvasObject {
 
 	// Full layout: top bar, center area with buttons, bottom button
 	c.mainContainer = container.NewBorder(
-		c.topBar,     // Top
-		c.addRowBtn,  // Bottom: Add Row button
-		nil, nil,     // Left, Right
+		c.topBar,    // Top
+		c.addRowBtn, // Bottom: Add Row button
+		nil, nil,    // Left, Right
 		c.centerArea, // Center
 	)
 
@@ -128,9 +128,9 @@ func (c *Creator) updateGridContainer() {
 
 	// Recreate the entire main layout with updated grid
 	c.mainContainer = container.NewBorder(
-		c.topBar,     // Top
-		c.addRowBtn,  // Bottom: Add Row button
-		nil, nil,     // Left, Right
+		c.topBar,    // Top
+		c.addRowBtn, // Bottom: Add Row button
+		nil, nil,    // Left, Right
 		c.centerArea, // Center: new center area with updated grid
 	)
 

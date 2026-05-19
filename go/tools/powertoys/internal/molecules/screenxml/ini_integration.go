@@ -124,5 +124,3 @@ func (ii *INIIntegration) ShouldUpdateIni(grid *GridWidget) bool {
 	outputCells := ii.DetectVideoOutputs(grid)
 	return len(outputCells) > 0
 }
-
-

@@ -15,14 +15,14 @@ import (
 // CellWidget is a widget that displays a cell with embedded form controls.
 type CellWidget struct {
 	widget.BaseWidget
-	grid           *GridWidget
-	row, col       int
-	gpuSelect      *widget.Select
-	resSelect      *widget.Select
-	orientSelect   *widget.Select // Dropdown for orientation (landscape/portrait)
-	layerCheck     *widget.Check  // Checkbox for layer (in layer or not)
-	autoFillBtn    *widget.Button
-	onChanged      func()
+	grid         *GridWidget
+	row, col     int
+	gpuSelect    *widget.Select
+	resSelect    *widget.Select
+	orientSelect *widget.Select // Dropdown for orientation (landscape/portrait)
+	layerCheck   *widget.Check  // Checkbox for layer (in layer or not)
+	autoFillBtn  *widget.Button
+	onChanged    func()
 }
 
 // NewCellWidget creates a new cell widget with embedded form.

@@ -10,16 +10,16 @@ import (
 
 // TouchAreaHandler manages touch area assignment.
 type TouchAreaHandler struct {
-	grid         *GridWidget
-	areaIndexInput *widget.Entry
-	statusLabel   *widget.Label
+	grid             *GridWidget
+	areaIndexInput   *widget.Entry
+	statusLabel      *widget.Label
 	currentAreaIndex int
 }
 
 // NewTouchAreaHandler creates a new touch area handler.
 func NewTouchAreaHandler(grid *GridWidget) *TouchAreaHandler {
 	return &TouchAreaHandler{
-		grid:            grid,
+		grid:             grid,
 		currentAreaIndex: 1,
 	}
 }
@@ -53,9 +53,9 @@ func (tah *TouchAreaHandler) CreateUI() fyne.CanvasObject {
 	// DEPRECATED: Drag selection has been removed. Touch area assignment via drag is no longer functional.
 	// Set up drag handler
 	/*
-	tah.grid.SetOnCellDrag(func(startRow, startCol, endRow, endCol int) {
-		tah.assignTouchArea(startRow, startCol, endRow, endCol)
-	})
+		tah.grid.SetOnCellDrag(func(startRow, startCol, endRow, endCol int) {
+			tah.assignTouchArea(startRow, startCol, endRow, endCol)
+		})
 	*/
 
 	form := container.NewVBox(
@@ -147,4 +147,3 @@ func (tah *TouchAreaHandler) GetTouchAreas() map[int][]string {
 	}
 	return areas
 }
-

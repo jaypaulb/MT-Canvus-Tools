@@ -115,8 +115,20 @@ func (h *MacrosHandler) moveWidgets(canvasID, sourceZoneID, targetZoneID string)
 		if w.Location != nil {
 			logger.Logf("[MacrosHandler] Widget[%d]: ID=%s, Type=%s, Location=(%.2f, %.2f), Size=(%.2f, %.2f), Scale=%.2f\n",
 				i, w.ID, w.WidgetType, w.Location.X, w.Location.Y,
-				func() float64 { if w.Size != nil { return w.Size.Width } else { return 0 } }(),
-				func() float64 { if w.Size != nil { return w.Size.Height } else { return 0 } }(),
+				func() float64 {
+					if w.Size != nil {
+						return w.Size.Width
+					} else {
+						return 0
+					}
+				}(),
+				func() float64 {
+					if w.Size != nil {
+						return w.Size.Height
+					} else {
+						return 0
+					}
+				}(),
 				w.Scale)
 		}
 	}
@@ -535,7 +547,7 @@ func (h *MacrosHandler) groupWidgetsByColor(canvasID, zoneID string) (int, error
 
 	// Filter to only Note widgets and fetch their background_color
 	type noteWithColor struct {
-		widget      webuiatoms.Widget
+		widget          webuiatoms.Widget
 		backgroundColor string
 	}
 	var notesWithColor []noteWithColor
@@ -595,4 +607,3 @@ func (h *MacrosHandler) groupWidgetsByColor(canvasID, zoneID string) (int, error
 	logger.Logf("[MacrosHandler] groupWidgetsByColor completed: %d notes grouped by color\n", groupedCount)
 	return groupedCount, nil
 }
-

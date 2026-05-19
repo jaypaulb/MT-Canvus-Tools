@@ -4,4 +4,3 @@ import "embed"
 
 //go:embed public
 var PublicAssets embed.FS
-

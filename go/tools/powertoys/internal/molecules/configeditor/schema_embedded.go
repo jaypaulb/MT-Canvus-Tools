@@ -12,7 +12,6 @@ func GetEmbeddedSchema() *ConfigSchema {
 	// Note: Some settings that appear in root in older documentation are actually
 	// in [system] section in the example file. They are placed in [system] below.
 
-
 	// ============================================================================
 	// [system] SECTION
 	// ============================================================================
@@ -146,7 +145,7 @@ func GetEmbeddedSchema() *ConfigSchema {
 		Section:     "system",
 		Key:         "admin-info",
 		Default:     "",
-		Description:  "Contact information for someone who can provide assistance when passwords have been lost. New lines can be created using \\n syntax.",
+		Description: "Contact information for someone who can provide assistance when passwords have been lost. New lines can be created using \\n syntax.",
 		Type:        ValueTypeString,
 	})
 
@@ -1393,4 +1392,3 @@ func GetEmbeddedSchema() *ConfigSchema {
 
 	return schema
 }
-

@@ -14,9 +14,9 @@ import (
 
 // IconConverter handles icon conversion to 937x937 PNG format.
 type IconConverter struct {
-	targetSize   int
-	contentSize  int
-	transparent  bool
+	targetSize  int
+	contentSize int
+	transparent bool
 }
 
 // NewIconConverter creates a new icon converter.

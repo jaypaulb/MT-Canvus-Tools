@@ -13,7 +13,7 @@ import (
 
 // CellEditor handles editing individual cell properties.
 type CellEditor struct {
-	grid            *GridWidget
+	grid              *GridWidget
 	resolutionHandler *ResolutionHandler
 }
 
@@ -141,4 +141,3 @@ func (ce *CellEditor) ShowCellEditor(window fyne.Window, row, col int) {
 	d.Resize(fyne.NewSize(400, 300))
 	d.Show()
 }
-

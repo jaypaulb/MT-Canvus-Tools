@@ -130,4 +130,3 @@ func (h *SSEHandler) sendKeepalive(w http.ResponseWriter) {
 		flusher.Flush()
 	}
 }
-

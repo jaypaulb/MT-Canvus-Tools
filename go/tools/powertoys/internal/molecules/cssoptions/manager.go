@@ -29,26 +29,26 @@ type PluginManifest struct {
 
 // Manager handles CSS options and plugin generation.
 type Manager struct {
-	iniParser            *config.INIParser
-	fileService          *services.FileService
-	backupManager        *backup.Manager
-	movingEnabled        *widget.Check
-	scalingEnabled       *widget.Check
-	rotationEnabled      *widget.Check
-	videoLoopEnabled     *widget.Check
-	kioskModeEnabled     *widget.Check
-	kioskPlusEnabled     *widget.Check
-	hideTitleBarsEnabled *widget.Check
-	hideResizeHandlesEnabled *widget.Check
-	hideSidebarEnabled   *widget.Check
-	hideMainMenuEnabled  *widget.Check
-	hideFingerMenuEnabled *widget.Check
-	hideConnectorBulletsEnabled *widget.Check
+	iniParser                               *config.INIParser
+	fileService                             *services.FileService
+	backupManager                           *backup.Manager
+	movingEnabled                           *widget.Check
+	scalingEnabled                          *widget.Check
+	rotationEnabled                         *widget.Check
+	videoLoopEnabled                        *widget.Check
+	kioskModeEnabled                        *widget.Check
+	kioskPlusEnabled                        *widget.Check
+	hideTitleBarsEnabled                    *widget.Check
+	hideResizeHandlesEnabled                *widget.Check
+	hideSidebarEnabled                      *widget.Check
+	hideMainMenuEnabled                     *widget.Check
+	hideFingerMenuEnabled                   *widget.Check
+	hideConnectorBulletsEnabled             *widget.Check
 	hideConnectorBulletsPresentationEnabled *widget.Check
-	standbyImageEnabled   *widget.Check
-	standbyImagePath       string
-	standbyImageLabel      *widget.Label
-	statusLabel            *widget.Label
+	standbyImageEnabled                     *widget.Check
+	standbyImagePath                        string
+	standbyImageLabel                       *widget.Label
+	statusLabel                             *widget.Label
 }
 
 // NewManager creates a new CSS Options Manager.
@@ -217,9 +217,9 @@ Enable CSS-based features for Canvus. These options create plugins that modify C
 
 		rowContent := container.NewBorder(
 			nil, nil,
-			indentLabel,        // Left: indentation + label
+			indentLabel,         // Left: indentation + label
 			checkboxWithPadding, // Right: checkbox with padding
-			tooltip,           // Center: description (can expand and wrap horizontally)
+			tooltip,             // Center: description (can expand and wrap horizontally)
 		)
 
 		// Make the entire row clickable by wrapping in a custom widget that handles taps
@@ -308,10 +308,10 @@ Enable CSS-based features for Canvus. These options create plugins that modify C
 
 	// Use Border layout: header at top (fixed), scrollable content in center
 	return container.NewBorder(
-		header, // Top: fixed header with title and buttons
-		nil,    // Bottom: nothing
-		nil,    // Left: nothing
-		nil,    // Right: nothing
+		header,                    // Top: fixed header with title and buttons
+		nil,                       // Bottom: nothing
+		nil,                       // Left: nothing
+		nil,                       // Right: nothing
 		container.NewScroll(form), // Center: scrollable form content
 	)
 }
@@ -708,7 +708,7 @@ func (m *Manager) previewCSS(window fyne.Window) {
 	// Use MultiLineEntry for better performance with large CSS content
 	previewEntry := widget.NewMultiLineEntry()
 	previewEntry.SetText(css)
-	previewEntry.Wrapping = fyne.TextWrapOff // Don't wrap CSS
+	previewEntry.Wrapping = fyne.TextWrapOff   // Don't wrap CSS
 	previewEntry.OnChanged = func(s string) {} // Make it read-only by ignoring changes - can still select/copy
 
 	// Copy to clipboard button
@@ -737,9 +737,9 @@ func (m *Manager) previewCSS(window fyne.Window) {
 	content := container.NewVBox(
 		infoLabel,
 		container.NewBorder(
-			copyBtn,           // Top: Copy button
+			copyBtn, // Top: Copy button
 			nil, nil, nil,
-			scrollContainer,   // Center: Scrollable text with proper sizing
+			scrollContainer, // Center: Scrollable text with proper sizing
 		),
 	)
 

@@ -11,8 +11,8 @@ import (
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/assets"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/version"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/configeditor"
-	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/custommenu"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/cssoptions"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/custommenu"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/screenxml"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/tray"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/molecules/webui"
@@ -193,4 +193,3 @@ func (mw *MainWindow) ShowAndRun() {
 func (mw *MainWindow) GetWindow() fyne.Window {
 	return mw.window
 }
-

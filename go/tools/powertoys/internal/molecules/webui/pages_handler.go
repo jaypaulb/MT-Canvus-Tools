@@ -10,7 +10,7 @@ import (
 
 // PagesHandler handles pages management API endpoints.
 type PagesHandler struct {
-	apiClient *webuiatoms.APIClient
+	apiClient     *webuiatoms.APIClient
 	canvasService *CanvasService
 }
 
@@ -157,5 +157,3 @@ func (h *PagesHandler) HandleGetZones(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-
-

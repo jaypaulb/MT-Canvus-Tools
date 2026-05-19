@@ -81,7 +81,7 @@ func (ceg *CompoundEntryGroup) CreateUI() fyne.CanvasObject {
 
 	// Layout: [tab] Section Name [tab] [Add New Button]
 	// Tab spacing (16px default Fyne padding) for sub-section indentation
-	tabSpacer := widget.NewLabel("") // Spacer for tab
+	tabSpacer := widget.NewLabel("")                  // Spacer for tab
 	tabSpacerPadded := container.NewPadded(tabSpacer) // Apply padding for 16px spacing
 	titleWithTab := container.NewBorder(
 		nil, nil,
@@ -110,8 +110,8 @@ func (ceg *CompoundEntryGroup) matchesPattern(sectionName string) bool {
 	// "server:name" -> pattern "server"
 	// "remote-desktop:name" -> pattern "remote-desktop"
 	return len(sectionName) > len(ceg.pattern) &&
-		   sectionName[:len(ceg.pattern)] == ceg.pattern &&
-		   sectionName[len(ceg.pattern)] == ':'
+		sectionName[:len(ceg.pattern)] == ceg.pattern &&
+		sectionName[len(ceg.pattern)] == ':'
 }
 
 // extractEntryName extracts the entry name from a section name.
@@ -163,8 +163,8 @@ func (ceg *CompoundEntryGroup) addEntry(name string, parent *fyne.Container) {
 		labelContainer := container.NewHBox(labelText, infoBtn)
 
 		// Use Border layout with double left padded spacer for double tab indentation
-		tabSpacer1 := widget.NewLabel("") // First tab
-		tabSpacer2 := widget.NewLabel("") // Second tab
+		tabSpacer1 := widget.NewLabel("")                   // First tab
+		tabSpacer2 := widget.NewLabel("")                   // Second tab
 		tabSpacer1Padded := container.NewPadded(tabSpacer1) // Apply padding for 16px spacing
 		tabSpacer2Padded := container.NewPadded(tabSpacer2) // Apply padding for 16px spacing
 		// Create nested Border layouts for double tab spacing
@@ -206,8 +206,8 @@ func (ceg *CompoundEntryGroup) addEntry(name string, parent *fyne.Container) {
 	})
 
 	// Use Border layout with double left padded spacer for double tab indentation
-	tabSpacer1 := widget.NewLabel("") // First tab
-	tabSpacer2 := widget.NewLabel("") // Second tab
+	tabSpacer1 := widget.NewLabel("")                   // First tab
+	tabSpacer2 := widget.NewLabel("")                   // Second tab
 	tabSpacer1Padded := container.NewPadded(tabSpacer1) // Apply padding for 16px spacing
 	tabSpacer2Padded := container.NewPadded(tabSpacer2) // Apply padding for 16px spacing
 	// Create nested Border layouts for double tab spacing
@@ -227,7 +227,7 @@ func (ceg *CompoundEntryGroup) addEntry(name string, parent *fyne.Container) {
 	// Title bar: [tab][tab] Entry Name | Remove Button
 	titleBar := container.NewBorder(
 		nil, nil,
-		outerTab,  // Left: double tab + entry title
+		outerTab, // Left: double tab + entry title
 		nil,
 		removeBtn, // Right: Remove button
 	)
@@ -459,4 +459,3 @@ func (ceg *CompoundEntryGroup) GetEntries() map[string]map[string]string {
 	}
 	return result
 }
-

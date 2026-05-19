@@ -19,7 +19,7 @@ type GPUAssignment struct {
 	quickModeBtn       *widget.Button
 	quickModeActive    bool
 	nextGPUOutput      string // Next GPU output for quick mode (1:1, 1:2, 1:3, etc.)
-	onQuickModeChanged func()  // Callback when quick mode is toggled
+	onQuickModeChanged func() // Callback when quick mode is toggled
 }
 
 // IsQuickModeActive returns whether quick mode is currently active.
@@ -252,4 +252,3 @@ func (ga *GPUAssignment) GetGPUOutputs() map[string]string {
 	}
 	return outputs
 }
-

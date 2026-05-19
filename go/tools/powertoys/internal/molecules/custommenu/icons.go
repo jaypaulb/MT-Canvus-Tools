@@ -75,4 +75,3 @@ func GetIconSetPath() (string, error) {
 
 	return "", os.ErrNotExist
 }
-

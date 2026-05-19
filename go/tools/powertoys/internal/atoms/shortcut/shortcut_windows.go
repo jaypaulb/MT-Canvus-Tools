@@ -65,4 +65,3 @@ func getDesktopPath() (string, error) {
 
 	return "", fmt.Errorf("desktop path not found")
 }
-

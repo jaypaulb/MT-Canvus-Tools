@@ -16,10 +16,10 @@ func (h *PagesHandler) HandleCreateZones(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req struct {
-		GridSize    interface{} `json:"gridSize"`    // Can be string or int
-		GridPattern string      `json:"gridPattern"`
-		SubZoneID   string      `json:"subZoneId"`
-		SubZoneArray string     `json:"subZoneArray"`
+		GridSize     interface{} `json:"gridSize"` // Can be string or int
+		GridPattern  string      `json:"gridPattern"`
+		SubZoneID    string      `json:"subZoneId"`
+		SubZoneArray string      `json:"subZoneArray"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -464,4 +464,3 @@ func getFloat(m map[string]interface{}, key string) float64 {
 	}
 	return 0
 }
-

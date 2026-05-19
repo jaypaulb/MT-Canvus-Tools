@@ -301,4 +301,3 @@ func (sh *StaticHandler) serveFile(w http.ResponseWriter, r *http.Request, fileP
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
 }
-
