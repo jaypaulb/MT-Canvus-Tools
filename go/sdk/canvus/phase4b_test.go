@@ -207,6 +207,19 @@ func TestSubscribeStream_PropagatesAPIErrorOnNon2xx(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, apiErr.StatusCode)
 }
 
+// TestClientInfoInstallationName verifies that ClientInfo correctly deserialises
+// the installation_name field from the Canvus server API response.
+func TestClientInfoInstallationName(t *testing.T) {
+	raw := `{"id":"abc","name":"MyClient","installation_name":"wall-01","user_id":"u1","created_at":"2026-01-01T00:00:00Z"}`
+	var c ClientInfo
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		t.Fatal(err)
+	}
+	if c.InstallationName != "wall-01" {
+		t.Errorf("InstallationName = %q, want %q", c.InstallationName, "wall-01")
+	}
+}
+
 // TestWithSubscribeBuffer verifies that WithSubscribeBuffer sets the channel
 // capacity used by subscribeStream. Phase 4d Round B.
 func TestWithSubscribeBuffer_CustomSize(t *testing.T) {
