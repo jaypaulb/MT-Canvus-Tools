@@ -9,4 +9,3 @@ import "fmt"
 func CreateDesktopShortcut(name, target, arguments, workingDir string) error {
 	return fmt.Errorf("desktop shortcuts are only supported on Windows")
 }
-

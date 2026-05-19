@@ -70,7 +70,7 @@ def test_find_widget_clusters_min_size() -> None:
     ]
     clusters = find_widget_clusters(widgets, min_cluster_size=2, tolerance=20.0)
     assert len(clusters) == 1
-    assert {getattr(w, "id") for w in clusters[0]} == {"a", "b"}
+    assert {w.id for w in clusters[0]} == {"a", "b"}
 
 
 def test_calculate_widget_density() -> None:

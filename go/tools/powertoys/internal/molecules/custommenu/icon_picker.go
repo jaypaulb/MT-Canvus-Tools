@@ -277,7 +277,7 @@ func (p *IconPicker) createThumbnail(iconPath string) *canvas.Image {
 	// Icons are 937x937 with content in center ~250x250
 	// We use ImageFillOriginal with larger min size to "zoom in"
 	thumbnail := canvas.NewImageFromImage(img)
-	thumbnail.FillMode = canvas.ImageFillOriginal // Show actual pixels, zoomed
+	thumbnail.FillMode = canvas.ImageFillOriginal                                    // Show actual pixels, zoomed
 	thumbnail.SetMinSize(fyne.NewSize(float32(p.gridSize)*3, float32(p.gridSize)*3)) // 3x zoom
 
 	// Cache the decoded image (not the widget)

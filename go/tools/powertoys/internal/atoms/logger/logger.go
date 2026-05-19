@@ -63,4 +63,3 @@ func Logf(format string, args ...interface{}) {
 		fmt.Printf("[%s] %s\n", timestamp, message)
 	}
 }
-

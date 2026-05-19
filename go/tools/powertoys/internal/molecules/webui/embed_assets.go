@@ -6,4 +6,3 @@ import (
 
 // embeddedAssets provides access to embedded webui assets
 var embeddedAssets = webuiembed.PublicAssets
-

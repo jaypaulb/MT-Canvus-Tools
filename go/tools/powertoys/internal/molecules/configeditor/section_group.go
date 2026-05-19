@@ -13,12 +13,12 @@ import (
 
 // SectionGroup represents a UI group for a configuration section with expand/collapse.
 type SectionGroup struct {
-	section      *ConfigSection
-	iniFile      *ini.File
-	window       fyne.Window
-	formControls map[string]*FormControl
-	expanded     bool
-	content      fyne.CanvasObject
+	section       *ConfigSection
+	iniFile       *ini.File
+	window        fyne.Window
+	formControls  map[string]*FormControl
+	expanded      bool
+	content       fyne.CanvasObject
 	onValueChange func(section, key, value string)
 }
 
@@ -76,7 +76,7 @@ func (sg *SectionGroup) CreateUI() *widget.AccordionItem {
 		// Layout: [tab spacer] | [label + info] | [input]
 		// Use Border layout with left padded spacer for tab indentation (16px)
 		// Then use GridWithColumns for proper alignment: col1=tab+label+info, col2=input
-		tabSpacer := widget.NewLabel("") // Empty label as spacer
+		tabSpacer := widget.NewLabel("")                  // Empty label as spacer
 		tabSpacerPadded := container.NewPadded(tabSpacer) // Apply padding for 16px spacing
 		leftSideWithTab := container.NewBorder(
 			nil, nil,
@@ -220,4 +220,3 @@ func (sg *SectionGroup) SetValues(values map[string]string) {
 		}
 	}
 }
-

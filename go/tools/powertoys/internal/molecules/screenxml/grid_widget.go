@@ -34,8 +34,8 @@ type CellState struct {
 // GridWidget is a custom widget for displaying a dynamic grid.
 type GridWidget struct {
 	widget.BaseWidget
-	cells       [][]*CellState // Dynamic 2D slice
-	onCellClick func(row, col int)
+	cells         [][]*CellState // Dynamic 2D slice
+	onCellClick   func(row, col int)
 	onSizeChanged func() // Callback when grid size changes
 }
 
@@ -395,4 +395,3 @@ func (r *gridRenderer) Refresh() {
 
 func (r *gridRenderer) Destroy() {
 }
-

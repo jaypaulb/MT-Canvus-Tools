@@ -10,7 +10,6 @@ from httpx import Response
 
 from canvus_sdk import Client, UnsupportedOperationError, ValidationError
 
-
 # ---- foundations ----------------------------------------------------------
 
 

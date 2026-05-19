@@ -133,12 +133,12 @@ func (ar *APIRoutes) handleCanvasInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	response := map[string]interface{}{
-		"canvas_id":      ar.canvasService.GetCanvasID(),
-		"canvas_name":    ar.canvasService.GetCanvasName(),
-		"client_id":      ar.canvasService.GetClientID(),
-		"client_name":    ar.canvasService.GetClientName(),
+		"canvas_id":         ar.canvasService.GetCanvasID(),
+		"canvas_name":       ar.canvasService.GetCanvasName(),
+		"client_id":         ar.canvasService.GetClientID(),
+		"client_name":       ar.canvasService.GetClientName(),
 		"installation_name": ar.canvasService.GetInstallationName(),
-		"connected":      ar.canvasService.IsConnected(),
+		"connected":         ar.canvasService.IsConnected(),
 	}
 
 	jsonResponse, err := json.Marshal(response)
@@ -448,4 +448,3 @@ func (ar *APIRoutes) handleCanvasRestart(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-

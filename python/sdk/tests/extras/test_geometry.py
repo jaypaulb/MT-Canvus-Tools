@@ -99,11 +99,11 @@ def test_find_widgets_in_area_and_containing_point() -> None:
     widgets = [_W(0, 0, 10, 10, "a"), _W(50, 50, 10, 10, "b"), _W(100, 100, 5, 5, "c")]
     area = Rectangle(0, 0, 70, 70)
     in_area = find_widgets_in_area(widgets, area)
-    assert {getattr(w, "id") for w in in_area} == {"a", "b"}
+    assert {w.id for w in in_area} == {"a", "b"}
 
     point = Point(5.0, 5.0)
     hits = find_widgets_containing_point(widgets, point)
-    assert {getattr(w, "id") for w in hits} == {"a"}
+    assert {w.id for w in hits} == {"a"}
 
 
 def test_get_canvas_bounds_empty_and_some() -> None:

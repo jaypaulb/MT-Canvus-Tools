@@ -27,4 +27,3 @@ func (m *Manager) Setup() {
 		m.app.Quit()
 	})
 }
-

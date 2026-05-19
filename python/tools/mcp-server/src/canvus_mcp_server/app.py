@@ -197,7 +197,7 @@ def create_app(
     """
     configure_logging()
     if settings is None:
-        settings = Settings()  # type: ignore[call-arg]
+        settings = Settings()
     settings.ensure_directories()
     if client is None:
         client = build_client(settings)
@@ -312,10 +312,10 @@ def _mount_mcp(app: FastAPI) -> None:
     # fastapi-mcp ships without a py.typed marker; the dynamic dispatch
     # below survives multiple package versions whose import surface differs.
     try:  # pragma: no cover - import surface depends on installed version
-        from fastapi_mcp import MCPServer
+        from fastapi_mcp import MCPServer  # type: ignore[attr-defined]
     except ImportError:
         try:
-            import fastapi_mcp  # type: ignore[import-untyped]
+            import fastapi_mcp
         except ImportError:
             logger.warning("fastapi_mcp not installed; /mcp route not mounted")
             return

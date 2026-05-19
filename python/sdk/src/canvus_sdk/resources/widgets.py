@@ -18,14 +18,13 @@ expose only GET / PATCH / DELETE.
 
 from __future__ import annotations
 
+import builtins
 import json
 import warnings
 from collections.abc import AsyncIterator
-from typing import Any, ClassVar, Generic, List, TypeVar, cast
+from typing import Any, ClassVar, Generic, TypeVar, cast
 
 from pydantic import BaseModel
-
-_ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 from ..errors import UnsupportedOperationError
 from ..models import (
@@ -45,6 +44,8 @@ from ..models import (
     Widget,
 )
 from ._base import Resource
+
+_ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 # ---- valid widget type paths for clone_widget() ----------------------------
 
@@ -545,7 +546,7 @@ class TablesResource(_TypedSubResource[Table]):
     async def delete(self, canvas_id: str, table_id: str) -> None:
         await self._delete_impl(canvas_id, table_id)
 
-    async def list_cells(self, canvas_id: str, table_id: str) -> List[TableCell]:
+    async def list_cells(self, canvas_id: str, table_id: str) -> builtins.list[TableCell]:
         """Return the cells inside a table."""
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/tables/{table_id}/cells"
@@ -1005,7 +1006,7 @@ class WidgetsResource(Resource):
 
     # ---- uploads-folder ----------------------------------------------------
 
-    async def list_uploads_folder(self, canvas_id: str) -> List[UploadItem]:
+    async def list_uploads_folder(self, canvas_id: str) -> builtins.list[UploadItem]:
         """List items in the canvas uploads folder (Phase 3 Python item #6)."""
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/uploads-folder"

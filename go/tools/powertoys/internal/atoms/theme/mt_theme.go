@@ -61,4 +61,3 @@ func (m *MTTheme) Size(name fyne.ThemeSizeName) float32 {
 		return m.Theme.Size(name)
 	}
 }
-

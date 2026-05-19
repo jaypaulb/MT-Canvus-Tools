@@ -143,7 +143,7 @@ func (p *INIFileParser) Parse() (*ConfigSchema, error) {
 				potentialValue := parts[0]
 				// Check if it looks like a value (short, no colons, not a full sentence)
 				if len(potentialValue) <= 20 && !strings.Contains(potentialValue, ":") &&
-				   !strings.Contains(potentialValue, ".") && potentialValue != "" {
+					!strings.Contains(potentialValue, ".") && potentialValue != "" {
 					// This is likely an enum value
 					if pendingOption != nil {
 						pendingOption.EnumValues = append(pendingOption.EnumValues, potentialValue)
@@ -293,4 +293,3 @@ func (p *INIFileParser) createOption(section, key, value, description string, en
 
 	return option
 }
-

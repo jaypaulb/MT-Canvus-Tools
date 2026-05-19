@@ -21,4 +21,3 @@ func GetVersion() string {
 func GetFullVersion() string {
 	return fmt.Sprintf("%s (Build: %s, Commit: %s)", Version, BuildDate, GitCommit)
 }
-

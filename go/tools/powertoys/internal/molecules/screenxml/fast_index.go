@@ -65,32 +65,32 @@ func (fih *FastIndexHandler) toggle() {
 func (fih *FastIndexHandler) enableFastIndex() {
 	// Drag functionality removed
 	/*
-	fih.grid.SetOnCellDrag(func(startRow, startCol, endRow, endCol int) {
-		// Ensure start is top-left and end is bottom-right
-		if startRow > endRow {
-			startRow, endRow = endRow, startRow
-		}
-		if startCol > endCol {
-			startCol, endCol = endCol, startCol
-		}
-
-		// Find next available index
-		nextIndex := fih.findNextIndex()
-
-		// Assign index to all cells in the rectangle
-		assignedCount := 0
-		gridRows := fih.grid.GetRows()
-		gridCols := fih.grid.GetCols()
-		for row := startRow; row <= endRow && row < gridRows; row++ {
-			for col := startCol; col <= endCol && col < gridCols; col++ {
-				fih.grid.SetCellIndex(row, col, nextIndex)
-				assignedCount++
+		fih.grid.SetOnCellDrag(func(startRow, startCol, endRow, endCol int) {
+			// Ensure start is top-left and end is bottom-right
+			if startRow > endRow {
+				startRow, endRow = endRow, startRow
 			}
-		}
+			if startCol > endCol {
+				startCol, endCol = endCol, startCol
+			}
 
-		fih.statusLabel.SetText(fmt.Sprintf("Assigned index '%s' to %d cells", nextIndex, assignedCount))
-		fih.grid.Refresh()
-	})
+			// Find next available index
+			nextIndex := fih.findNextIndex()
+
+			// Assign index to all cells in the rectangle
+			assignedCount := 0
+			gridRows := fih.grid.GetRows()
+			gridCols := fih.grid.GetCols()
+			for row := startRow; row <= endRow && row < gridRows; row++ {
+				for col := startCol; col <= endCol && col < gridCols; col++ {
+					fih.grid.SetCellIndex(row, col, nextIndex)
+					assignedCount++
+				}
+			}
+
+			fih.statusLabel.SetText(fmt.Sprintf("Assigned index '%s' to %d cells", nextIndex, assignedCount))
+			fih.grid.Refresh()
+		})
 	*/
 }
 
@@ -117,4 +117,3 @@ func (fih *FastIndexHandler) findNextIndex() string {
 	// Return next index (starting from 0 if none assigned)
 	return fmt.Sprintf("%d", maxIndex+1)
 }
-

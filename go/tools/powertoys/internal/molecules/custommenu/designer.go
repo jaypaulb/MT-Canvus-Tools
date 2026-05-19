@@ -42,8 +42,8 @@ type Designer struct {
 	iniParser     *config.INIParser
 	backupManager *backup.Manager
 	menuTree      *widget.Tree
-	rootItem      MenuItem      // The root menu item
-	menuData      []MenuItem    // Deprecated: kept for compatibility
+	rootItem      MenuItem   // The root menu item
+	menuData      []MenuItem // Deprecated: kept for compatibility
 	formContainer *fyne.Container
 	selectedID    widget.TreeNodeID
 	window        fyne.Window

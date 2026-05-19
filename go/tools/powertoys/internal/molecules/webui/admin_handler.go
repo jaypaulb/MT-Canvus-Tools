@@ -132,12 +132,12 @@ func (h *AdminHandler) HandleCreateTargets(w http.ResponseWriter, r *http.Reques
 		// Create note widget at zone location
 		// Note: Use /notes endpoint, not /widgets (widgets is read-only)
 		payload := map[string]interface{}{
-			"title":       noteTitle,
-			"text":        noteText,
+			"title":            noteTitle,
+			"text":             noteText,
 			"background_color": noteColor,
-			"location":     location,
-			"auto_text_color": true,
-			"state":        "normal",
+			"location":         location,
+			"auto_text_color":  true,
+			"state":            "normal",
 		}
 
 		noteEndpoint := fmt.Sprintf("/api/v1/canvases/%s/notes", canvasID)
@@ -400,4 +400,3 @@ func formatTeamList(teams []int) string {
 	}
 	return strings.Join(parts, ", ")
 }
-

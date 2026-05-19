@@ -126,4 +126,3 @@ type UploadRecord struct {
 	Path       string    `json:"path"`
 	UploadedAt time.Time `json:"uploaded_at"`
 }
-

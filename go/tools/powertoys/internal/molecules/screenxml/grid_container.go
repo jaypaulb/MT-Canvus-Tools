@@ -89,4 +89,3 @@ func (gc *GridContainer) rebuildContainer() {
 func (gc *GridContainer) GetContainer() *fyne.Container {
 	return gc.container
 }
-

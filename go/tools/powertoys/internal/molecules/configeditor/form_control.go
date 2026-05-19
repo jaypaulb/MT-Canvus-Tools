@@ -12,11 +12,11 @@ import (
 
 // FormControl represents a form control for a configuration option.
 type FormControl struct {
-	Option      *ConfigOption
-	Control     fyne.CanvasObject
-	GetValue    func() string
-	SetValue    func(string)
-	Validate    func() error
+	Option   *ConfigOption
+	Control  fyne.CanvasObject
+	GetValue func() string
+	SetValue func(string)
+	Validate func() error
 }
 
 // CreateFormControl creates an appropriate form control for a configuration option.
@@ -167,4 +167,3 @@ func CreateFormControl(option *ConfigOption, window fyne.Window, currentValue st
 
 	return fc
 }
-

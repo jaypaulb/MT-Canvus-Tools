@@ -18,7 +18,6 @@ from canvus_sdk import (
 )
 from canvus_sdk._http import classify_error, is_retryable, normalise_base_url
 
-
 # ---- URL normalisation -----------------------------------------------------
 
 
@@ -117,10 +116,12 @@ def test_from_env_uses_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_settings_validation_requires_url_and_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from pydantic import ValidationError
+
     monkeypatch.delenv("CANVUS_API_URL", raising=False)
     monkeypatch.delenv("CANVUS_API_KEY", raising=False)
-    with pytest.raises(Exception):  # pydantic ValidationError
-        Settings()  # type: ignore[call-arg]
+    with pytest.raises(ValidationError):
+        Settings()
 
 
 # ---- happy-path HTTP via respx --------------------------------------------

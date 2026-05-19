@@ -8,11 +8,11 @@ type ConfigSchema struct {
 
 // ConfigSection represents a configuration section.
 type ConfigSection struct {
-	Name        string                  // Section name
-	Description string                  // Section description
-	Options     []*ConfigOption         // Options in this section
-	IsCompound  bool                    // Whether this section supports compound entries
-	Pattern     string                  // Pattern for compound entries (e.g., "server", "remote-desktop")
+	Name            string                     // Section name
+	Description     string                     // Section description
+	Options         []*ConfigOption            // Options in this section
+	IsCompound      bool                       // Whether this section supports compound entries
+	Pattern         string                     // Pattern for compound entries (e.g., "server", "remote-desktop")
 	CompoundEntries map[string][]*ConfigOption // Map of compound entry name to its options
 }
 
@@ -46,4 +46,3 @@ func (cs *ConfigSchema) AddOption(option *ConfigOption) {
 func (cs *ConfigSchema) GetSection(name string) *ConfigSection {
 	return cs.Sections[name]
 }
-

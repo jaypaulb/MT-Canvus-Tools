@@ -67,7 +67,6 @@ func (m *Manager) CreateBackup(filePath string) (string, error) {
 	return backupPath, nil
 }
 
-
 // RestoreBackup restores a file from a backup.
 func (m *Manager) RestoreBackup(backupPath, targetPath string) error {
 	src, err := os.Open(backupPath)

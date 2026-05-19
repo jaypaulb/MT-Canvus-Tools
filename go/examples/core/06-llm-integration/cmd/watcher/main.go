@@ -32,11 +32,11 @@ import (
 )
 
 const (
-	defaultOllamaURL          = "http://localhost:11434"
-	defaultOllamaModel        = "llama3.2"
-	defaultSnapshotDrainSecs  = 2
-	answerColor               = "#1D71B8FF" // MT blue, full alpha.
-	answerOffsetX             = 400.0       // pixels right of the question note.
+	defaultOllamaURL         = "http://localhost:11434"
+	defaultOllamaModel       = "llama3.2"
+	defaultSnapshotDrainSecs = 2
+	answerColor              = "#1D71B8FF" // MT blue, full alpha.
+	answerOffsetX            = 400.0       // pixels right of the question note.
 )
 
 type generateRequest struct {

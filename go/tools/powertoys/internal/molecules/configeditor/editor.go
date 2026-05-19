@@ -20,18 +20,18 @@ import (
 
 // Editor is the main Canvus Config Editor component.
 type Editor struct {
-	iniParser      *config.INIParser
-	fileService    *services.FileService
-	backupManager  *backup.Manager
-	iniFile        *ini.File
-	schema         *ConfigSchema // Schema with all possible options
-	searchEntry    *widget.Entry
-	accordion      *widget.Accordion
-	sectionGroups  map[string]*SectionGroup
-	compoundGroups map[string]*CompoundEntryGroup
-	formContainer  *container.Scroll
+	iniParser       *config.INIParser
+	fileService     *services.FileService
+	backupManager   *backup.Manager
+	iniFile         *ini.File
+	schema          *ConfigSchema // Schema with all possible options
+	searchEntry     *widget.Entry
+	accordion       *widget.Accordion
+	sectionGroups   map[string]*SectionGroup
+	compoundGroups  map[string]*CompoundEntryGroup
+	formContainer   *container.Scroll
 	scrollContainer *container.Scroll // Reference to scroll container for auto-scrolling
-	window         fyne.Window
+	window          fyne.Window
 }
 
 // OptionItem represents a configuration option.
@@ -52,7 +52,7 @@ func NewEditor(fileService *services.FileService) (*Editor, error) {
 
 	return &Editor{
 		iniParser:      config.NewINIParser(),
-		fileService:     fileService,
+		fileService:    fileService,
 		backupManager:  backupMgr,
 		schema:         schema,
 		sectionGroups:  make(map[string]*SectionGroup),

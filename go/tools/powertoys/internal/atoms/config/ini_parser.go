@@ -24,11 +24,11 @@ func (p *INIParser) Read(filePath string) (*ini.File, error) {
 	// Use LoadOptions to ensure comments are properly handled
 	// The ini library should handle comments by default, but we'll be explicit
 	cfg, err := ini.LoadSources(ini.LoadOptions{
-		AllowPythonMultilineValues: false,
-		SpaceBeforeInlineComment:   true,
-		UnescapeValueDoubleQuotes:  true,
+		AllowPythonMultilineValues:  false,
+		SpaceBeforeInlineComment:    true,
+		UnescapeValueDoubleQuotes:   true,
 		UnescapeValueCommentSymbols: true,
-		IgnoreInlineComment:        false,
+		IgnoreInlineComment:         false,
 	}, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load INI file: %w", err)

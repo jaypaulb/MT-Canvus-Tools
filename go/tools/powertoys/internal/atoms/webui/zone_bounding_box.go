@@ -102,4 +102,3 @@ func WidgetIsInZone(widget *Widget, zoneBB *ZoneBoundingBox) bool {
 
 	return result
 }
-
