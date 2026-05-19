@@ -40,8 +40,15 @@ type RCUHandler struct {
 	status        rcuStatus
 }
 
-// NewRCUHandler creates a new RCU handler.
-func NewRCUHandler(apiClient *webuiatoms.APIClient, canvasService *CanvasService) *RCUHandler {
+// NewRCUHandler creates a new RCU handler with no external dependencies.
+// Suitable for tests and admin-surface-only usage (config/status endpoints).
+func NewRCUHandler() *RCUHandler {
+	return NewRCUHandlerWithDeps(nil, nil)
+}
+
+// NewRCUHandlerWithDeps creates a new RCU handler with API client and canvas service.
+// Use this in production where HandleCreateNote, HandleUploadItem, and HandleIdentifyUser are needed.
+func NewRCUHandlerWithDeps(apiClient *webuiatoms.APIClient, canvasService *CanvasService) *RCUHandler {
 	fileService, _ := services.NewFileService()
 	usersPath := ""
 	if fileService != nil {

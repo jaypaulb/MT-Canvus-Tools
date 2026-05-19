@@ -29,7 +29,7 @@ func NewAPIRoutes(canvasService *CanvasService, apiClient *webuiatoms.APIClient,
 	pagesHandler := NewPagesHandler(apiClient, canvasService)
 	macrosHandler := NewMacrosHandler(apiClient, canvasService)
 	uploadHandler := NewUploadHandler(apiClient, canvasService, uploadDir)
-	rcuHandler := NewRCUHandler(apiClient, canvasService)
+	rcuHandler := NewRCUHandlerWithDeps(apiClient, canvasService)
 	adminHandler := NewAdminHandler(apiClient, canvasService, rcuHandler)
 
 	return &APIRoutes{
