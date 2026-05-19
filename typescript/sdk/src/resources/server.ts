@@ -131,7 +131,7 @@ export class ServerResource {
   /** `GET /api/v1/audit-log/export-csv` — returns the CSV body as a `Blob`. */
   async exportAuditCsv(query: Omit<AuditLogQuery, "page" | "per-page"> = {}): Promise<Blob> {
     const response = await this.transport.rawRequest("GET", "audit-log/export-csv", undefined, {
-      query: query as Record<string, string | number | boolean | undefined>,
+      query: query,
       accept: "text/csv",
     });
     return response.blob();

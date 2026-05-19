@@ -188,7 +188,7 @@ export class AuthResource {
 
   /** `DELETE /api/v1/users/{uid}/access-tokens/{tid}` — revoke a token. */
   async deleteAccessToken(userId: UserId, tokenId: TokenId): Promise<void> {
-    await this.transport.request<void>(
+    await this.transport.request<undefined>(
       "DELETE",
       `users/${userId}/access-tokens/${tokenId}`,
     );

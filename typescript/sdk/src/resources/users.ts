@@ -96,7 +96,7 @@ export class UsersResource {
 
   /** `DELETE /api/v1/users/{uid}` — permanently delete (admin only). */
   async delete(userId: UserId): Promise<void> {
-    await this.transport.request<void>("DELETE", `users/${userId}`);
+    await this.transport.request<undefined>("DELETE", `users/${userId}`);
   }
 
   // ---- Groups -------------------------------------------------------------
@@ -133,7 +133,7 @@ export class UsersResource {
 
   /** `DELETE /api/v1/groups/{gid}`. */
   async deleteGroup(groupId: GroupId): Promise<void> {
-    await this.transport.request<void>("DELETE", `groups/${groupId}`);
+    await this.transport.request<undefined>("DELETE", `groups/${groupId}`);
   }
 
   /** `GET /api/v1/groups/{gid}/members` — list members. */
@@ -151,11 +151,11 @@ export class UsersResource {
 
   /** `POST /api/v1/groups/{gid}/members` — add a user. */
   async addGroupMember(groupId: GroupId, body: AddGroupMemberRequest): Promise<void> {
-    await this.transport.request<void>("POST", `groups/${groupId}/members`, body);
+    await this.transport.request<undefined>("POST", `groups/${groupId}/members`, body);
   }
 
   /** `DELETE /api/v1/groups/{gid}/members/{uid}` — remove a user. */
   async removeGroupMember(groupId: GroupId, userId: UserId): Promise<void> {
-    await this.transport.request<void>("DELETE", `groups/${groupId}/members/${userId}`);
+    await this.transport.request<undefined>("DELETE", `groups/${groupId}/members/${userId}`);
   }
 }

@@ -58,7 +58,7 @@ export class CanvasesResource {
 
   /** `DELETE /api/v1/canvases/{id}`. */
   async delete(canvasId: Uuid): Promise<void> {
-    await this.transport.request<void>("DELETE", `canvases/${canvasId}`);
+    await this.transport.request<undefined>("DELETE", `canvases/${canvasId}`);
   }
 
   /** `POST /api/v1/canvases/{id}/move`. */
@@ -132,7 +132,7 @@ export class CanvasesResource {
     filename = "background",
   ): Promise<CanvasBackground> {
     const form = new FormData();
-    const blob = file instanceof Blob ? file : new Blob([file as unknown as ArrayBuffer]);
+    const blob = file instanceof Blob ? file : new Blob([file]);
     form.append("data", blob, filename);
     return this.transport.request<CanvasBackground>(
       "POST",

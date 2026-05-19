@@ -30,9 +30,7 @@ export interface ServerConfigEntry {
  * The server accepts an arbitrary partial config object; the wire shape
  * varies by deployment. Typed as a permissive map.
  */
-export interface UpdateServerConfigRequest {
-  readonly [key: string]: unknown;
-}
+export type UpdateServerConfigRequest = Readonly<Record<string, unknown>>;
 
 /**
  * Send-test-email request body.

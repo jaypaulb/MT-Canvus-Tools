@@ -54,12 +54,12 @@ export class FoldersResource {
 
   /** `DELETE /api/v1/canvas-folders/{id}` — delete an empty folder. */
   async delete(folderId: Uuid): Promise<void> {
-    await this.transport.request<void>("DELETE", `canvas-folders/${folderId}`);
+    await this.transport.request<undefined>("DELETE", `canvas-folders/${folderId}`);
   }
 
   /** `DELETE /api/v1/canvas-folders/{id}/children` — purge contents. */
   async deleteChildren(folderId: Uuid): Promise<void> {
-    await this.transport.request<void>("DELETE", `canvas-folders/${folderId}/children`);
+    await this.transport.request<undefined>("DELETE", `canvas-folders/${folderId}/children`);
   }
 
   /** `POST /api/v1/canvas-folders/{id}/move`. */

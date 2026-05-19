@@ -43,7 +43,7 @@ export class CanvusError extends Error {
  * A single field-level issue produced by validation.
  */
 export interface ValidationIssue {
-  readonly path: ReadonlyArray<string | number>;
+  readonly path: readonly (string | number)[];
   readonly message: string;
 }
 

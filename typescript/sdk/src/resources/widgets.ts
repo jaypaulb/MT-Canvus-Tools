@@ -17,7 +17,6 @@ import type {
   IpVideo,
   Note,
   Pdf,
-  PdfMetadata,
   RdpConnection,
   Table,
   TableCell,
@@ -147,7 +146,7 @@ function buildUploadForm(
   meta?: UploadMetadata,
 ): FormData {
   const form = new FormData();
-  const blob = file instanceof Blob ? file : new Blob([file as unknown as ArrayBuffer]);
+  const blob = file instanceof Blob ? file : new Blob([file]);
   form.append("data", blob, filename);
   if (meta && Object.keys(meta).length > 0) {
     form.append("json", JSON.stringify(meta));
@@ -306,7 +305,7 @@ export class WidgetsResource {
    */
   async deleteAny(canvasId: Uuid, widgetId: Uuid, widgetType: string): Promise<void> {
     const segment = segmentFor(widgetType, "deleteAny");
-    await this.transport.request<void>("DELETE", `canvases/${canvasId}/${segment}/${widgetId}`);
+    await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/${segment}/${widgetId}`);
   }
 
   /**
@@ -346,7 +345,7 @@ export class WidgetsResource {
     update: (canvasId: Uuid, noteId: Uuid, body: UpdateNoteRequest): Promise<Note> =>
       this.transport.request("PATCH", `canvases/${canvasId}/notes/${noteId}`, body),
     delete: async (canvasId: Uuid, noteId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/notes/${noteId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/notes/${noteId}`);
     },
   };
 
@@ -385,7 +384,7 @@ export class WidgetsResource {
       return res.blob();
     },
     delete: async (canvasId: Uuid, imageId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/images/${imageId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/images/${imageId}`);
     },
   };
 
@@ -424,7 +423,7 @@ export class WidgetsResource {
       return res.blob();
     },
     delete: async (canvasId: Uuid, videoId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/videos/${videoId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/videos/${videoId}`);
     },
   };
 
@@ -456,7 +455,7 @@ export class WidgetsResource {
     update: (
       canvasId: Uuid,
       pdfId: Uuid,
-      body: UpdatePdfRequest | PdfMetadata,
+      body: UpdatePdfRequest,
     ): Promise<Pdf> =>
       this.transport.request("PATCH", `canvases/${canvasId}/pdfs/${pdfId}`, body),
     download: async (canvasId: Uuid, pdfId: Uuid): Promise<Blob> => {
@@ -467,7 +466,7 @@ export class WidgetsResource {
       return res.blob();
     },
     delete: async (canvasId: Uuid, pdfId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/pdfs/${pdfId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/pdfs/${pdfId}`);
     },
   };
 
@@ -490,7 +489,7 @@ export class WidgetsResource {
     update: (canvasId: Uuid, browserId: Uuid, body: UpdateBrowserRequest): Promise<Browser> =>
       this.transport.request("PATCH", `canvases/${canvasId}/browsers/${browserId}`, body),
     delete: async (canvasId: Uuid, browserId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/browsers/${browserId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/browsers/${browserId}`);
     },
   };
 
@@ -513,7 +512,7 @@ export class WidgetsResource {
     update: (canvasId: Uuid, anchorId: Uuid, body: UpdateAnchorRequest): Promise<Anchor> =>
       this.transport.request("PATCH", `canvases/${canvasId}/anchors/${anchorId}`, body),
     delete: async (canvasId: Uuid, anchorId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/anchors/${anchorId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/anchors/${anchorId}`);
     },
   };
 
@@ -544,7 +543,7 @@ export class WidgetsResource {
     ): Promise<Connector> =>
       this.transport.request("PATCH", `canvases/${canvasId}/connectors/${connectorId}`, body),
     delete: async (canvasId: Uuid, connectorId: Uuid): Promise<void> => {
-      await this.transport.request<void>(
+      await this.transport.request<undefined>(
         "DELETE",
         `canvases/${canvasId}/connectors/${connectorId}`,
       );
@@ -600,7 +599,7 @@ export class WidgetsResource {
         opts,
       ),
     delete: async (canvasId: Uuid, tableId: Uuid): Promise<void> => {
-      await this.transport.request<void>("DELETE", `canvases/${canvasId}/tables/${tableId}`);
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/tables/${tableId}`);
     },
   };
 
@@ -631,7 +630,7 @@ export class WidgetsResource {
     ): Promise<VideoInput> =>
       this.transport.request("PATCH", `canvases/${canvasId}/video-inputs/${widgetId}`, body),
     delete: async (canvasId: Uuid, widgetId: Uuid): Promise<void> => {
-      await this.transport.request<void>(
+      await this.transport.request<undefined>(
         "DELETE",
         `canvases/${canvasId}/video-inputs/${widgetId}`,
       );
@@ -665,7 +664,7 @@ export class WidgetsResource {
     update: (canvasId: Uuid, widgetId: Uuid, body: UpdateIpVideoRequest): Promise<IpVideo> =>
       this.transport.request("PATCH", `canvases/${canvasId}/ip-videos/${widgetId}`, body),
     delete: async (canvasId: Uuid, widgetId: Uuid): Promise<void> => {
-      await this.transport.request<void>(
+      await this.transport.request<undefined>(
         "DELETE",
         `canvases/${canvasId}/ip-videos/${widgetId}`,
       );
@@ -719,7 +718,7 @@ export class WidgetsResource {
         body,
       ),
     delete: async (canvasId: Uuid, widgetId: Uuid): Promise<void> => {
-      await this.transport.request<void>(
+      await this.transport.request<undefined>(
         "DELETE",
         `canvases/${canvasId}/rdp-connections/${widgetId}`,
       );
@@ -752,7 +751,7 @@ export class WidgetsResource {
     ): Promise<UploadsFolderItem> => {
       const form = new FormData();
       if (file !== undefined) {
-        const blob = file instanceof Blob ? file : new Blob([file as unknown as ArrayBuffer]);
+        const blob = file instanceof Blob ? file : new Blob([file]);
         form.append("data", blob, filename ?? "upload");
       }
       form.append("json", JSON.stringify(meta));
