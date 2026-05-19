@@ -45,6 +45,7 @@ go/examples/projects/llm-canvas-companion/llm-canvas-companion
 go/tools/translator/translator
 go/tools/translator/server
 go/tools/db-solver/db-solver
+go/tools/powertoys/powertoys
 
 # Python
 __pycache__/
