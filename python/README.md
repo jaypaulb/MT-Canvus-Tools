@@ -12,11 +12,13 @@ Python uv workspace containing the SDK, examples, and tools for the Canvus platf
 
 ## Workspace setup
 
+Run from this directory (`python/`):
+
 ```bash
-uv sync                                       # Install all workspace dependencies
-uv run pytest                                 # Run SDK tests
-uv run ruff check .                           # Lint
-uv run mypy --strict python/sdk/src           # Type-check SDK (0 errors baseline)
+uv sync                           # Install all workspace dependencies
+uv run pytest                     # Run SDK tests
+uv run ruff check .               # Lint
+uv run mypy --strict sdk/src      # Type-check SDK (0 errors baseline)
 ```
 
 Tests live in `sdk/tests/`. Integration tests opt in via `-m integration` (require `CANVUS_API_URL` + `CANVUS_API_KEY`). Live dev-server tests opt in via `-m live`.
