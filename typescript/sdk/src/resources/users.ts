@@ -13,12 +13,10 @@ import type {
 
 /**
  * User and group identifiers are INTEGERS on the live Canvus server
- * (per VERIFIED-CORRECTIONS.md §6 / §7). Callers may pass either a
- * `number` (preferred) or a stringified number; both are coerced to
- * a path segment.
+ * (per VERIFIED-CORRECTIONS.md §6 / §7).
  */
-type UserId = number | string;
-type GroupId = number | string;
+type UserId = number;
+type GroupId = number;
 
 /**
  * User and group management endpoints.

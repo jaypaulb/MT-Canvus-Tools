@@ -1,0 +1,27 @@
+<!doctype html><html lang=en><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>RCU Admin - Canvus PowerToys</title><link rel=stylesheet href=/css/design-system.css><link rel=stylesheet href=/css/dark-theme.css><link rel=stylesheet href=/css/responsive.css><link rel=stylesheet href=/templates/css/page-template.css><link rel=stylesheet href=/atoms/css/button.css><link rel=stylesheet href=/atoms/css/input.css><link rel=stylesheet href=/atoms/css/card.css><link rel=stylesheet href=/molecules/css/navbar.css><link rel=stylesheet href=/molecules/css/canvas-header.css><link rel=stylesheet href=/molecules/css/form-group.css><link rel=stylesheet href=/pages/css/remote-upload.css><div class=page><header class=page-header><nav class=navbar><a href=/ class=navbar-brand>Canvus PowerToys</a><div class=nav-mobile><button class=nav-mobile-toggle id=mobileMenuToggle aria-label="Toggle menu">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg></button><div class=nav-mobile-menu id=mobileMenu><a href=/ class=navbar-link>Home</a>
+<a href=/pages.html class=navbar-link>Pages</a>
+<a href=/macros.html class=navbar-link>Macros</a>
+<a href=/remote-upload.html class="navbar-link active">RCU Admin</a>
+<a href=/rcu.html class=navbar-link>RCU</a></div></div><ul class="navbar-nav nav-desktop"><li><a href=/ class=navbar-link>Home</a><li><a href=/pages.html class=navbar-link>Pages</a><li><a href=/macros.html class=navbar-link>Macros</a><li><a href=/remote-upload.html class="navbar-link active">RCU Admin</a><li><a href=/rcu.html class=navbar-link>RCU</a></ul><div class=navbar-tracking><span class=navbar-tracking-label>Tracking:</span>
+<span class="navbar-tracking-name canvas-name-clickable" id=navbarClientName title="Double-click to override client">...</span>
+<span class=navbar-tracking-warning id=navbarClientWarning style=display:none>(Not found)</span>
+<span class=navbar-tracking-separator>|</span>
+<span class=navbar-tracking-label>Canvas:</span>
+<span class=navbar-tracking-name id=navbarCanvasName>...</span><div class=navbar-tracking-status><span class=navbar-status-indicator id=navbarStatusIndicator></span>
+<span class=navbar-status-text id=navbarStatusText>Connecting...</span></div></div></nav></header><main class=page-main><div class=page-content><div class=page-section><h1 class=page-section-title>RCU Admin</h1><p class=page-section-description>Admin interface for Remote Content Upload. Create team targets and send test notes.</div><div class=card><div class=card-header><h2 class=card-title>Create Team Targets</h2><p class=card-subtitle>Create target notes for teams 1-7</div><div class=card-body><div class=form-actions><button type=button class="btn btn-primary" id=createTargetsBtn>
+Create Target Notes
+</button>
+<button type=button class="btn btn-danger" id=deleteTargetsBtn>
+Delete Target Notes</button></div><div id=targetsMessage class="message mt-md" style=display:none></div></div></div><div class="card mt-lg"><div class=card-header><h2 class=card-title>Test Team Notes</h2><p class=card-subtitle>Send test notes from Admin to each team's target</div><div class=card-body><div class=form-group><label class=input-label>Select Team to Test:</label><div class=form-actions style=flex-wrap:wrap;gap:var(--spacing-sm)><button type=button class="btn btn-secondary" data-test-team=1>Test Team 1</button>
+<button type=button class="btn btn-secondary" data-test-team=2>Test Team 2</button>
+<button type=button class="btn btn-secondary" data-test-team=3>Test Team 3</button>
+<button type=button class="btn btn-secondary" data-test-team=4>Test Team 4</button>
+<button type=button class="btn btn-secondary" data-test-team=5>Test Team 5</button>
+<button type=button class="btn btn-secondary" data-test-team=6>Test Team 6</button>
+<button type=button class="btn btn-secondary" data-test-team=7>Test Team 7</button></div></div><div id=testTeamMessage class="message mt-md" style=display:none></div></div></div><div class="card mt-lg"><div class=card-header><h2 class=card-title>User List</h2></div><div class=card-body><div class=form-actions><button type=button class="btn btn-info" id=listUsersBtn>List Users</button>
+<button type=button class="btn btn-warning" id=deleteUsersBtn>Delete Users</button></div><div id=userListContainer class=mt-md><table id=userListTable style=width:100%;margin-top:var(--spacing-md)><thead><tr><th>Team<th>Name<th>Color<tbody></table><div id=userListMessage class="message mt-md" style=display:none>No users to display. Click "List Users" to refresh.</div></div></div></div></div></main><footer class=page-footer><p>Canvus PowerToys WebUI &copy; 2024</footer></div><script src=/molecules/js/workspace-client.js></script><script src=/pages/js/remote-upload.js></script><script src=/pages/js/common.js></script>

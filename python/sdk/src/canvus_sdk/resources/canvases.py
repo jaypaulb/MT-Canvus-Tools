@@ -21,6 +21,7 @@ from ..models import (
     CanvasFolder,
     CanvasPermissions,
     ColorPresets,
+    FolderPermissions,
     User,
 )
 from ._base import Resource
@@ -432,6 +433,19 @@ class FoldersResource(Resource):
         """Subscribe to a single folder."""
         return self._typed_subscribe(
             CanvasFolder, f"canvas-folders/{folder_id}", params=params
+        )
+
+    def subscribe_permissions(
+        self,
+        folder_id: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncIterator[FolderPermissions]:
+        """Subscribe to a folder's permissions block."""
+        return self._typed_subscribe(
+            FolderPermissions,
+            f"canvas-folders/{folder_id}/permissions",
+            params=params,
         )
 
     async def get_permissions(self, folder_id: str) -> dict[str, Any]:

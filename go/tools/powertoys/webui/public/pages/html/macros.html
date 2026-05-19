@@ -1,0 +1,27 @@
+<!doctype html><html lang=en><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Macros - Canvus PowerToys</title><link rel=stylesheet href=/css/design-system.css><link rel=stylesheet href=/css/dark-theme.css><link rel=stylesheet href=/css/responsive.css><link rel=stylesheet href=/templates/css/page-template.css><link rel=stylesheet href=/atoms/css/button.css><link rel=stylesheet href=/atoms/css/input.css><link rel=stylesheet href=/atoms/css/card.css><link rel=stylesheet href=/molecules/css/navbar.css><link rel=stylesheet href=/molecules/css/canvas-header.css><link rel=stylesheet href=/molecules/css/form-group.css><link rel=stylesheet href=/pages/css/macros.css><div class=page><header class=page-header><nav class=navbar><a href=/ class=navbar-brand>Canvus PowerToys</a><div class=nav-mobile><button class=nav-mobile-toggle id=mobileMenuToggle aria-label="Toggle menu">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg></button><div class=nav-mobile-menu id=mobileMenu><a href=/ class=navbar-link>Home</a>
+<a href=/pages.html class=navbar-link>Pages</a>
+<a href=/macros.html class="navbar-link active">Macros</a>
+<a href=/remote-upload.html class=navbar-link>Remote Upload</a>
+<a href=/rcu.html class=navbar-link>RCU</a></div></div><ul class="navbar-nav nav-desktop"><li><a href=/ class=navbar-link>Home</a><li><a href=/pages.html class=navbar-link>Pages</a><li><a href=/macros.html class="navbar-link active">Macros</a><li><a href=/remote-upload.html class=navbar-link>Remote Upload</a><li><a href=/rcu.html class=navbar-link>RCU</a></ul><div class=navbar-tracking><span class=navbar-tracking-label>Tracking:</span>
+<span class="navbar-tracking-name canvas-name-clickable" id=navbarClientName title="Double-click to override client">...</span>
+<span class=navbar-tracking-warning id=navbarClientWarning style=display:none>(Not found)</span>
+<span class=navbar-tracking-separator>|</span>
+<span class=navbar-tracking-label>Canvas:</span>
+<span class=navbar-tracking-name id=navbarCanvasName>...</span><div class=navbar-tracking-status><span class=navbar-status-indicator id=navbarStatusIndicator></span>
+<span class=navbar-status-text id=navbarStatusText>Connecting...</span></div></div></nav></header><main class=page-main><div class=page-content><div class=page-section><h1 class=page-section-title>Macros</h1><p class=page-section-description>Manage widgets: move, copy, group, and pin widgets in zones.</div><div class=macros-tabs-container><div class=macros-tabs-header><button class="tab-button active" data-tab=manage>Manage</button>
+<button class=tab-button data-tab=arrange>Arrange</button>
+<button class=tab-button data-tab=pin>Pin</button></div><div class=macros-tabs-content><div id=manage-content class="tab-content active"><div class=card><div class=card-header><h2 class=card-title>Manage Widgets (Move / Copy)</h2></div><div class=card-body><div class=form-group><label class=input-label for=manageSourceZone>Source Zone:</label>
+<select class="input select" id=manageSourceZone><option value>Select a zone...</select></div><div class=form-group><label class=input-label for=manageTargetZone>Target Zone:</label>
+<select class="input select" id=manageTargetZone><option value>Select a zone...</select></div><div class=form-actions><button id=moveButton class="btn btn-primary">Move</button>
+<button id=copyButton class="btn btn-primary">Copy</button></div><div id=manageMessage class="message mt-md"></div></div></div></div><div id=arrange-content class=tab-content><div class=card><div class=card-header><h2 class=card-title>Arrange Widgets</h2></div><div class=card-body><div class=form-group><label class=input-label for=arrangeSourceZone>Source Zone:</label>
+<select class="input select" id=arrangeSourceZone><option value>Select a zone...</select></div><div class=form-group><label class=input-label for=colorToleranceSlider>Color Tolerance: <span id=colorToleranceValue>10%</span>
+</label><input type=range class=input id=colorToleranceSlider min=0 max=100 value=10></div><div class=form-actions><button id=autoGridButton class="btn btn-primary">Auto Grid</button>
+<button id=groupColorButton class="btn btn-primary">Group by Color</button>
+<button id=groupTitleButton class="btn btn-primary">Group by Title</button></div><div id=arrangeMessage class="message mt-md"></div></div></div></div><div id=pin-content class=tab-content><div class=card><div class=card-header><h2 class=card-title>Pin/Unpin Widgets in Zone</h2></div><div class=card-body><div class=form-group><label class=input-label for=pinSourceZone>Source Zone:</label>
+<select class="input select" id=pinSourceZone><option value>Select a zone...</select></div><div class=form-actions><button id=pinAllButton class="btn btn-primary">Pin ALL</button>
+<button id=unpinAllButton class="btn btn-primary">Unpin ALL</button></div><div id=pinMessage class="message mt-md"></div></div></div></div></div></div></div></main><footer class=page-footer><p>Canvus PowerToys WebUI &copy; 2024</footer></div><script src=/molecules/js/workspace-client.js></script><script src=/pages/js/macros.js></script><script src=/pages/js/common.js></script>

@@ -8,10 +8,11 @@ import (
 
 // ClientInfo represents a client device registered with the server.
 type ClientInfo struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	UserID    string `json:"user_id"`
-	CreatedAt string `json:"created_at"`
+	ID               string `json:"id"`
+	InstallationName string `json:"installation_name"`
+	Name             string `json:"name"`
+	UserID           string `json:"user_id"`
+	CreatedAt        string `json:"created_at"`
 }
 
 // ListClients retrieves all clients.

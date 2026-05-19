@@ -1,0 +1,1 @@
+.team-buttons{display:flex;flex-wrap:wrap;gap:var(--spacing-sm);align-items:center;justify-content:flex-start}.team-button{flex-shrink:0;min-width:120px;width:120px;height:40px}@media(max-width:767px){.team-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--spacing-sm)}.team-button{width:100%;min-width:unset}}

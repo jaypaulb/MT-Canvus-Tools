@@ -1,0 +1,1 @@
+class ErrorHandler{constructor(){this.isDevelopment=window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1"}logError(e,t,n=""){const s=n?`${n}: ${e}`:e;this.isDevelopment&&console.error(s,t),this.showUserError(e)}showUserError(){}}const errorHandler=new ErrorHandler;typeof module!="undefined"&&module.exports&&(module.exports=errorHandler)

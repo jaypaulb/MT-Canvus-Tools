@@ -18,6 +18,9 @@ from .canvases import (
     CanvasPermissionOverride,
     CanvasPermissions,
     ColorPresets,
+    FolderGroupPermission,
+    FolderPermissions,
+    FolderUserPermission,
 )
 from .common import GridSize, Location, RelativeLocation, Size, ViewRectangle
 from .server import (
@@ -68,6 +71,9 @@ __all__ = [
     "ColorPresets",
     "Connector",
     "ConnectorEndpoint",
+    "FolderGroupPermission",
+    "FolderPermissions",
+    "FolderUserPermission",
     "GridSize",
     "Group",
     "GroupMember",
