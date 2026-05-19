@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type rcuConfig struct {
@@ -14,7 +15,7 @@ type rcuConfig struct {
 
 type rcuStatus struct {
 	Connected  bool        `json:"connected"`
-	LastUpdate interface{} `json:"last_update"`
+	LastUpdate any `json:"last_update"`
 }
 
 // RCUHandler serves the WebUI's own admin RCU surface.
@@ -52,10 +53,9 @@ func (h *RCUHandler) HandleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		h.mu.Lock()
 		h.config = req
+		cfg := h.config
 		h.mu.Unlock()
-		h.mu.RLock()
-		defer h.mu.RUnlock()
-		json.NewEncoder(w).Encode(h.config)
+		json.NewEncoder(w).Encode(cfg)
 
 	default:
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -85,6 +85,7 @@ func (h *RCUHandler) HandleTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	h.mu.Lock()
 	h.status.Connected = true
+	h.status.LastUpdate = time.Now()
 	h.mu.Unlock()
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	json.NewEncoder(w).Encode(map[string]any{"success": true})
 }
