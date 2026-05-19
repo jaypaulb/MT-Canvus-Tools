@@ -8,6 +8,7 @@ import (
 	"time"
 
 	canvus "github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
+	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/logger"
 	webuiatoms "github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/atoms/webui"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/tools/powertoys/internal/organisms/services"
 )
@@ -24,6 +25,7 @@ type CanvasService struct {
 	installationName   string
 	overrideClientName string
 	mu                 sync.RWMutex
+	wg                 sync.WaitGroup
 	hasReceivedEvents  bool
 	lastEventTime      time.Time
 	subscriptionStart  time.Time
@@ -51,9 +53,14 @@ func (cs *CanvasService) Start() error {
 	cs.installationName = installationName
 	cs.mu.Unlock()
 
-	clientID, err := cs.clientResolver.ResolveClientID(cs.ctx, cs.session, installationName)
+	cs.mu.RLock()
+	ctx := cs.ctx
+	cs.mu.RUnlock()
+
+	clientID, err := cs.clientResolver.ResolveClientID(ctx, cs.session, installationName)
 	if err != nil {
 		// Not fatal — canvas ID can be set via manual override.
+		logger.Logf("CanvasService: could not resolve client ID for %q: %v — canvas ID must be set manually", installationName, err)
 		return nil
 	}
 
@@ -75,19 +82,27 @@ func (cs *CanvasService) Start() error {
 
 // startSubscription subscribes to workspace events for the given clientID.
 func (cs *CanvasService) startSubscription(clientID string) {
-	subscriber := webuiatoms.NewWorkspaceSubscriber(cs.session, clientID)
-	eventChan, errChan := subscriber.Subscribe(cs.ctx)
+	cs.mu.RLock()
+	ctx := cs.ctx
+	cs.mu.RUnlock()
 
+	subscriber := webuiatoms.NewWorkspaceSubscriber(cs.session, clientID)
+	eventChan, errChan := subscriber.Subscribe(ctx)
+
+	cs.wg.Add(1)
 	go func() {
+		defer cs.wg.Done()
 		for range errChan {
 			// errors are surfaced by the subscriber; context cancellation stops the subscription
 		}
 	}()
 
+	cs.wg.Add(1)
 	go func() {
+		defer cs.wg.Done()
 		for {
 			select {
-			case <-cs.ctx.Done():
+			case <-ctx.Done():
 				return
 			case ev, ok := <-eventChan:
 				if !ok {
@@ -107,13 +122,14 @@ func (cs *CanvasService) startSubscription(clientID string) {
 func (cs *CanvasService) refreshClientName() {
 	cs.mu.RLock()
 	clientID := cs.clientID
+	ctx := cs.ctx
 	cs.mu.RUnlock()
 
 	if clientID == "" {
 		return
 	}
 
-	clients, err := cs.session.ListClients(cs.ctx)
+	clients, err := cs.session.ListClients(ctx)
 	if err != nil {
 		return
 	}
@@ -128,17 +144,31 @@ func (cs *CanvasService) refreshClientName() {
 	}
 }
 
+// stopAndWait cancels the workspace subscription and waits for all goroutines to exit.
+func (cs *CanvasService) stopAndWait() {
+	cs.mu.Lock()
+	cancel := cs.cancel
+	cs.mu.Unlock()
+	cancel()
+	cs.wg.Wait()
+}
+
 // Stop cancels the workspace subscription.
-func (cs *CanvasService) Stop() { cs.cancel() }
+func (cs *CanvasService) Stop() {
+	cs.mu.Lock()
+	cancel := cs.cancel
+	cs.mu.Unlock()
+	cancel()
+}
 
 // Restart restarts the canvas service subscription, re-resolving or using override client name.
 func (cs *CanvasService) Restart() error {
-	cs.Stop()
-	time.Sleep(200 * time.Millisecond)
-
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.stopAndWait()
 
 	cs.mu.Lock()
+	ctx, cancel := context.WithCancel(context.Background())
+	cs.ctx = ctx
+	cs.cancel = cancel
 	cs.hasReceivedEvents = false
 	cs.lastEventTime = time.Time{}
 	override := cs.overrideClientName
@@ -169,12 +199,15 @@ func (cs *CanvasService) OverrideClient(clientName string) error {
 
 // restartWithClientName restarts the workspace subscription using a specific client name.
 func (cs *CanvasService) restartWithClientName(clientName string) error {
-	cs.Stop()
-	time.Sleep(100 * time.Millisecond)
+	cs.stopAndWait()
 
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.mu.Lock()
+	ctx, cancel := context.WithCancel(context.Background())
+	cs.ctx = ctx
+	cs.cancel = cancel
+	cs.mu.Unlock()
 
-	clients, err := cs.session.ListClients(cs.ctx)
+	clients, err := cs.session.ListClients(ctx)
 	if err != nil {
 		return fmt.Errorf("restartWithClientName: list clients: %w", err)
 	}
