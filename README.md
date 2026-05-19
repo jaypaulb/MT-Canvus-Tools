@@ -74,7 +74,7 @@ All three SDKs cover **147 / 147** Canvus REST endpoints (three endpoints are de
 |---|---|---|---|
 | Go | 44 typed Subscribe helpers | geometry, filters, zones, batch\_widgets, search | `go build` / `go vet` / `go test` clean |
 | Python | 49 typed AsyncIterators | 10 modules + `__init__` | ruff clean, pytest pass, mypy --strict 0 errors |
-| TypeScript | 49 typed async iterators | 9 modules + index | typecheck / build clean, vitest pass |
+| TypeScript | 27 typed async iterators | 9 modules + index | typecheck / build clean, vitest pass |
 
 ## Status
 
