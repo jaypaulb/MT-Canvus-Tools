@@ -28,6 +28,7 @@ from fastapi import FastAPI, HTTPException, status
 from canvus_sdk import Client
 
 from .config import Settings
+from .llm import OllamaClient
 from .logging_config import configure_logging
 from .mcp_tools import (
     AutoConnectorCreationTool,
@@ -101,7 +102,7 @@ def build_client(settings: Settings) -> Client:
     )
 
 
-def build_registry(client: Client) -> MCPToolRegistry:
+def build_registry(client: Client, ollama: OllamaClient) -> MCPToolRegistry:
     """Construct and populate a :class:`MCPToolRegistry`.
 
     The flat tool list (typed as :class:`BaseMCPTool`) preserves the legacy
@@ -159,22 +160,22 @@ def build_registry(client: Client) -> MCPToolRegistry:
         ElementRelationshipAnalysisTool(client),
         AutomaticConnectorSuggestionTool(client),
         ConnectorVisualizationTool(client),
-        # LLM (no client needed)
-        LLMHealthCheckTool(),
-        LLMTextAnalysisTool(),
-        LLMConnectorSuggestionsTool(),
-        LLMCanvasInsightsTool(),
-        LLMEnhancedCorrelationTool(),
-        LLMBrainstormingEnhancementTool(),
+        # LLM
+        LLMHealthCheckTool(ollama),
+        LLMTextAnalysisTool(ollama),
+        LLMConnectorSuggestionsTool(ollama),
+        LLMCanvasInsightsTool(ollama),
+        LLMEnhancedCorrelationTool(ollama),
+        LLMBrainstormingEnhancementTool(ollama),
         # Brainstorming
-        BrainstormingNoteRetrievalTool(client),
-        PersonaIdentificationTool(client),
-        LLMBrainstormingAnalysisTool(client),
-        AutoConnectorCreationTool(client),
+        BrainstormingNoteRetrievalTool(client, ollama),
+        PersonaIdentificationTool(client, ollama),
+        LLMBrainstormingAnalysisTool(client, ollama),
+        AutoConnectorCreationTool(client, ollama),
         # Reports
-        BrainstormingSummaryReportTool(client),
-        BrainstormingInsightReportTool(client),
-        BrainstormingExportTool(client),
+        BrainstormingSummaryReportTool(client, ollama),
+        BrainstormingInsightReportTool(client, ollama),
+        BrainstormingExportTool(client, ollama),
     ]
     for tool in tools:
         registry.register_tool(tool)
@@ -185,6 +186,7 @@ def create_app(
     settings: Settings | None = None,
     *,
     client: Client | None = None,
+    ollama: OllamaClient | None = None,
     registry: MCPToolRegistry | None = None,
 ) -> FastAPI:
     """Build the FastAPI application.
@@ -199,8 +201,10 @@ def create_app(
     settings.ensure_directories()
     if client is None:
         client = build_client(settings)
+    if ollama is None:
+        ollama = OllamaClient(settings.build_ollama_config())
     if registry is None:
-        registry = build_registry(client)
+        registry = build_registry(client, ollama)
 
     app = FastAPI(
         title="Canvus MCP Server",
@@ -214,6 +218,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.client = client
+    app.state.ollama = ollama
     app.state.registry = registry
 
     _wire_routes(app, settings, registry)
@@ -334,10 +339,13 @@ def _mount_mcp(app: FastAPI) -> None:
 
 # Async closing helper used by the CLI entrypoint.
 async def aclose(app: FastAPI) -> None:
-    """Close the underlying SDK client cleanly."""
+    """Close the underlying SDK and LLM clients cleanly."""
     client: Client | None = getattr(app.state, "client", None)
     if client is not None:
         await client.aclose()
+    ollama: OllamaClient | None = getattr(app.state, "ollama", None)
+    if ollama is not None:
+        await ollama.aclose()
 
 
 # Help mypy / linters identify the public surface.
