@@ -1,0 +1,55 @@
+name: CI — Go
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'go/**'
+      - '.github/workflows/ci-go.yml'
+  pull_request:
+    paths:
+      - 'go/**'
+      - '.github/workflows/ci-go.yml'
+
+jobs:
+  go:
+    name: Format / Build / Vet / Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (Fyne + systray)
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libgtk-3-dev libayatana-appindicator3-dev
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Format check
+        run: |
+          bad=$(gofmt -s -l .)
+          if [ -n "$bad" ]; then
+            echo "Files with formatting issues:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Build + Vet all workspace modules
+        run: |
+          set -euo pipefail
+          awk '/^\t\./{print substr($0,2)}' go.work | while IFS= read -r dir; do
+            echo "--- $dir ---"
+            (cd "$dir" && go build ./... && go vet ./...)
+          done
+
+      - name: Test all workspace modules
+        run: |
+          set -euo pipefail
+          awk '/^\t\./{print substr($0,2)}' go.work | while IFS= read -r dir; do
+            echo "--- $dir ---"
+            (cd "$dir" && go test -count=1 -short ./...)
+          done
