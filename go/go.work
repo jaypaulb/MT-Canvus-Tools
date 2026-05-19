@@ -19,6 +19,7 @@ use (
 	./sdk
 	./tools/translator
 	./tools/db-solver
+	./tools/powertoys
 )
 
 // Each example's go.mod requires the SDK with a placeholder version
