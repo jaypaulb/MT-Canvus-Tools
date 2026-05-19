@@ -102,7 +102,7 @@ class Client:
     @classmethod
     def from_env(cls, settings: Settings | None = None) -> Self:
         """Build a :class:`Client` from environment-backed :class:`Settings`."""
-        cfg = settings or Settings()  # type: ignore[call-arg]
+        cfg = settings or Settings()
         return cls(
             cfg.api_url,
             cfg.api_key,
