@@ -1,8 +1,8 @@
 # MT-Canvus-Tools Consolidation Status
 
-**As of:** 2026-05-19 (post-Phase 6)
-**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes), 4d (+ review-driven fixes), 5 (PowerToys port + carry-over), 6 (top-level documentation)
-**Next phase:** 7 (CI/CD)
+**As of:** 2026-05-19 (post-Phase 7)
+**Phases complete:** 0, 1, 2, 3 (+ verification), 4a (+ review-driven fixes), 4b (+ review-driven fixes), 4c (+ review-driven fixes), 4d (+ review-driven fixes), 5 (PowerToys port + carry-over), 6 (top-level documentation), 7 (CI/CD)
+**Next phase:** 8 (TBD)
 **Upstream doc fix tracker:** [`canvus-server#96`](https://gitlab.multitaction.com/swrd/conan/canvus/canvus-server/-/work_items/96)
 
 ---
@@ -58,6 +58,10 @@
 | 5.carry | Python FolderPermissions + FoldersResource.subscribe_permissions; TS UserId/GroupId narrowed to number + allowNumber lint rule | `cd49f54`, `cdde5ab` |
 | 5.r | Review fix: performConnectionTests insecureTLS + workspace tidy + binary gitignore | `ae170ea`, `53efe75` |
 | 6 | Top-level documentation: root README, per-language READMEs, getting-started guides, CONTRIBUTING, docs/contributing/ | `3bc0f38`, `810e5be`, `f4f0e34`, `bd3e01f`, `49f61a9`, `a48d088`, `57ff572`, `fa332dd`, `640e56e`, `882f9b3`, `09db7ec`, `b4aae25`, `73607f6` |
+| 7.1 | GitHub Actions: Go CI workflow (format / build / vet / test all workspace modules) | `38f164f`, `e82de72` |
+| 7.2 | GitHub Actions: Python CI workflow (ruff / mypy strict SDK + MCP server / pytest) | `b3036c2`, `2c3d947` |
+| 7.3 | GitHub Actions: TypeScript CI workflow (build SDK / typecheck / lint / test) | `95db3b7`, `f44d7e6` |
+| 7.fix | Python: remove unused type: ignore[call-arg] + add pydantic.mypy to workspace config | `ab2eb73` |
 
 **Repo:** `github.com/jaypaulb/MT-Canvus-Tools` (private)
 
@@ -297,13 +301,21 @@ Deferred items surfaced during Phase 4d, captured below for Phase 5 planning:
 
 ---
 
-## Deferred to Phase 7 (CI/CD)
+## Phase 7 outcome — DONE
 
-Single agent: GitHub Actions workflows. Per-language matrix jobs (lint, test, build). Optional spec-drift detector comparing `docs/api-reference/` to `mt-restapi-client` on a schedule.
+GitHub Actions CI for all three language workspaces.
 
-All Phase 4d and Phase 5 carry-over items are now resolved:
+| Workflow | Jobs |
+|---|---|
+| `ci-go.yml` | format check (`gofmt -s -l`), build + vet, test (all 17 workspace modules, via awk on go.work) |
+| `ci-python.yml` | ruff check, mypy --strict SDK (from `python/sdk/`), mypy --strict MCP server (from `python/tools/mcp-server/`), pytest (not live/integration) |
+| `ci-typescript.yml` | pnpm install, build SDK first, typecheck, lint, test (all workspace packages, `--if-present`) |
+
+All Phase 4d and Phase 5 carry-over items resolved:
 
 - ✅ **Python `FoldersResource.subscribe_permissions`** — shipped Phase 5 carry-over (`cd49f54`)
 - ✅ **TS lint floor** — `UserId`/`GroupId` narrowed to `number` + `allowNumber: true` rule (`cdde5ab`); floor is now 0
-- **Python `client.py:105` unused-ignore** — `# type: ignore[call-arg]` on `Settings()` — verify still needed with `uv run mypy --strict sdk/src`; drop in Phase 7 sweep if resolved
+- ✅ **Python `client.py:105` unused-ignore** — `type: ignore[call-arg]` removed; pydantic.mypy plugin added to workspace-level config (`ab2eb73`)
 - **CloneWidget per-type wrappers** — retained as "not needed unless callers report friction" design decision; revisit only on user request
+
+**Spec-drift detector** (optional, deferred): A scheduled workflow comparing `docs/api-reference/` against `mt-restapi-client` in `gitlab.multitaction.com` requires a GitLab PAT secret and a custom diff script. Deferred to a future phase when CI is more mature.
