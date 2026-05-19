@@ -78,4 +78,4 @@ All three SDKs cover **147 / 147** Canvus REST endpoints (three endpoints are de
 
 ## Status
 
-Phase 6 complete — top-level documentation added (READMEs, getting-started guides, contributing guides). See [CONSOLIDATION-STATUS.md](CONSOLIDATION-STATUS.md) for the full phase log.
+Phase 7 complete — GitHub Actions CI live for Go, Python, and TypeScript workspaces (format/lint/typecheck/test on every push and PR). See [CONSOLIDATION-STATUS.md](CONSOLIDATION-STATUS.md) for the full phase log.
