@@ -91,20 +91,19 @@ defer session.Logout(ctx)
 
 ## Real-time streaming
 
-The SDK exposes a typed Subscribe helper for every streamable endpoint:
+The SDK provides a typed Subscribe helper for every streamable endpoint. Each returns a read channel that yields values as the server sends updates:
 
 ```go
-eventChan, errChan, err := session.SubscribeCanvases(ctx, nil)
+canvases, err := session.SubscribeCanvases(ctx)
 if err != nil {
     log.Fatal(err)
 }
-for ev := range eventChan {
-    fmt.Printf("event: %s  canvas: %s\n", ev.Type, ev.Canvas.Name)
-}
-if err := <-errChan; err != nil {
-    log.Println("stream error:", err)
+for canvas := range canvases {
+    fmt.Printf("canvas updated: %s  %s\n", canvas.ID, canvas.Name)
 }
 ```
+
+When `ctx` is cancelled or the server closes the connection, the channel closes and the loop exits.
 
 ## Go tools
 
