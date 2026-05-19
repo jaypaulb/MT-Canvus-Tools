@@ -6,7 +6,7 @@ SDKs, examples, and tools for building on the [Canvus](https://www.multitaction.
 
 | Language | SDK | Examples | Tools |
 |---|---|---|---|
-| **Go** | [`go/sdk/`](go/sdk/) | [`go/examples/`](go/examples/) — 8 core + 4 project examples | [`go/cli/`](go/cli/), [`go/tools/`](go/tools/) |
+| **Go** | [`go/sdk/`](go/sdk/) | [`go/examples/`](go/examples/) — 8 core + 3 project examples | [`go/cli/`](go/cli/), [`go/tools/`](go/tools/) |
 | **Python** | [`python/sdk/`](python/sdk/) | [`python/examples/`](python/examples/) — 8 core examples | [`python/tools/`](python/tools/) |
 | **TypeScript** | [`typescript/sdk/`](typescript/sdk/) | [`typescript/examples/`](typescript/examples/) — 8 core + WebUI | — |
 
@@ -78,4 +78,4 @@ All three SDKs cover **147 / 147** Canvus REST endpoints (three endpoints are de
 
 ## Status
 
-Phase 5 complete — CanvusPowerToys ported, Python `FoldersResource.subscribe_permissions` added, TypeScript lint floor cleared. See [CONSOLIDATION-STATUS.md](CONSOLIDATION-STATUS.md) for the full phase log.
+Phase 6 complete — top-level documentation added (READMEs, getting-started guides, contributing guides). See [CONSOLIDATION-STATUS.md](CONSOLIDATION-STATUS.md) for the full phase log.

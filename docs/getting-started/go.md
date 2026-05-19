@@ -73,7 +73,7 @@ cd examples/core/05-streaming && go run .
 |---|---|
 | `CANVUS_API_URL` | Full base URL including `/api/v1` suffix (e.g. `https://canvus.example.com/api/v1`) |
 | `CANVUS_API_KEY` | Long-lived API key — sent as `Private-Token` header |
-| `CANVUS_INSECURE_TLS` | Set to `1` to disable TLS verification for self-signed certificates |
+| `CANVUS_VERIFY_TLS` | Set to `false` to disable TLS certificate verification (self-signed certs) |
 
 ## Authentication modes
 
