@@ -1,0 +1,44 @@
+name: CI — Python
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'python/**'
+      - '.github/workflows/ci-python.yml'
+  pull_request:
+    paths:
+      - 'python/**'
+      - '.github/workflows/ci-python.yml'
+
+jobs:
+  python:
+    name: Lint / Type-check / Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Sync workspace (all extras)
+        run: uv sync --all-extras
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Mypy — SDK (strict, with warn_unused_ignores)
+        working-directory: python/sdk
+        run: uv run mypy --strict src
+
+      - name: Mypy — MCP server (strict, with pydantic plugin)
+        working-directory: python/tools/mcp-server
+        run: uv run mypy --strict src
+
+      - name: Pytest (excluding live/integration)
+        run: uv run pytest sdk/tests tools/mcp-server/tests -m "not live and not integration"
