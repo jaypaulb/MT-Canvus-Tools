@@ -19,7 +19,6 @@ type CanvasService struct {
 	ctx                context.Context
 	cancel             context.CancelFunc
 	clientID           string
-	overrideClientName string
 	mu                 sync.RWMutex
 	hasReceivedEvents  bool
 	lastEventTime      time.Time
@@ -50,17 +49,35 @@ func (cs *CanvasService) Start() error {
 		return nil
 	}
 
+	if clientID == "" {
+		return nil
+	}
+
 	cs.clientID = clientID
 	subscriber := webuiatoms.NewWorkspaceSubscriber(cs.session, clientID)
-	eventChan, _ := subscriber.Subscribe(cs.ctx)
+	eventChan, errChan := subscriber.Subscribe(cs.ctx)
 
 	go func() {
-		for ev := range eventChan {
-			cs.canvasTracker.UpdateCanvas(ev.CanvasID, ev.CanvasName)
-			cs.mu.Lock()
-			cs.hasReceivedEvents = true
-			cs.lastEventTime = ev.Timestamp
-			cs.mu.Unlock()
+		for range errChan {
+			// errors are surfaced by the subscriber; context cancellation stops the subscription
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-cs.ctx.Done():
+				return
+			case ev, ok := <-eventChan:
+				if !ok {
+					return
+				}
+				cs.canvasTracker.UpdateCanvas(ev.CanvasID, ev.CanvasName)
+				cs.mu.Lock()
+				cs.hasReceivedEvents = true
+				cs.lastEventTime = ev.Timestamp
+				cs.mu.Unlock()
+			}
 		}
 	}()
 
