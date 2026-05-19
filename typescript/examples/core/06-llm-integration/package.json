@@ -17,8 +17,7 @@
     "build": "tsc -b",
     "start:watcher": "node dist/watcher.js",
     "start:responder": "node dist/responder.js",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mt-canvus-tools/sdk": "workspace:*",

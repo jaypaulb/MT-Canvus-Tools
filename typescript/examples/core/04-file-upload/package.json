@@ -11,8 +11,7 @@
     "dev": "tsx src/index.ts",
     "build": "tsc -b",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mt-canvus-tools/sdk": "workspace:*",
