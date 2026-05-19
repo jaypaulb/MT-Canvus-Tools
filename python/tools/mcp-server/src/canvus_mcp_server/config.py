@@ -15,6 +15,8 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .llm import LLMCacheConfig, OllamaConfig
+
 
 class Settings(BaseSettings):
     """MCP server runtime configuration."""
@@ -90,6 +92,26 @@ class Settings(BaseSettings):
     def ensure_directories(self) -> None:
         """Create directories the server expects to write to."""
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def build_ollama_config(self) -> OllamaConfig:
+        """Build an :class:`OllamaConfig` from the env-driven settings."""
+        return OllamaConfig(
+            base_url=self.effective_ollama_base_url,
+            model=self.default_model,
+            timeout_seconds=float(self.ollama_timeout),
+            max_retries=self.ollama_max_retries,
+            temperature=self.model_temperature,
+            max_tokens=self.model_max_tokens,
+            top_p=self.model_top_p,
+        )
+
+    def build_cache_config(self) -> LLMCacheConfig:
+        """Build an :class:`LLMCacheConfig` from the env-driven settings."""
+        return LLMCacheConfig(
+            database_path=self.database_path,
+            ttl_seconds=self.pdf_cache_ttl_seconds,
+            timeout_seconds=float(self.database_timeout),
+        )
 
 
 __all__ = ["Settings"]
