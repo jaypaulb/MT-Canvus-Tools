@@ -21,7 +21,11 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import AsyncIterator
-from typing import Any, ClassVar, List, cast
+from typing import Any, ClassVar, Generic, List, TypeVar, cast
+
+from pydantic import BaseModel
+
+_ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 from ..errors import UnsupportedOperationError
 from ..models import (
@@ -117,7 +121,7 @@ def _resolve_widget_path(widget_type: str) -> str:
     return path
 
 
-class _TypedSubResource(Resource):
+class _TypedSubResource(Resource, Generic[_ModelT]):
     """Mixin providing CRUD helpers for a single widget type.
 
     Subclasses set :cvar:`_path` (URL segment) and :cvar:`_model` (Pydantic
@@ -125,39 +129,42 @@ class _TypedSubResource(Resource):
     """
 
     _path: ClassVar[str] = ""
-    _model: ClassVar[type[Any]] = dict
+    _model: ClassVar[type[Any]] = dict  # overridden per subclass; type[Any] because ClassVar can't carry TypeVar
+
+    def _get_model(self) -> type[_ModelT]:
+        return cast(type[_ModelT], self._model)
 
     async def _list_impl(
         self, canvas_id: str, *, params: dict[str, Any] | None = None
-    ) -> list[Any]:
+    ) -> list[_ModelT]:
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/{self._path}", params=params
         )
-        return self._parse_list(self._model, data)
+        return self._parse_list(self._get_model(), data)
 
-    async def _get_impl(self, canvas_id: str, widget_id: str) -> Any:
+    async def _get_impl(self, canvas_id: str, widget_id: str) -> _ModelT:
         data = await self._transport.request(
             "GET", f"canvases/{canvas_id}/{self._path}/{widget_id}"
         )
-        return self._parse(self._model, data)
+        return self._parse(self._get_model(), data)
 
     async def _create_impl(
         self, canvas_id: str, payload: dict[str, Any]
-    ) -> Any:
+    ) -> _ModelT:
         data = await self._transport.request(
             "POST", f"canvases/{canvas_id}/{self._path}", json_body=payload
         )
-        return self._parse(self._model, data)
+        return self._parse(self._get_model(), data)
 
     async def _patch_impl(
         self, canvas_id: str, widget_id: str, payload: dict[str, Any]
-    ) -> Any:
+    ) -> _ModelT:
         data = await self._transport.request(
             "PATCH",
             f"canvases/{canvas_id}/{self._path}/{widget_id}",
             json_body=payload,
         )
-        return self._parse(self._model, data)
+        return self._parse(self._get_model(), data)
 
     async def _delete_impl(self, canvas_id: str, widget_id: str) -> None:
         await self._transport.request(
@@ -173,7 +180,7 @@ class _TypedSubResource(Resource):
 # ---- notes -----------------------------------------------------------------
 
 
-class NotesResource(_TypedSubResource):
+class NotesResource(_TypedSubResource[Note]):
     _path = "notes"
     _model = Note
 
@@ -183,15 +190,15 @@ class NotesResource(_TypedSubResource):
         return await self._list_impl(canvas_id, params=params)
 
     async def get(self, canvas_id: str, note_id: str) -> Note:
-        return cast(Note, await self._get_impl(canvas_id, note_id))
+        return await self._get_impl(canvas_id, note_id)
 
     async def create(self, canvas_id: str, payload: dict[str, Any]) -> Note:
-        return cast(Note, await self._create_impl(canvas_id, payload))
+        return await self._create_impl(canvas_id, payload)
 
     async def update(
         self, canvas_id: str, note_id: str, payload: dict[str, Any]
     ) -> Note:
-        return cast(Note, await self._patch_impl(canvas_id, note_id, payload))
+        return await self._patch_impl(canvas_id, note_id, payload)
 
     async def delete(self, canvas_id: str, note_id: str) -> None:
         await self._delete_impl(canvas_id, note_id)
@@ -216,7 +223,7 @@ class NotesResource(_TypedSubResource):
 # ---- images / videos / pdfs (multipart-capable) ----------------------------
 
 
-class _AssetWidgetMixin(_TypedSubResource):
+class _AssetWidgetMixin(_TypedSubResource[_ModelT]):
     """Helper for asset-backed widgets that share an upload + download surface."""
 
     async def upload(
@@ -227,7 +234,7 @@ class _AssetWidgetMixin(_TypedSubResource):
         *,
         content_type: str = "application/octet-stream",
         metadata: dict[str, Any] | None = None,
-    ) -> Any:
+    ) -> _ModelT:
         """Create a widget by uploading a file as multipart/form-data."""
         files: dict[str, Any] = {"data": (filename, file_bytes, content_type)}
         if metadata is not None:
@@ -239,10 +246,10 @@ class _AssetWidgetMixin(_TypedSubResource):
         data = await self._transport.request(
             "POST", f"canvases/{canvas_id}/{self._path}", files=files
         )
-        return self._parse(self._model, data)
+        return self._parse(self._get_model(), data)
 
 
-class ImagesResource(_AssetWidgetMixin):
+class ImagesResource(_AssetWidgetMixin[Image]):
     _path = "images"
     _model = Image
 
@@ -285,7 +292,7 @@ class ImagesResource(_AssetWidgetMixin):
         )
 
 
-class VideosResource(_AssetWidgetMixin):
+class VideosResource(_AssetWidgetMixin[Video]):
     _path = "videos"
     _model = Video
 
@@ -328,7 +335,7 @@ class VideosResource(_AssetWidgetMixin):
         )
 
 
-class PDFsResource(_AssetWidgetMixin):
+class PDFsResource(_AssetWidgetMixin[PDF]):
     _path = "pdfs"
     _model = PDF
 
@@ -374,7 +381,7 @@ class PDFsResource(_AssetWidgetMixin):
 # ---- browsers / anchors / connectors --------------------------------------
 
 
-class BrowsersResource(_TypedSubResource):
+class BrowsersResource(_TypedSubResource[Browser]):
     _path = "browsers"
     _model = Browser
 
@@ -414,7 +421,7 @@ class BrowsersResource(_TypedSubResource):
         )
 
 
-class AnchorsResource(_TypedSubResource):
+class AnchorsResource(_TypedSubResource[Anchor]):
     _path = "anchors"
     _model = Anchor
 
@@ -454,7 +461,7 @@ class AnchorsResource(_TypedSubResource):
         )
 
 
-class ConnectorsResource(_TypedSubResource):
+class ConnectorsResource(_TypedSubResource[Connector]):
     _path = "connectors"
     _model = Connector
 
@@ -499,7 +506,7 @@ class ConnectorsResource(_TypedSubResource):
 # ---- tables ---------------------------------------------------------------
 
 
-class TablesResource(_TypedSubResource):
+class TablesResource(_TypedSubResource[Table]):
     """Table widget endpoints (per Phase 3 Python work item #1).
 
     Per API changelog §4, the server does NOT serialise ``column_widths`` or
@@ -579,7 +586,7 @@ class TablesResource(_TypedSubResource):
 # ---- video inputs (canvas-scoped) ------------------------------------------
 
 
-class VideoInputsResource(_TypedSubResource):
+class VideoInputsResource(_TypedSubResource[VideoInput]):
     _path = "video-inputs"
     _model = VideoInput
 
@@ -626,7 +633,7 @@ class VideoInputsResource(_TypedSubResource):
 # ---- ip-videos -------------------------------------------------------------
 
 
-class IPVideosResource(_TypedSubResource):
+class IPVideosResource(_TypedSubResource[IPVideo]):
     """IP video widget endpoints.
 
     GET / PATCH / DELETE only. Create is unsupported (changelog §2).
@@ -681,7 +688,7 @@ class IPVideosResource(_TypedSubResource):
 # ---- rdp-connections -------------------------------------------------------
 
 
-class RDPConnectionsResource(_TypedSubResource):
+class RDPConnectionsResource(_TypedSubResource[RDPConnection]):
     """RDP connection widget endpoints.
 
     GET / PATCH / DELETE only. Create is unsupported (changelog §2).
