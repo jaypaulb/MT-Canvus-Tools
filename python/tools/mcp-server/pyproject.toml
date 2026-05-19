@@ -21,6 +21,7 @@ dependencies = [
     "httpx>=0.27",
     "pdfplumber>=0.10",
     "psutil>=5.9",
+    "aiosqlite>=0.20",
 ]
 
 [project.optional-dependencies]
@@ -51,6 +52,6 @@ no_implicit_reexport = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["pdfplumber.*", "psutil.*", "fastapi_mcp", "fastapi_mcp.*"]
+module = ["pdfplumber.*", "psutil.*", "fastapi_mcp", "fastapi_mcp.*", "aiosqlite", "aiosqlite.*"]
 ignore_missing_imports = true
 follow_untyped_imports = true
