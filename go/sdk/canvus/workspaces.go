@@ -103,19 +103,46 @@ func SetWorkspaceViewport(ctx context.Context, getter WorkspaceWidgetGetter, api
 	var rect *Rectangle
 	switch {
 	case opts.WidgetID != nil:
-		widget, err := getter.GetWidget(ctx, clientID, *opts.WidgetID)
+		if opts.CanvasID == nil || *opts.CanvasID == "" {
+			return errors.New("CanvasID is required when WidgetID is provided")
+		}
+		widget, err := getter.GetWidget(ctx, *opts.CanvasID, *opts.WidgetID)
 		if err != nil {
 			return err
+		}
+		if widget.Location == nil || widget.Size == nil {
+			return fmt.Errorf("widget %s is missing location or size", *opts.WidgetID)
 		}
 		margin := opts.Margin
 		if margin == 0 {
 			margin = 20
 		}
+		scale := widget.Scale
+		if scale == 0 {
+			scale = 1
+		}
+		targetWidth := widget.Size.Width * scale
+		targetHeight := widget.Size.Height * scale
+		centerX := widget.Location.X + targetWidth/2
+		centerY := widget.Location.Y + targetHeight/2
+		width := targetWidth + 2*margin
+		height := targetHeight + 2*margin
+		if workspace, err := apiClient.GetWorkspace(ctx, clientID, selector); err == nil && workspace.Size != nil && workspace.Size.Width > 0 && workspace.Size.Height > 0 {
+			workspaceAspect := workspace.Size.Width / workspace.Size.Height
+			if workspaceAspect > 0 {
+				rectAspect := width / height
+				if rectAspect > workspaceAspect {
+					height = width / workspaceAspect
+				} else {
+					width = height * workspaceAspect
+				}
+			}
+		}
 		rect = &Rectangle{
-			X:      widget.Location.X - margin,
-			Y:      widget.Location.Y - margin,
-			Width:  widget.Size.Width + 2*margin,
-			Height: widget.Size.Height + 2*margin,
+			X:      centerX - width/2,
+			Y:      centerY - height/2,
+			Width:  width,
+			Height: height,
 		}
 	case opts.X != nil && opts.Y != nil && opts.Width != nil && opts.Height != nil:
 		rect = &Rectangle{X: *opts.X, Y: *opts.Y, Width: *opts.Width, Height: *opts.Height}
@@ -174,7 +201,7 @@ func (s *Session) OpenCanvasOnWorkspace(ctx context.Context, clientID string, se
 			return fmt.Errorf("OpenCanvasOnWorkspace: failed to set viewport: %w", err)
 		}
 	} else if opts.WidgetID != nil {
-		if err := SetWorkspaceViewport(ctx, s, s, clientID, selector, SetViewportOptions{WidgetID: opts.WidgetID}); err != nil {
+		if err := SetWorkspaceViewport(ctx, s, s, clientID, selector, SetViewportOptions{CanvasID: &opts.CanvasID, WidgetID: opts.WidgetID}); err != nil {
 			return fmt.Errorf("OpenCanvasOnWorkspace: failed to center on widget: %w", err)
 		}
 	}

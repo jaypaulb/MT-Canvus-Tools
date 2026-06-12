@@ -493,6 +493,7 @@ type Viewport struct {
 // SetViewportOptions supports setting a workspace viewport either explicitly
 // (X/Y/Width/Height) or by centering on a widget (WidgetID).
 type SetViewportOptions struct {
+	CanvasID *string
 	WidgetID *string
 	X        *float64
 	Y        *float64
