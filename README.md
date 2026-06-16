@@ -53,6 +53,30 @@ pnpm install && pnpm build
 node examples/core/01-auth-and-list/dist/index.js
 ```
 
+## Examples
+
+Each language ships the same eight core examples — work through them in order, as each builds on the last. The links below point at the Go version; the Python and TypeScript ports live under [`python/examples/core/`](python/examples/core/) and [`typescript/examples/core/`](typescript/examples/core/).
+
+| # | Example | What it does |
+|---|---|---|
+| 01 | [`01-auth-and-list`](go/examples/core/01-auth-and-list/) | Authenticate with an API key and list canvases as a table. |
+| 02 | [`02-auth-flows`](go/examples/core/02-auth-flows/) | Three auth modes: API key, email + password login, and access-token CRUD. |
+| 03 | [`03-widget-crud`](go/examples/core/03-widget-crud/) | Create, patch, delete, and verify a sticky note. |
+| 04 | [`04-file-upload`](go/examples/core/04-file-upload/) | Upload a PNG as an image widget and reposition it. |
+| 05 | [`05-streaming`](go/examples/core/05-streaming/) | Subscribe to a canvas's notes endpoint and print NDJSON frames. |
+| 06 | [`06-llm-integration`](go/examples/core/06-llm-integration/) | Two-binary Canvus + Ollama loop: question notes → LLM → answer notes. |
+| 07 | [`07-webhooks-notifications`](go/examples/core/07-webhooks-notifications/) | Synthesise outbound webhooks from the subscribe stream, with retries. |
+| 08 | [`08-cross-canvas-clone`](go/examples/core/08-cross-canvas-clone/) | Clone a widget from one canvas to another via the SDK clone helper. |
+
+### Project examples
+
+Larger, end-to-end apps built on the SDKs:
+
+- [`go/examples/projects/ai-personas`](go/examples/projects/ai-personas/) — Turn a Canvus canvas into an interactive AI-persona experience.
+- [`go/examples/projects/llm-canvas-companion`](go/examples/projects/llm-canvas-companion/) — A live canvas watcher that runs LLM, OCR, and PDF-précis pipelines in response to widget events.
+- [`go/examples/projects/note-mapper`](go/examples/projects/note-mapper/) — Photograph physical Post-it notes and recreate them as digital notes in a canvas anchor zone.
+- [`typescript/examples/webui`](typescript/examples/webui/) — A Hono/TypeScript admin/operator UI built on `@mt-canvus-tools/sdk`.
+
 ## Documentation
 
 | Doc | Contents |
@@ -75,7 +99,3 @@ All three SDKs cover **147 / 147** Canvus REST endpoints (three endpoints are de
 | Go | 44 typed Subscribe helpers | geometry, filters, zones, batch\_widgets, search | `go build` / `go vet` / `go test` clean |
 | Python | 49 typed AsyncIterators | 10 modules + `__init__` | ruff clean, pytest pass, mypy --strict 0 errors |
 | TypeScript | 27 typed async iterators | 9 modules + index | typecheck / build clean, vitest pass |
-
-## Status
-
-Phase 7 complete — GitHub Actions CI live for Go, Python, and TypeScript workspaces (format/lint/typecheck/test on every push and PR). See [CONSOLIDATION-STATUS.md](CONSOLIDATION-STATUS.md) for the full phase log.
