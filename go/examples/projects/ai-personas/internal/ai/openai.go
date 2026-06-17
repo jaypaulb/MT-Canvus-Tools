@@ -3,6 +3,7 @@ package ai
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,16 +50,18 @@ func (o *OpenAI) GeneratePersonaImage(ctx context.Context, persona atom.Persona)
 	)
 
 	body, _ := json.Marshal(map[string]any{
-		"prompt": prompt,
-		"n":      1,
-		"size":   "512x512",
+		"model":   "gpt-image-1", // dall-e is no longer available on the account; gpt-image-1 requires 1024x1024 and returns base64
+		"prompt":  prompt,
+		"n":       1,
+		"size":    "1024x1024",
+		"quality": "low", // avatar thumbnails — fast/cheap and plenty for a persona note
 	})
 
 	var lastErr *openaiErr
 	for attempt := 1; attempt <= openAIMaxRetries; attempt++ {
-		imgURL, retryAfter, err := o.requestImageURL(ctx, body)
+		imgBytes, retryAfter, err := o.requestImageBytes(ctx, body)
 		if err == nil {
-			return o.downloadImage(ctx, imgURL)
+			return imgBytes, nil
 		}
 		lastErr = err
 		if !err.retryable {
@@ -96,37 +99,39 @@ type openaiErr struct {
 // Error implements error so we can pass *openaiErr around.
 func (e *openaiErr) Error() string { return e.err.Error() }
 
-// requestImageURL POSTs the DALL-E request and returns the image URL on
-// success, along with any Retry-After hint on retryable failures.
-func (o *OpenAI) requestImageURL(ctx context.Context, body []byte) (string, time.Duration, *openaiErr) {
+// requestImageBytes POSTs the image request and returns the decoded image
+// bytes on success, along with any Retry-After hint on retryable failures.
+// gpt-image-1 returns base64-encoded image data (no URL), so the bytes are
+// decoded here rather than downloaded from a URL.
+func (o *OpenAI) requestImageBytes(ctx context.Context, body []byte) ([]byte, time.Duration, *openaiErr) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://api.openai.com/v1/images/generations", bytes.NewReader(body))
 	if err != nil {
-		return "", 0, &openaiErr{err: err, retryable: false}
+		return nil, 0, &openaiErr{err: err, retryable: false}
 	}
 	req.Header.Set("Authorization", "Bearer "+o.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := o.http.Do(req)
 	if err != nil {
-		return "", 0, &openaiErr{err: fmt.Errorf("openai request: %w", err), retryable: true}
+		return nil, 0, &openaiErr{err: fmt.Errorf("openai request: %w", err), retryable: true}
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
 
 	switch {
 	case resp.StatusCode == http.StatusTooManyRequests:
-		return "", atom.ParseRetryAfter(resp), &openaiErr{
+		return nil, atom.ParseRetryAfter(resp), &openaiErr{
 			err:       fmt.Errorf("openai rate limit: %s", respBody),
 			retryable: true,
 		}
 	case resp.StatusCode >= 500 && resp.StatusCode < 600:
-		return "", 0, &openaiErr{
+		return nil, 0, &openaiErr{
 			err:       fmt.Errorf("openai %d: %s", resp.StatusCode, respBody),
 			retryable: true,
 		}
 	case resp.StatusCode != http.StatusOK:
-		return "", 0, &openaiErr{
+		return nil, 0, &openaiErr{
 			err:       fmt.Errorf("openai %d: %s", resp.StatusCode, respBody),
 			retryable: bytes.Contains(respBody, []byte("server_error")),
 		}
@@ -134,34 +139,20 @@ func (o *OpenAI) requestImageURL(ctx context.Context, body []byte) (string, time
 
 	var parsed struct {
 		Data []struct {
-			URL string `json:"url"`
+			B64JSON string `json:"b64_json"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(respBody, &parsed); err != nil {
-		return "", 0, &openaiErr{err: fmt.Errorf("openai parse response: %w", err), retryable: false}
+		return nil, 0, &openaiErr{err: fmt.Errorf("openai parse response: %w", err), retryable: false}
 	}
-	if len(parsed.Data) == 0 || parsed.Data[0].URL == "" {
-		return "", 0, &openaiErr{err: fmt.Errorf("openai response missing URL"), retryable: false}
+	if len(parsed.Data) == 0 || parsed.Data[0].B64JSON == "" {
+		return nil, 0, &openaiErr{err: fmt.Errorf("openai response missing image data"), retryable: false}
 	}
-	return parsed.Data[0].URL, 0, nil
-}
-
-// downloadImage GETs the URL returned by DALL-E and returns the raw bytes.
-func (o *OpenAI) downloadImage(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("openai download new request: %w", err)
+	imgBytes, derr := base64.StdEncoding.DecodeString(parsed.Data[0].B64JSON)
+	if derr != nil {
+		return nil, 0, &openaiErr{err: fmt.Errorf("openai decode b64_json: %w", derr), retryable: false}
 	}
-	resp, err := o.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("openai download: %w", err)
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("openai download read: %w", err)
-	}
-	return data, nil
+	return imgBytes, 0, nil
 }
 
 // ValidateKey performs a lightweight GET /v1/models call to confirm the API
