@@ -174,6 +174,93 @@ $ curl .../canvases/.../colorpresets
 
 ---
 
+## 10. Canvas background — nested shape, and the color type is `solid_color`
+
+**Verified:** 2026-06-20 against `dev-mtcs.multitaction.com` (v1.2).
+
+Some doc extracts describe a flat, hyphenated body: `{background-type, background-color, image-fit, grid-visible, grid-size}`. The live shape is **nested with underscore keys**:
+
+```json
+GET /api/v1/canvases/{id}/background
+{
+  "type": "solid_color",
+  "background_color": "#25242dff",
+  "grid":  {"color": "#525160ff", "visible": true},
+  "haze":  {"color1": "#000000ff", "color2": "#165ad0ff", "scale": 8, "speed": 0.5},
+  "image": {"fit": "fit", "hash": ""},
+  "state": "normal",
+  "widget_type": "CanvasBackground"
+}
+```
+
+- `type` is one of `solid_color` | `haze` | `image` (not `color`). **`background_color` is an 8-digit RGBA hex** (`#rrggbbaa`).
+- To set a colour background: `PATCH .../background {"type": "solid_color", "background_color": "#112233ff"}` → 200, persists.
+- Sending `type: "color"` is rejected:
+
+```
+$ curl -X PATCH .../background -d '{"type":"color","background_color":"#112233ff"}'
+{"msg":"Unsupported type: color"}
+```
+
+- `grid` / `haze` / `image` are nested objects, not the flat `grid-visible` / `image-fit` keys.
+
+---
+
+## 11. Table widget — `grid_size` is a nested `{columns, rows}` object
+
+**Verified:** 2026-06-20 against `dev-mtcs` (v1.2).
+
+Doc extracts (and changelog §4/§5) describe `grid_size` ambiguously and list `column_widths`/`row_heights`. The live table serializes `grid_size` as a **nested object** and omits the width/height arrays:
+
+```json
+GET /api/v1/canvases/{id}/tables/{id}
+{
+  "title": "",
+  "grid_size": {"columns": 3, "rows": 3},
+  "size": {"width": 900, "height": 600},
+  "location": {"x": …, "y": …},
+  "widget_type": "Table"
+}
+```
+
+- Create: `POST .../tables {"title": "...", "grid_size": {"columns": C, "rows": R}}` → 200. Do **not** send a scalar `grid_size`, nor `column_widths`/`row_heights` (server does not serialize them — confirms changelog §4).
+
+---
+
+## 12. Client video-inputs — response shape
+
+**Verified:** 2026-06-20 against `dev-mtcs` (v1.2).
+
+```json
+GET /api/v1/clients/{id}/video-inputs
+[
+  {
+    "name": "video=Video (… Capture …):audio=Audio (… Capture …)",
+    "resolution": {"width": 1920, "height": 1080},
+    "source": "video=@device_pnp_\\\\?\\pci#ven_…#…\\video:audio=@device_cm_…"
+  }
+]
+```
+
+- Keys: `name`, `resolution` (nested `{width, height}`), `source`. The `source` string is the device identifier set as a video-**output**'s `source` to route that input to that output (`PATCH /clients/{id}/video-outputs/{idx} {"source": "<input.source>"}`).
+
+---
+
+## 13. Cross-canvas widget clone — confirmed working (validates changelog §1)
+
+**Verified:** 2026-06-20 against `dev-mtcs` (v1.2).
+
+`POST /api/v1/canvases/{destId}/{type}` with body `{source_canvas_id, source_widget_id, location?}` clones the source widget into the destination canvas:
+
+```
+POST /canvases/{dest}/notes {"source_canvas_id": <src>, "source_widget_id": <wid>, "location": {"x":123,"y":456}}
+→ 200; new widget has a regenerated id, the source's text/fields carried over, and `location` honored exactly.
+```
+
+Confirms changelog §1 against the live server. The deprecated `POST /canvases/{id}/widgets/clone` (501) is not needed. Note: writes to a canvas that is currently **open on a live client** can block/hang on the server side; this is per-canvas, not a server-wide write outage — fresh/unopened canvases write instantly.
+
+---
+
 ## Not yet verified (deferred)
 
 - `PATCH /api/v1/server-config` write shape (read shape diverged; write shape may also).
