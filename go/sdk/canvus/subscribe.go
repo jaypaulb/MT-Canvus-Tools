@@ -39,6 +39,9 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	if s == nil {
 		return nil, fmt.Errorf("subscribeStream: nil session")
 	}
+	if err := s.validateRetryBudget(); err != nil {
+		return nil, fmt.Errorf("subscribeStream: %w", err)
+	}
 	u, err := url.Parse(s.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("subscribeStream: invalid base URL: %w", err)
@@ -54,8 +57,8 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	}
 	req.Header.Set("Accept", "application/x-ndjson, application/json")
 	req.Header.Set("User-Agent", s.config.UserAgent)
-	if s.authenticator != nil {
-		s.authenticator.Authenticate(req)
+	if auth := s.requestAuthenticator(); auth != nil {
+		auth.Authenticate(req)
 	}
 	if s.config.RequestIDFunc != nil {
 		if id := s.config.RequestIDFunc(); id != "" {

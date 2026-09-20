@@ -47,9 +47,11 @@ type BatchResult struct {
 
 // BatchConfig configures BatchProcessor behavior.
 type BatchConfig struct {
-	MaxConcurrency   int
-	Timeout          time.Duration
-	RetryAttempts    int
+	MaxConcurrency int
+	Timeout        time.Duration
+	// RetryAttempts is deprecated and ignored: mutation outcomes must be reconciled before retry.
+	RetryAttempts int
+	// RetryDelay is deprecated and ignored with RetryAttempts.
 	RetryDelay       time.Duration
 	ContinueOnError  bool
 	ProgressCallback func(completed, total int, results []*BatchResult)
@@ -60,7 +62,7 @@ func DefaultBatchConfig() *BatchConfig {
 	return &BatchConfig{
 		MaxConcurrency:  10,
 		Timeout:         5 * time.Minute,
-		RetryAttempts:   3,
+		RetryAttempts:   0,
 		RetryDelay:      time.Second,
 		ContinueOnError: true,
 	}
@@ -138,9 +140,10 @@ func (bp *BatchProcessor) ExecuteBatch(ctx context.Context, operations []*BatchO
 func (bp *BatchProcessor) executeOperation(ctx context.Context, op *BatchOperation) *BatchResult {
 	result := &BatchResult{OperationID: op.ID, StartTime: time.Now()}
 
-	for attempt := 0; attempt <= bp.config.RetryAttempts; attempt++ {
-		result.Retries = attempt
-		var err error
+	// Every supported batch operation mutates state. Never replay it implicitly,
+	// even if the HTTP layer reports a transport, decode, or server failure.
+	var err error
+	if err = ctx.Err(); err == nil {
 		switch op.Type {
 		case BatchOperationMove:
 			err = bp.executeMove(ctx, op)
@@ -151,22 +154,9 @@ func (bp *BatchProcessor) executeOperation(ctx context.Context, op *BatchOperati
 		default:
 			err = fmt.Errorf("unsupported operation type: %s", op.Type)
 		}
-		if err == nil {
-			result.Success = true
-			break
-		}
-		result.Error = err
-		if attempt == bp.config.RetryAttempts || ctx.Err() != nil {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			result.EndTime = time.Now()
-			result.Duration = result.EndTime.Sub(result.StartTime)
-			return result
-		case <-time.After(bp.config.RetryDelay):
-		}
 	}
+	result.Error = err
+	result.Success = err == nil
 	result.EndTime = time.Now()
 	result.Duration = result.EndTime.Sub(result.StartTime)
 	return result

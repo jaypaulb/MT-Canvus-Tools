@@ -27,10 +27,8 @@ func TestWithAPIKey_DoesNotInstallInsecureTransport(t *testing.T) {
 	cfg := DefaultSessionConfig()
 	cfg.BaseURL = "https://example.invalid/api/v1"
 	s := NewSession(cfg, WithAPIKey("secret"))
-	rt, ok := s.HTTPClient.Transport.(*transportWithAPIKey)
-	require.True(t, ok, "expected *transportWithAPIKey wrapper")
-	// Inner transport must NOT be insecure.
-	if inner, ok2 := rt.transport.(*http.Transport); ok2 && inner.TLSClientConfig != nil {
+	// Auth selection must not weaken the client's TLS transport.
+	if inner, ok := s.HTTPClient.Transport.(*http.Transport); ok && inner.TLSClientConfig != nil {
 		assert.False(t, inner.TLSClientConfig.InsecureSkipVerify,
 			"WithAPIKey alone must not skip TLS verification")
 	}
@@ -40,10 +38,8 @@ func TestWithAPIKeyAndVerifyTLSFalse_ComposesInsecureTransport(t *testing.T) {
 	cfg := DefaultSessionConfig()
 	cfg.BaseURL = "https://example.invalid/api/v1"
 	s := NewSession(cfg, WithAPIKey("secret"), WithVerifyTLS(false))
-	rt, ok := s.HTTPClient.Transport.(*transportWithAPIKey)
-	require.True(t, ok, "expected *transportWithAPIKey wrapper")
-	inner, ok2 := rt.transport.(*http.Transport)
-	require.True(t, ok2, "inner transport must be *http.Transport")
+	inner, ok := s.HTTPClient.Transport.(*http.Transport)
+	require.True(t, ok, "transport must be *http.Transport")
 	require.NotNil(t, inner.TLSClientConfig)
 	assert.True(t, inner.TLSClientConfig.InsecureSkipVerify,
 		"WithVerifyTLS(false) must propagate through WithAPIKey")
@@ -107,9 +103,10 @@ func TestWithVerifyTLS_IgnoredWhenHTTPClientSupplied(t *testing.T) {
 	s := NewSession(cfg, WithHTTPClient(customClient), WithVerifyTLS(false))
 	require.NotNil(t, s)
 
-	// The session must use the caller's client.
-	assert.Same(t, customClient, s.HTTPClient,
-		"WithVerifyTLS(false) must not replace a caller-supplied HTTPClient")
+	// The session copies the client, retaining its transport/TLS policy.
+	assert.NotSame(t, customClient, s.HTTPClient)
+	assert.Same(t, customTransport, s.HTTPClient.Transport)
+	assert.Zero(t, customClient.Timeout, "caller client must not be mutated")
 	// The transport must be the caller's transport (verify=false is ignored).
 	assert.False(t, s.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify,
 		"caller's TLS config must not be mutated by WithVerifyTLS")

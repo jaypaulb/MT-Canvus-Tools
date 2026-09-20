@@ -5,6 +5,16 @@
 > Pending documentation updates extracted from `mt-restapi-client/doc-updates-for-developer-site.md` as of 2026-05-17.
 > Each entry describes a change from the current public developer documentation that downstream SDKs must reflect.
 
+## 2026-09-20 — Go SDK request safety (issue #6)
+
+Go actor authentication now uses one selected credential, retains actor identity after 401, and does not restore service authority after explicit logout. Config/client values are copied; raw `HTTPClient` calls no longer inject the configured API key. Default redirects are disabled unless the caller supplies a policy. TLS defaults remain unchanged.
+
+Zero retries is respected; only bodyless GET/HEAD requests can be automatically retried, with cancellable waits. All mutation retries are disabled, including nested BatchProcessor retries; batch retry options are deprecated and ignored. Callers needing three read retries should use `DefaultSessionConfig()`.
+
+Accepted writes no longer require request/response echo equality. Additive Go `AcceptedResponseError` preserves 2xx status and available IDs on read/decode failure, unwrapping the underlying cause without retaining raw content. See the Go SDK README for outcome/reconciliation guidance.
+
+**Explicit parity status:** this change is scoped to Go. Python already supports a zero retry budget and independent clients but does not adopt this Go error type; Python and TypeScript method-aware retry/outcome parity is deferred, and this release makes no claim that their mutation retries are safe. Their existing auth/login behavior is unchanged. Streaming lifecycle, current-user/SAML, geometry and MCP hardening remain separate work. No REST endpoints or existing Go resource signatures changed.
+
 ## Updates
 
 ### Widget Clone — Cross-Canvas Copy via Standard Create Endpoints

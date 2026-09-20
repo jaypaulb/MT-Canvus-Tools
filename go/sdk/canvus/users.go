@@ -54,10 +54,11 @@ func (s *Session) ListUsers(ctx context.Context) ([]User, error) {
 // integer-ID lookup after a successful Login(). Returns an error if the
 // session has not authenticated. Phase 4b §4.1 #2.
 func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
-	if s.userID == 0 {
+	userID := s.UserID()
+	if userID == 0 {
 		return nil, fmt.Errorf("GetCurrentUser: session is not logged in (call Login first)")
 	}
-	return s.GetUser(ctx, s.userID)
+	return s.GetUser(ctx, userID)
 }
 
 // GetUser retrieves a user by ID.
