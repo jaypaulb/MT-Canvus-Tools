@@ -1,8 +1,11 @@
 package canvus
 
 import (
-	"crypto/tls"
+	"context"
+	"io"
+	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,103 +14,39 @@ import (
 
 func TestWithSubscribeBuffer_PanicsOnZero(t *testing.T) {
 	cfg := DefaultSessionConfig()
-	assert.Panics(t, func() {
-		WithSubscribeBuffer(0)(cfg)
-	})
+	assert.Panics(t, func() { WithSubscribeBuffer(0)(cfg) })
 }
 
 func TestWithSubscribeBuffer_PanicsOnNegative(t *testing.T) {
 	cfg := DefaultSessionConfig()
-	assert.Panics(t, func() {
-		WithSubscribeBuffer(-1)(cfg)
-	})
+	assert.Panics(t, func() { WithSubscribeBuffer(-1)(cfg) })
 }
 
-func TestWithAPIKey_DoesNotInstallInsecureTransport(t *testing.T) {
-	cfg := DefaultSessionConfig()
-	cfg.BaseURL = "https://example.invalid/api/v1"
-	s := NewSession(cfg, WithAPIKey("secret"))
-	// Auth selection must not weaken the client's TLS transport.
-	if inner, ok := s.HTTPClient.Transport.(*http.Transport); ok && inner.TLSClientConfig != nil {
-		assert.False(t, inner.TLSClientConfig.InsecureSkipVerify,
-			"WithAPIKey alone must not skip TLS verification")
+func TestWithVerifyTLS_PoliciesAtHTTPBoundary(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, `{"id":"n"}`) }))
+	defer srv.Close()
+	srv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	for _, tt := range []struct {
+		name      string
+		opts      []SessionConfigOption
+		wantError bool
+	}{
+		{"default", nil, true},
+		{"explicit_verify", []SessionConfigOption{WithVerifyTLS(true)}, true},
+		{"api_key_does_not_disable_tls", []SessionConfigOption{WithAPIKey("synthetic-key")}, true},
+		{"explicit_skip", []SessionConfigOption{WithVerifyTLS(false)}, false},
+		{"api_key_and_skip", []SessionConfigOption{WithAPIKey("synthetic-key"), WithVerifyTLS(false)}, false},
+		{"custom_secure_client_wins", []SessionConfigOption{WithHTTPClient(&http.Client{}), WithVerifyTLS(false)}, true},
+		{"custom_trusted_client", []SessionConfigOption{WithHTTPClient(srv.Client())}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewSession(&SessionConfig{BaseURL: srv.URL}, tt.opts...)
+			_, err := s.GetNote(context.Background(), "c", "n")
+			if tt.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
-}
-
-func TestWithAPIKeyAndVerifyTLSFalse_ComposesInsecureTransport(t *testing.T) {
-	cfg := DefaultSessionConfig()
-	cfg.BaseURL = "https://example.invalid/api/v1"
-	s := NewSession(cfg, WithAPIKey("secret"), WithVerifyTLS(false))
-	inner, ok := s.HTTPClient.Transport.(*http.Transport)
-	require.True(t, ok, "transport must be *http.Transport")
-	require.NotNil(t, inner.TLSClientConfig)
-	assert.True(t, inner.TLSClientConfig.InsecureSkipVerify,
-		"WithVerifyTLS(false) must propagate through WithAPIKey")
-}
-
-func TestWithVerifyTLS_FalseInstallsInsecureTransport(t *testing.T) {
-	cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
-	s := NewSession(cfg, WithVerifyTLS(false))
-	require.NotNil(t, s)
-	require.NotNil(t, s.HTTPClient)
-
-	transport, ok := s.HTTPClient.Transport.(*http.Transport)
-	require.True(t, ok, "expected *http.Transport, got %T", s.HTTPClient.Transport)
-	require.NotNil(t, transport.TLSClientConfig, "TLSClientConfig should be set")
-	assert.True(t, transport.TLSClientConfig.InsecureSkipVerify, "InsecureSkipVerify should be true")
-}
-
-func TestWithVerifyTLS_TrueKeepsSecureTransport(t *testing.T) {
-	cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
-	s := NewSession(cfg, WithVerifyTLS(true))
-	require.NotNil(t, s)
-	require.NotNil(t, s.HTTPClient)
-
-	// Default transport is nil (uses http.DefaultTransport) — no insecure config.
-	if s.HTTPClient.Transport != nil {
-		transport, ok := s.HTTPClient.Transport.(*http.Transport)
-		if ok && transport.TLSClientConfig != nil {
-			assert.False(t, transport.TLSClientConfig.InsecureSkipVerify,
-				"InsecureSkipVerify should not be set when WithVerifyTLS(true)")
-		}
-	}
-}
-
-func TestWithVerifyTLS_DefaultIsSecure(t *testing.T) {
-	// No WithVerifyTLS call — default behaviour must be verify=true.
-	cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
-	s := NewSession(cfg)
-	require.NotNil(t, s)
-	require.NotNil(t, s.HTTPClient)
-
-	// Transport should be nil (uses http.DefaultTransport) — no insecure override.
-	if s.HTTPClient.Transport != nil {
-		transport, ok := s.HTTPClient.Transport.(*http.Transport)
-		if ok && transport.TLSClientConfig != nil {
-			assert.False(t, transport.TLSClientConfig.InsecureSkipVerify,
-				"default session must not skip TLS verification")
-		}
-	}
-}
-
-func TestWithVerifyTLS_IgnoredWhenHTTPClientSupplied(t *testing.T) {
-	// When WithHTTPClient supplies a client, WithVerifyTLS(false) must not
-	// overwrite it. The caller's transport takes precedence.
-	customTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: false}, //nolint:gosec // test fixture.
-	}
-	customClient := &http.Client{Transport: customTransport}
-
-	cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
-	// Apply WithHTTPClient first, then WithVerifyTLS(false); the custom client wins.
-	s := NewSession(cfg, WithHTTPClient(customClient), WithVerifyTLS(false))
-	require.NotNil(t, s)
-
-	// The session copies the client, retaining its transport/TLS policy.
-	assert.NotSame(t, customClient, s.HTTPClient)
-	assert.Same(t, customTransport, s.HTTPClient.Transport)
-	assert.Zero(t, customClient.Timeout, "caller client must not be mutated")
-	// The transport must be the caller's transport (verify=false is ignored).
-	assert.False(t, s.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify,
-		"caller's TLS config must not be mutated by WithVerifyTLS")
 }

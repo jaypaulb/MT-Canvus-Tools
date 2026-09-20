@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -75,10 +76,30 @@ func TestReadRetryWaitHonorsCancellation(t *testing.T) {
 	}
 }
 
+type safetyRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f safetyRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestCancelledBackoffRetainsServerError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := &http.Client{Transport: safetyRoundTripper(func(r *http.Request) (*http.Response, error) {
+		cancel()
+		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"msg":"synthetic"}`)), Request: r}, nil
+	})}
+	cfg := canvus.DefaultSessionConfig()
+	cfg.BaseURL = "https://example.invalid"
+	_, err := canvus.NewSession(cfg, canvus.WithHTTPClient(client)).GetNote(ctx, "c", "n")
+	var apiErr *canvus.APIError
+	if !errors.Is(err, context.Canceled) || !errors.As(err, &apiErr) || apiErr.StatusCode != 503 {
+		t.Fatalf("lost cancellation or server status: %v", err)
+	}
+}
+
 func TestBodylessWriteRetainsJSONContentType(t *testing.T) {
-	var contentType string
+	contentType := make(chan string, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		contentType = r.Header.Get("Content-Type")
+		contentType <- r.Header.Get("Content-Type")
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer srv.Close()
@@ -86,8 +107,8 @@ func TestBodylessWriteRetainsJSONContentType(t *testing.T) {
 	if err := s.ApproveUser(context.Background(), 7); err != nil {
 		t.Fatal(err)
 	}
-	if contentType != "application/json" {
-		t.Fatalf("content type=%q", contentType)
+	if got := <-contentType; got != "application/json" {
+		t.Fatalf("content type=%q", got)
 	}
 }
 

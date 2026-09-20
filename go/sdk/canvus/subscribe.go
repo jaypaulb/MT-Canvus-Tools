@@ -57,9 +57,7 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	}
 	req.Header.Set("Accept", "application/x-ndjson, application/json")
 	req.Header.Set("User-Agent", s.config.UserAgent)
-	if auth := s.requestAuthenticator(); auth != nil {
-		auth.Authenticate(req)
-	}
+	req = withRequestAuthority(req, s.requestAuthenticator())
 	if s.config.RequestIDFunc != nil {
 		if id := s.config.RequestIDFunc(); id != "" {
 			req.Header.Set("X-Request-ID", id)

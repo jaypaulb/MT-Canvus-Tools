@@ -36,9 +36,9 @@ func TestNewSession_WithToken_InstallsAuthenticator(t *testing.T) {
 func TestWithAPIKey_AppliesSingleHeader(t *testing.T) {
 	for _, key := range []string{"synthetic-key", ""} {
 		t.Run(key, func(t *testing.T) {
-			var headers []string
+			headers := make(chan []string, 1)
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				headers = r.Header.Values("Private-Token")
+				headers <- r.Header.Values("Private-Token")
 				_, _ = w.Write([]byte(`{"id":"n"}`))
 			}))
 			defer srv.Close()
@@ -46,9 +46,9 @@ func TestWithAPIKey_AppliesSingleHeader(t *testing.T) {
 			_, err := s.GetNote(context.Background(), "c", "n")
 			require.NoError(t, err)
 			if key == "" {
-				assert.Empty(t, headers)
+				assert.Empty(t, <-headers)
 			} else {
-				assert.Equal(t, []string{key}, headers)
+				assert.Equal(t, []string{key}, <-headers)
 			}
 		})
 	}

@@ -7,7 +7,7 @@
 
 ## 2026-09-20 — Go SDK request safety (issue #6)
 
-Go actor authentication now uses one selected credential, retains actor identity after 401, and does not restore service authority after explicit logout. Config/client values are copied; raw `HTTPClient` calls no longer inject the configured API key. Default redirects are disabled unless the caller supplies a policy. TLS defaults remain unchanged.
+Go actor authentication now uses one selected credential, retains actor identity after 401, and does not restore service authority after explicit logout. Config/client values are copied. A session-owned transport preserves selected-actor authentication for direct `HTTPClient` callers, without inheriting another SDK client's authority, and strips SDK credentials outside the configured API origin. Default redirects allow same-origin GET/HEAD but refuse mutation and cross-origin redirects; callers can supply an explicit policy. Bodyless writes retain JSON Content-Type, while bodyless reads no longer get that header just for using an API key. TLS defaults remain unchanged.
 
 Zero retries is respected; only bodyless GET/HEAD requests can be automatically retried, with cancellable waits. All mutation retries are disabled, including nested BatchProcessor retries; batch retry options are deprecated and ignored. Callers needing three read retries should use `DefaultSessionConfig()`.
 

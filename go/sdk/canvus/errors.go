@@ -255,10 +255,7 @@ func IsRetryableError(err error) bool {
 	case CodeTooManyRequests, CodeServiceUnavailable, CodeInternalServer:
 		return true
 	}
-	if apiErr.StatusCode >= 500 {
-		return true
-	}
-	return false
+	return apiErr.StatusCode >= 500
 }
 
 // ErrorResponse represents a standard error response from the API.

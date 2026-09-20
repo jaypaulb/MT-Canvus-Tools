@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
@@ -25,9 +26,9 @@ func TestAcceptedResponseFailuresRetainOutcome(t *testing.T) {
 		{"truncated", `{"id":"created"}`, "created", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			calls := 0
+			var calls atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				calls++
+				calls.Add(1)
 				w.Header().Set("X-Request-ID", "synthetic-request")
 				if tt.truncated {
 					w.Header().Set("Content-Length", "1000")
@@ -43,8 +44,8 @@ func TestAcceptedResponseFailuresRetainOutcome(t *testing.T) {
 			if !errors.As(err, &accepted) {
 				t.Fatalf("not an accepted response error: %v", err)
 			}
-			if accepted.StatusCode != 201 || accepted.ResourceID != tt.id || accepted.RequestID != "synthetic-request" || calls != 1 {
-				t.Fatalf("outcome=%+v attempts=%d", accepted, calls)
+			if accepted.StatusCode != 201 || accepted.ResourceID != tt.id || accepted.RequestID != "synthetic-request" || calls.Load() != 1 {
+				t.Fatalf("outcome=%+v attempts=%d", accepted, calls.Load())
 			}
 			if tt.truncated && !errors.Is(err, io.ErrUnexpectedEOF) {
 				t.Fatalf("lost read error: %v", err)

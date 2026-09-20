@@ -230,12 +230,8 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 			cfg.HTTPClient.Timeout = cfg.RequestTimeout
 		}
 	}
-	// Do not implicitly replay requests or forward credentials via redirects.
-	// A caller-supplied CheckRedirect remains an explicit opt-in policy.
 	if cfg.HTTPClient.CheckRedirect == nil {
-		cfg.HTTPClient.CheckRedirect = func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
+		cfg.HTTPClient.CheckRedirect = safeRedirect
 	}
 	if cfg.RetryWaitMin == 0 {
 		cfg.RetryWaitMin = 100 * time.Millisecond
@@ -267,6 +263,21 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	if s.authenticator == nil && cfg.APIKey != "" {
 		s.authenticator = &APIKeyAuthenticator{Header: "Private-Token", APIKey: cfg.APIKey}
 	}
+
+	base := s.HTTPClient.Transport
+	// Reusing an SDK client must not nest another session's auth injection.
+	for {
+		wrapped, ok := base.(*authTransport)
+		if !ok {
+			break
+		}
+		base = wrapped.base
+	}
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	origin, _ := url.Parse(cfg.BaseURL)
+	s.HTTPClient.Transport = &authTransport{base: base, origin: origin, selected: s.requestAuthenticator}
 
 	s.logger.Debug("session created", "base_url", cfg.BaseURL)
 	return s
@@ -346,9 +357,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 			req.Header.Set("Content-Type", ct)
 		}
 		req.Header.Set("User-Agent", s.config.UserAgent)
-		if auth != nil {
-			auth.Authenticate(req)
-		}
+		req = withRequestAuthority(req, auth)
 		// Phase 4b §4.1 #3: inject X-Request-ID if configured.
 		var requestID string
 		if s.config.RequestIDFunc != nil {
@@ -367,7 +376,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 				return lastErr
 			}
 			if err := waitForRetry(ctx, calculateBackoff(attempt, s.config)); err != nil {
-				return fmt.Errorf("retry wait: %w", err)
+				return fmt.Errorf("retry wait: %w", errors.Join(err, lastErr))
 			}
 			continue
 		}
@@ -389,7 +398,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 				}
 				if isRetryableError(apiErr) && attempt < maxRetries {
 					if err := waitForRetry(ctx, calculateBackoff(attempt, s.config)); err != nil {
-						return fmt.Errorf("retry wait: %w", err)
+						return fmt.Errorf("retry wait: %w", errors.Join(err, lastErr))
 					}
 					continue
 				}
@@ -557,9 +566,7 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 	if err != nil {
 		return err
 	}
-	if auth := s.requestAuthenticator(); auth != nil {
-		auth.Authenticate(req)
-	}
+	req = withRequestAuthority(req, s.requestAuthenticator())
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
