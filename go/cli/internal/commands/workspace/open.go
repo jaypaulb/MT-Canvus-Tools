@@ -3,9 +3,10 @@ package workspace
 import (
 	"context"
 
+	"github.com/spf13/cobra"
+
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/output"
 	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
-	"github.com/spf13/cobra"
 )
 
 var openCmd = &cobra.Command{

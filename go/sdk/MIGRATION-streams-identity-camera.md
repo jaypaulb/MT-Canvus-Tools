@@ -46,8 +46,11 @@ authority; no automatic recovery changes the actor.
 `GetCurrentUser` uses a known user ID or the observed `POST users/login` token
 exchange (`token`, `remember:false`), caching the user ID without replacing the
 selected credential or writing a replacement token to `TokenStore`. This is not
-an HTTP read-only endpoint; one-time tokens must use explicit `LoginWithToken`
-instead. It does not guess `/users/current`, which
+an HTTP read-only endpoint: depending on server behavior it may allocate/refresh
+a server-side session whose returned credential this lookup does not adopt or
+invalidate. Do not call it under read-only validation authorization. Prefer
+explicit `LoginWithToken` for initial session setup; one-time tokens must use
+that explicit path instead. It does not guess `/users/current`, which
 returned 400 for authenticated requests in the disposable trial. Some SAML-issued
 tokens do not support re-exchange: retain the live authenticated session/user ID
 or explicitly reauthenticate; do not infer identity from workspace discovery.
@@ -79,7 +82,10 @@ three languages; that is not complete cross-language feature parity.
 Use `WidgetCanvasBounds(id, snapshot, GeometryModel{...})` for rendered canvas
 border-box bounds. Supply `RootWidgetID` identifying the actual `SharedCanvas`
 widget, **not the canvas resource ID**, and include that identity-transform root
-plus complete parent ancestry and positive uniform scales. Missing parents/types/transforms, cycles and invalid extents are
+plus complete parent ancestry and positive uniform scales. The widget getter
+used by `SetWorkspaceViewport` must resolve the root object too (including scale
+and location); a getter backed by a complete listing snapshot can supply it.
+Deployments that cannot expose that metadata are rejected, not guessed. Missing parents/types/transforms, cycles and invalid extents are
 errors. For Notes explicitly choose `NotePadding`: 30 for the documented legacy
 29px padding + 1px border registration, or 0 for normalized origins. Do not guess
 the deployed model or rewrite raw locations. Legacy registration is
@@ -106,7 +112,10 @@ The helpers apply zero-position zoom, wait at least 100 ms, observe matching zoo
 (up to one second), recheck the bound target, then pan. A combined zoom/pan PATCH
 is not equivalent on affected clients. A clamped or unobserved zoom that cannot
 be confirmed within the bound returns a non-replayable partial error: the helper
-does not pan using an assumed scale or claim success. The initial actor and resolved index are
+does not pan using an assumed scale or claim success. `Stage:"settle"` cannot
+identify whether the cause was clamping, missing/late observation or an expired
+caller budget; inspect the stage and acknowledgment, not a guessed native cause.
+The initial actor and resolved index are
 pinned; canvas/server/native user/state/size are rechecked. This is best-effort
 race detection, **not** server compare-and-swap or a physical-operator lock.
 Camera formulas target the documented scaled contract; do not assume other

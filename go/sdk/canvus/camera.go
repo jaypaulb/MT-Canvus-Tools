@@ -102,6 +102,9 @@ func nearCamera(a, b float64) bool {
 	return finite(a, b) && math.Abs(a-b) <= 1e-5*math.Max(1, math.Abs(b))
 }
 
+// widgetAncestry returns a nonempty leaf-to-root slice on success. Its final
+// node is the observed SharedCanvas; WidgetCanvasBounds validates that root's
+// transform. A missing root is an error, never an empty successful slice.
 func widgetAncestry(ctx context.Context, getter WorkspaceWidgetGetter, canvasID, id string) ([]Widget, error) {
 	if getter == nil || id == "" {
 		return nil, fmt.Errorf("widget ancestry: %w", ErrInvalidRequest)

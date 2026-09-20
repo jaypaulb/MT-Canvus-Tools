@@ -6,8 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
 )
 
 func TestKnownScaledCameraConversion(t *testing.T) {
