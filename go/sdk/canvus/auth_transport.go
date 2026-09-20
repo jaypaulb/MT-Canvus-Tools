@@ -22,9 +22,13 @@ type authTransport struct {
 	base     http.RoundTripper
 	origin   *url.URL
 	selected func() Authenticator
+	validate func() error
 }
 
 func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := t.validate(); err != nil {
+		return nil, err
+	}
 	req = req.Clone(req.Context())
 	for key := range req.Header {
 		if strings.EqualFold(key, "Private-Token") {
@@ -51,7 +55,19 @@ func (t *authTransport) CloseIdleConnections() {
 }
 
 func sameOrigin(a, b *url.URL) bool {
-	return a != nil && b != nil && a.Scheme == b.Scheme && a.Host == b.Host
+	if a == nil || b == nil || !strings.EqualFold(a.Scheme, b.Scheme) || !strings.EqualFold(a.Hostname(), b.Hostname()) {
+		return false
+	}
+	port := func(u *url.URL) string {
+		if p := u.Port(); p != "" {
+			return p
+		}
+		if strings.EqualFold(u.Scheme, "https") {
+			return "443"
+		}
+		return "80"
+	}
+	return port(a) == port(b)
 }
 
 // safeRedirect permits only same-origin reads; mutations must never be replayed

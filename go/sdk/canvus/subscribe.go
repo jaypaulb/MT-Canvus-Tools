@@ -39,7 +39,7 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	if s == nil {
 		return nil, fmt.Errorf("subscribeStream: nil session")
 	}
-	if err := s.validateRetryBudget(); err != nil {
+	if err := s.validateRequestConfig(); err != nil {
 		return nil, fmt.Errorf("subscribeStream: %w", err)
 	}
 	u, err := url.Parse(s.BaseURL)
@@ -71,7 +71,7 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &APIError{StatusCode: resp.StatusCode, Message: string(body)}
+		return nil, s.handleErrorResponse(resp, body, 0)
 	}
 
 	bufSize := s.config.SubscribeBuffer

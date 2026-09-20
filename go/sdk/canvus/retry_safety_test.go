@@ -50,7 +50,7 @@ func TestRetryPolicyAtHTTPBoundary(t *testing.T) {
 			if got := int(calls.Load()); got != tt.want {
 				t.Fatalf("attempts=%d want %d", got, tt.want)
 			}
-			if tt.budget < 0 && !strings.Contains(err.Error(), "retry") {
+			if tt.budget < 0 && !errors.Is(err, canvus.ErrInvalidRetryBudget) {
 				t.Fatalf("not a configuration error: %v", err)
 			}
 		})
@@ -93,6 +93,17 @@ func TestCancelledBackoffRetainsServerError(t *testing.T) {
 	var apiErr *canvus.APIError
 	if !errors.Is(err, context.Canceled) || !errors.As(err, &apiErr) || apiErr.StatusCode != 503 {
 		t.Fatalf("lost cancellation or server status: %v", err)
+	}
+}
+
+func TestRetryClassificationRejectsAcceptedAndLocalFailures(t *testing.T) {
+	for _, err := range []error{&canvus.AcceptedResponseError{StatusCode: 201, Err: io.ErrUnexpectedEOF}, canvus.ErrInvalidRetryBudget, canvus.ErrInvalidRequest, errors.New("local failure"), context.Canceled} {
+		if canvus.IsRetryableError(err) {
+			t.Fatalf("unsafe retry hint for %v", err)
+		}
+	}
+	if !canvus.IsRetryableError(&canvus.APIError{StatusCode: 503}) {
+		t.Fatal("lost transient read classification")
 	}
 }
 

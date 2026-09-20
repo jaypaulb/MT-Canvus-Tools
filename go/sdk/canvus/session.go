@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"math"
 	"math/big"
-	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -167,7 +166,10 @@ func (tm *tokenManager) clearToken() {
 
 // Session is the main entry point for interacting with the Canvus API.
 type Session struct {
-	BaseURL        string
+	// BaseURL is fixed at construction. Create a new session to change origin.
+	BaseURL string
+	// HTTPClient supports direct requests; configure its client/transport via
+	// WithHTTPClient, not by replacing them after construction.
 	HTTPClient     *http.Client
 	config         *SessionConfig
 	authenticator  Authenticator
@@ -176,6 +178,8 @@ type Session struct {
 	circuitBreaker *circuitBreaker
 	userID         int64
 	logger         *slog.Logger
+	transport      *authTransport
+	initErr        error
 }
 
 func registerBootstrapAuth(cfg *SessionConfig, a Authenticator) {
@@ -276,10 +280,17 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	origin, _ := url.Parse(cfg.BaseURL)
-	s.HTTPClient.Transport = &authTransport{base: base, origin: origin, selected: s.requestAuthenticator}
+	origin, err := url.Parse(cfg.BaseURL)
+	if err != nil || origin == nil || (origin.Scheme != "http" && origin.Scheme != "https") || origin.Hostname() == "" || origin.User != nil {
+		s.initErr = fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest)
+	}
+	if cfg.MaxRetries < 0 {
+		s.initErr = ErrInvalidRetryBudget
+	}
+	s.transport = &authTransport{base: base, origin: origin, selected: s.requestAuthenticator, validate: s.validateRequestConfig}
+	s.HTTPClient.Transport = s.transport
 
-	s.logger.Debug("session created", "base_url", cfg.BaseURL)
+	s.logger.Debug("session created")
 	return s
 }
 
@@ -291,9 +302,12 @@ func (s *Session) SetLogger(l *slog.Logger) {
 	}
 }
 
-func (s *Session) validateRetryBudget() error {
-	if s.config.MaxRetries < 0 {
-		return errors.New("invalid retry budget: MaxRetries must be non-negative")
+func (s *Session) validateRequestConfig() error {
+	if s.initErr != nil {
+		return s.initErr
+	}
+	if s.BaseURL != s.config.BaseURL || s.HTTPClient != s.config.HTTPClient || s.HTTPClient.Transport != s.transport {
+		return fmt.Errorf("%w: session URL/client/transport changed; construct a new session with options", ErrInvalidRequest)
 	}
 	return nil
 }
@@ -305,7 +319,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 	var resp *http.Response
 	var respBody []byte
 
-	if err := s.validateRetryBudget(); err != nil {
+	if err := s.validateRequestConfig(); err != nil {
 		return err
 	}
 	maxRetries := 0
@@ -371,7 +385,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
 			s.logger.Debug("request transport error", "method", method, "url", u.String(), "attempt", attempt, "err", err)
-			if !isRetryableError(err) || attempt == maxRetries {
+			if !IsRetryableError(err) || attempt == maxRetries {
 				s.circuitBreaker.failure()
 				return lastErr
 			}
@@ -396,7 +410,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 				if requestID != "" && apiErr.RequestID == "" {
 					apiErr.RequestID = requestID
 				}
-				if isRetryableError(apiErr) && attempt < maxRetries {
+				if IsRetryableError(apiErr) && attempt < maxRetries {
 					if err := waitForRetry(ctx, calculateBackoff(attempt, s.config)); err != nil {
 						return fmt.Errorf("retry wait: %w", errors.Join(err, lastErr))
 					}
@@ -453,6 +467,10 @@ func (s *Session) prepareRequestBody(body any) (io.Reader, error) {
 }
 
 func (s *Session) handleErrorResponse(resp *http.Response, body []byte, _ int) error {
+	switch resp.StatusCode {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther, http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		return &APIError{StatusCode: resp.StatusCode, Code: CodeRedirectRefused, Message: "redirect not followed; configure the canonical API URL or an explicit safe redirect policy"}
+	}
 	var apiErr *APIError
 	if err := json.Unmarshal(body, &apiErr); err == nil && apiErr != nil && apiErr.Code != "" {
 		apiErr.StatusCode = resp.StatusCode
@@ -463,31 +481,6 @@ func (s *Session) handleErrorResponse(resp *http.Response, body []byte, _ int) e
 		Code:       fmt.Sprintf("http_%d", resp.StatusCode),
 		Message:    string(body),
 	}
-}
-
-func isRetryableError(err error) bool {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	var apiErr *APIError
-	if errors.As(err, &apiErr) {
-		switch {
-		case apiErr.StatusCode >= 500:
-			return true
-		case apiErr.StatusCode == 429:
-			return true
-		case apiErr.StatusCode == 408:
-			return true
-		case apiErr.StatusCode == 0:
-			return true
-		}
-		return false
-	}
-	return false
 }
 
 func waitForRetry(ctx context.Context, delay time.Duration) error {
@@ -523,7 +516,7 @@ func calculateBackoff(attempt int, config *SessionConfig) time.Duration {
 // doRequestWithHeaders is like doRequest but supports custom headers and
 // flexible query params (string/int values).
 func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint string, body any, out any, queryParams any, headers map[string]string, rawResponse bool) error {
-	if err := s.validateRetryBudget(); err != nil {
+	if err := s.validateRequestConfig(); err != nil {
 		return err
 	}
 	u, err := url.Parse(s.BaseURL)
@@ -585,7 +578,7 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 		return responseError(method, resp, respBody, err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &APIError{StatusCode: resp.StatusCode, Message: string(respBody)}
+		return s.handleErrorResponse(resp, respBody, 0)
 	}
 
 	if out != nil {

@@ -82,7 +82,7 @@ func TestDefaultRedirectsDoNotReplayOrForwardAuthority(t *testing.T) {
 			} else {
 				_, err = s.GetNote(context.Background(), "c", "n")
 			}
-			require.Error(t, err)
+			require.ErrorIs(t, err, canvus.ErrRedirectRefused)
 			assert.False(t, forwarded.Load())
 		})
 	}
@@ -153,6 +153,49 @@ func TestDirectHTTPClientUsesSelectedActor(t *testing.T) {
 	_, err := second.GetNote(context.Background(), "c", "n")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"synthetic-second"}, <-headers)
+}
+
+func TestEquivalentOriginRetainsAuthority(t *testing.T) {
+	headers := make(chan []string, 1)
+	probe := safetyRoundTripper(func(r *http.Request) (*http.Response, error) {
+		headers <- r.Header.Values("Private-Token")
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
+	})
+	s := canvus.NewSession(&canvus.SessionConfig{BaseURL: "https://API.EXAMPLE.invalid/api/v1"}, canvus.WithHTTPClient(&http.Client{Transport: probe}), canvus.WithToken("synthetic-actor"))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.example.invalid:443/api/v1", nil)
+	require.NoError(t, err)
+	resp, err := s.HTTPClient.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, []string{"synthetic-actor"}, <-headers)
+}
+
+func TestInvalidOrReplacedSessionConfigFailsBeforeDispatch(t *testing.T) {
+	for _, name := range []string{"invalid_url", "changed_url", "replaced_client", "replaced_transport"} {
+		t.Run(name, func(t *testing.T) {
+			var calls atomic.Int32
+			probe := safetyRoundTripper(func(r *http.Request) (*http.Response, error) {
+				calls.Add(1)
+				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
+			})
+			base := "https://example.invalid"
+			if name == "invalid_url" {
+				base = "%invalid"
+			}
+			s := canvus.NewSession(&canvus.SessionConfig{BaseURL: base}, canvus.WithHTTPClient(&http.Client{Transport: probe}), canvus.WithToken("synthetic-actor"))
+			switch name {
+			case "changed_url":
+				s.BaseURL = "https://other.invalid"
+			case "replaced_client":
+				s.HTTPClient = &http.Client{Transport: probe}
+			case "replaced_transport":
+				s.HTTPClient.Transport = probe
+			}
+			_, err := s.GetNote(context.Background(), "c", "n")
+			require.ErrorIs(t, err, canvus.ErrInvalidRequest)
+			assert.Zero(t, calls.Load())
+		})
+	}
 }
 
 func TestCustomClientAndConfigRemainIsolated(t *testing.T) {
