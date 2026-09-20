@@ -50,9 +50,13 @@ type BatchResult struct {
 type BatchConfig struct {
 	MaxConcurrency int
 	Timeout        time.Duration
-	// RetryAttempts is deprecated and ignored: mutation outcomes must be reconciled before retry.
+	// RetryAttempts is retained for source compatibility.
+	//
+	// Deprecated: ignored; reconcile mutation outcomes before any explicit retry.
 	RetryAttempts int
-	// RetryDelay is deprecated and ignored with RetryAttempts.
+	// RetryDelay is retained for source compatibility.
+	//
+	// Deprecated: ignored with RetryAttempts.
 	RetryDelay       time.Duration
 	ContinueOnError  bool
 	ProgressCallback func(completed, total int, results []*BatchResult)
@@ -63,8 +67,6 @@ func DefaultBatchConfig() *BatchConfig {
 	return &BatchConfig{
 		MaxConcurrency:  10,
 		Timeout:         5 * time.Minute,
-		RetryAttempts:   0,
-		RetryDelay:      time.Second,
 		ContinueOnError: true,
 	}
 }

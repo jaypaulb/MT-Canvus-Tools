@@ -285,7 +285,7 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 		s.initErr = fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest)
 	}
 	if cfg.MaxRetries < 0 {
-		s.initErr = ErrInvalidRetryBudget
+		s.initErr = errors.Join(s.initErr, ErrInvalidRetryBudget)
 	}
 	s.transport = &authTransport{base: base, origin: origin, selected: s.requestAuthenticator, validate: s.validateRequestConfig}
 	s.HTTPClient.Transport = s.transport
@@ -357,7 +357,8 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 	}
 
 	auth := s.requestAuthenticator()
-	for attempt := 0; attempt <= maxRetries; attempt++ {
+	// Each failure branch returns at maxRetries; only safe reads may continue.
+	for attempt := 0; ; attempt++ {
 		reqBody, err := s.prepareRequestBody(body)
 		if err != nil {
 			return err
@@ -440,11 +441,6 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		return nil
 	}
 
-	s.circuitBreaker.failure()
-	if lastErr != nil {
-		return fmt.Errorf("request failed after %d attempts: %w", maxRetries+1, lastErr)
-	}
-	return errors.New("request failed: unknown error")
 }
 
 func (s *Session) prepareRequestBody(body any) (io.Reader, error) {

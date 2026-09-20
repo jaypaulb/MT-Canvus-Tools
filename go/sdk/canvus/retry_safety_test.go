@@ -96,6 +96,26 @@ func TestCancelledBackoffRetainsServerError(t *testing.T) {
 	}
 }
 
+func TestRedirectWrapperRetainsUnderlyingCause(t *testing.T) {
+	cause := errors.New("synthetic cause")
+	err := (&canvus.APIError{StatusCode: 307, Code: canvus.CodeRedirectRefused}).Wrap(cause)
+	if !errors.Is(err, cause) || !errors.Is(err, canvus.ErrRedirectRefused) {
+		t.Fatalf("lost cause or redirect classification: %v", err)
+	}
+}
+
+func TestServerCodeCannotMaskHTTPStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, `{"code":"redirect_refused","message":"synthetic"}`)
+	}))
+	defer srv.Close()
+	_, err := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL}).GetNote(context.Background(), "c", "n")
+	if !errors.Is(err, canvus.ErrNotFound) || errors.Is(err, canvus.ErrRedirectRefused) {
+		t.Fatalf("server code masked HTTP status: %v", err)
+	}
+}
+
 func TestRetryClassificationRejectsAcceptedAndLocalFailures(t *testing.T) {
 	for _, err := range []error{&canvus.AcceptedResponseError{StatusCode: 201, Err: io.ErrUnexpectedEOF}, canvus.ErrInvalidRetryBudget, canvus.ErrInvalidRequest, errors.New("local failure"), context.Canceled} {
 		if canvus.IsRetryableError(err) {

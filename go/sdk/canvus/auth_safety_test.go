@@ -171,7 +171,7 @@ func TestEquivalentOriginRetainsAuthority(t *testing.T) {
 }
 
 func TestInvalidOrReplacedSessionConfigFailsBeforeDispatch(t *testing.T) {
-	for _, name := range []string{"invalid_url", "changed_url", "replaced_client", "replaced_transport"} {
+	for _, name := range []string{"invalid_url", "invalid_both", "changed_url", "replaced_client", "replaced_transport"} {
 		t.Run(name, func(t *testing.T) {
 			var calls atomic.Int32
 			probe := safetyRoundTripper(func(r *http.Request) (*http.Response, error) {
@@ -179,10 +179,14 @@ func TestInvalidOrReplacedSessionConfigFailsBeforeDispatch(t *testing.T) {
 				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: http.NoBody, Request: r}, nil
 			})
 			base := "https://example.invalid"
-			if name == "invalid_url" {
+			if name == "invalid_url" || name == "invalid_both" {
 				base = "%invalid"
 			}
-			s := canvus.NewSession(&canvus.SessionConfig{BaseURL: base}, canvus.WithHTTPClient(&http.Client{Transport: probe}), canvus.WithToken("synthetic-actor"))
+			cfg := &canvus.SessionConfig{BaseURL: base}
+			if name == "invalid_both" {
+				cfg.MaxRetries = -1
+			}
+			s := canvus.NewSession(cfg, canvus.WithHTTPClient(&http.Client{Transport: probe}), canvus.WithToken("synthetic-actor"))
 			switch name {
 			case "changed_url":
 				s.BaseURL = "https://other.invalid"
@@ -193,7 +197,38 @@ func TestInvalidOrReplacedSessionConfigFailsBeforeDispatch(t *testing.T) {
 			}
 			_, err := s.GetNote(context.Background(), "c", "n")
 			require.ErrorIs(t, err, canvus.ErrInvalidRequest)
+			if name == "invalid_both" {
+				require.ErrorIs(t, err, canvus.ErrInvalidRetryBudget)
+			}
 			assert.Zero(t, calls.Load())
+		})
+	}
+}
+
+func TestAssetRedirectPolicy(t *testing.T) {
+	for _, name := range []string{"default_refusal", "explicit_public_storage_opt_in"} {
+		t.Run(name, func(t *testing.T) {
+			headers := make(chan []string, 1)
+			target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				headers <- r.Header.Values("Private-Token")
+				_, _ = w.Write([]byte{0, 1, 2})
+			}))
+			defer target.Close()
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, http.StatusFound) }))
+			defer api.Close()
+			opts := []canvus.SessionConfigOption{canvus.WithToken("synthetic-actor")}
+			if name == "explicit_public_storage_opt_in" {
+				opts = append(opts, canvus.WithHTTPClient(&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return nil }}))
+			}
+			data, err := canvus.NewSession(&canvus.SessionConfig{BaseURL: api.URL}, opts...).GetAssetByHash(context.Background(), "c", "hash")
+			if name == "default_refusal" {
+				require.ErrorIs(t, err, canvus.ErrRedirectRefused)
+				assert.Zero(t, len(headers))
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, []byte{0, 1, 2}, data)
+			assert.Empty(t, <-headers)
 		})
 	}
 }

@@ -126,11 +126,11 @@ func (e *APIError) Error() string {
 // Unwrap returns the underlying error if any, and additionally surfaces the
 // matching sentinel for errors.Is checks based on the HTTP status code.
 func (e *APIError) Unwrap() error {
-	if e.Code == CodeRedirectRefused {
-		return ErrRedirectRefused
-	}
 	if e.Wrapped != nil {
 		return e.Wrapped
+	}
+	if e.Code == CodeRedirectRefused && e.StatusCode >= 300 && e.StatusCode < 400 {
+		return ErrRedirectRefused
 	}
 	switch e.StatusCode {
 	case http.StatusBadRequest:
@@ -159,6 +159,9 @@ func (e *APIError) Unwrap() error {
 // Supports matching against either another *APIError (status + code) or any of
 // the package-level sentinels.
 func (e *APIError) Is(target error) bool {
+	if target == ErrRedirectRefused && e.Code == CodeRedirectRefused && e.StatusCode >= 300 && e.StatusCode < 400 {
+		return true
+	}
 	if t, ok := target.(*APIError); ok {
 		if t.StatusCode != 0 && e.StatusCode != t.StatusCode {
 			return false

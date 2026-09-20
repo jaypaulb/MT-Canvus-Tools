@@ -23,9 +23,10 @@ func TestWithSubscribeBuffer_PanicsOnNegative(t *testing.T) {
 }
 
 func TestWithVerifyTLS_PoliciesAtHTTPBoundary(t *testing.T) {
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, `{"id":"n"}`) }))
-	defer srv.Close()
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, `{"id":"n"}`) }))
 	srv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	srv.StartTLS()
+	defer srv.Close()
 	for _, tt := range []struct {
 		name      string
 		opts      []SessionConfigOption
