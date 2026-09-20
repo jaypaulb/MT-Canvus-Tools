@@ -54,6 +54,9 @@ func (s *Session) ListUsers(ctx context.Context) ([]User, error) {
 // guess users/current or infer identity from a workspace email. SAML tokens
 // may reject re-exchange; that error is returned without authority fallback.
 func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
+	if err := s.validateRequestConfig(); err != nil {
+		return nil, err
+	}
 	if err := s.beginAuthChange(ctx); err != nil {
 		return nil, err
 	}

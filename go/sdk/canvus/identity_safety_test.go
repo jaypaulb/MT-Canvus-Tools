@@ -18,14 +18,18 @@ import (
 )
 
 type identityStore struct {
-	mu    sync.Mutex
-	token string
-	fail  bool
+	mu       sync.Mutex
+	token    string
+	fail     bool
+	readFail bool
 }
 
 func (s *identityStore) GetToken() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.readFail {
+		return "", errors.New("synthetic store read failure")
+	}
 	return s.token, nil
 }
 func (s *identityStore) StoreToken(token string, _ time.Time) error {
@@ -42,6 +46,20 @@ func (s *identityStore) ClearToken() error {
 	defer s.mu.Unlock()
 	s.token = ""
 	return nil
+}
+
+func TestTokenStoreReadFailureCannotFallBackToServiceAuthority(t *testing.T) {
+	requests := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests <- struct{}{}; fmt.Fprint(w, `{"id":"n"}`) }))
+	defer srv.Close()
+	s := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL, APIKey: "synthetic-service", TokenStore: &identityStore{readFail: true}})
+	_, err := s.GetNote(context.Background(), "c", "n")
+	require.ErrorIs(t, err, canvus.ErrTokenPersistence)
+	select {
+	case <-requests:
+		t.Fatal("sent request despite unknown stored actor")
+	default:
+	}
 }
 
 func TestAuthenticationPersistsWithoutRestoringOldAuthorityOnStoreFailure(t *testing.T) {

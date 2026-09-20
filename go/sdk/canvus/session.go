@@ -271,12 +271,14 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	if boot := cfg.bootstrapAuth; boot != nil {
 		s.authenticator = boot
 	} else if s.tokenManager.tokenStore != nil {
-		if token, err := s.tokenManager.tokenStore.GetToken(); err == nil && token != "" {
+		if token, err := s.tokenManager.tokenStore.GetToken(); err != nil {
+			s.initErr = fmt.Errorf("bootstrap token store: %w", errors.Join(ErrTokenPersistence, err))
+		} else if token != "" {
 			s.authenticator = &TokenAuthenticator{Token: token}
 		}
 	}
 
-	if s.authenticator == nil && cfg.APIKey != "" {
+	if s.authenticator == nil && s.initErr == nil && cfg.APIKey != "" {
 		s.authenticator = &APIKeyAuthenticator{Header: "Private-Token", APIKey: cfg.APIKey}
 	}
 
@@ -294,7 +296,7 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	}
 	origin, err := url.Parse(cfg.BaseURL)
 	if err != nil || origin == nil || (origin.Scheme != "http" && origin.Scheme != "https") || origin.Hostname() == "" || origin.User != nil {
-		s.initErr = fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest)
+		s.initErr = errors.Join(s.initErr, fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest))
 	}
 	if cfg.MaxRetries < 0 {
 		s.initErr = errors.Join(s.initErr, ErrInvalidRetryBudget)
