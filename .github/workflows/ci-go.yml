@@ -5,13 +5,30 @@ on:
     branches: [main]
     paths:
       - 'go/**'
+      - 'python/sdk/src/canvus_sdk/extras/geometry.py'
+      - 'typescript/sdk/src/extras/geometry.ts'
       - '.github/workflows/ci-go.yml'
   pull_request:
     paths:
       - 'go/**'
+      - 'python/sdk/src/canvus_sdk/extras/geometry.py'
+      - 'typescript/sdk/src/extras/geometry.ts'
       - '.github/workflows/ci-go.yml'
 
 jobs:
+  geometry-parity:
+    name: Shared geometry parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python go/sdk/check_geometry_parity.py
+
   go:
     name: Format / Build / Vet / Test
     runs-on: ubuntu-latest

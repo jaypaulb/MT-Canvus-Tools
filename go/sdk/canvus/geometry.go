@@ -9,11 +9,13 @@ func Contains(a, b Rectangle) bool {
 
 // Touches returns true if rectangles a and b overlap or touch at any edge/corner.
 func Touches(a, b Rectangle) bool {
-	return a.X < b.X+b.Width && a.X+a.Width > b.X &&
-		a.Y < b.Y+b.Height && a.Y+a.Height > b.Y
+	return a.X <= b.X+b.Width && a.X+a.Width >= b.X &&
+		a.Y <= b.Y+b.Height && a.Y+a.Height >= b.Y
 }
 
-// WidgetBoundingBox returns the bounding box (Rectangle) for a Widget.
+// WidgetBoundingBox returns raw stored location/size in model coordinates.
+// It does not include parent transforms, scale or Note padding. Use
+// WidgetCanvasBounds for rendered canvas-space selection.
 func WidgetBoundingBox(w Widget) Rectangle {
 	x, y := 0.0, 0.0
 	wVal, hVal := 0.0, 0.0
