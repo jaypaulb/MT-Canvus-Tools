@@ -12,12 +12,9 @@ import (
 	"log/slog"
 	"math"
 	"math/big"
-	"net"
 	"net/http"
 	"net/url"
 	"path"
-	"reflect"
-	"strings"
 	"sync"
 	"time"
 )
@@ -40,27 +37,10 @@ func (a *APIKeyAuthenticator) Authenticate(req *http.Request) {
 	}
 }
 
-// transportWithAPIKey is an http.RoundTripper that adds an API key to requests.
-type transportWithAPIKey struct {
-	transport http.RoundTripper
-	header    string
-	apiKey    string
-}
-
-// RoundTrip implements http.RoundTripper.
-func (t *transportWithAPIKey) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = req.Clone(req.Context())
-	req.Header.Add(t.header, t.apiKey)
-	if req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	return t.transport.RoundTrip(req)
-}
-
 // WithAPIKey configures the session to authenticate using a static API key.
 //
-// This option records the key so that NewSession can wrap the transport with
-// a round-tripper that injects the Private-Token header on every request.
+// This option selects the bootstrap authority unless a token is supplied.
+// Explicit Login replaces this authority; a 401 never restores it.
 // TLS verification is controlled separately by WithVerifyTLS — pass
 // WithVerifyTLS(false) when connecting to servers that use self-signed
 // certificates (common for Canvus dev/test servers).
@@ -165,93 +145,65 @@ func (cb *circuitBreaker) failure() {
 	}
 }
 
-// tokenManager handles token storage and refresh.
+// tokenManager retains the caller's optional token store for explicit logout.
+// Automatic refresh is not supported; it must never switch actor authority.
 type tokenManager struct {
-	tokenStore   TokenStore
-	currentToken string
-	tokenExpiry  time.Time
-	refreshMutex sync.Mutex
-	config       *SessionConfig
+	tokenStore TokenStore
+	mu         sync.Mutex
 }
 
 func newTokenManager(config *SessionConfig) *tokenManager {
-	tm := &tokenManager{config: config}
-	if config.TokenStore != nil {
-		tm.tokenStore = config.TokenStore
-		token, _ := tm.tokenStore.GetToken()
-		tm.currentToken = token
-	}
-	return tm
-}
-
-func (tm *tokenManager) getToken() string {
-	tm.refreshMutex.Lock()
-	defer tm.refreshMutex.Unlock()
-	if !tm.tokenExpiry.IsZero() && time.Until(tm.tokenExpiry) < tm.config.TokenRefreshThreshold {
-		_ = tm.refreshToken()
-	}
-	return tm.currentToken
+	return &tokenManager{tokenStore: config.TokenStore}
 }
 
 func (tm *tokenManager) clearToken() {
-	tm.refreshMutex.Lock()
-	defer tm.refreshMutex.Unlock()
-	tm.currentToken = ""
-	tm.tokenExpiry = time.Time{}
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
 	if tm.tokenStore != nil {
 		_ = tm.tokenStore.ClearToken()
 	}
 }
 
-func (tm *tokenManager) refreshToken() error {
-	// Placeholder: token refresh is dependent on the auth flow; consumers
-	// extending the SDK supply this. Returning nil keeps the lazy-get behavior.
-	return nil
-}
-
 // Session is the main entry point for interacting with the Canvus API.
 type Session struct {
-	BaseURL        string
+	// BaseURL is fixed at construction. Create a new session to change origin.
+	BaseURL string
+	// HTTPClient supports direct requests; configure its client/transport via
+	// WithHTTPClient, not by replacing them after construction.
 	HTTPClient     *http.Client
 	config         *SessionConfig
 	authenticator  Authenticator
+	authMu         sync.RWMutex
 	tokenManager   *tokenManager
 	circuitBreaker *circuitBreaker
 	userID         int64
 	logger         *slog.Logger
+	transport      *authTransport
+	initErr        error
 }
 
-// bootstraps stores per-config initial authenticators registered by options
-// (e.g. WithToken) for installation when NewSession runs. Keyed by pointer so
-// each config carries its own setup without polluting SessionConfig's public
-// surface.
-var (
-	bootstrapMu sync.Mutex
-	bootstraps  = map[*SessionConfig]Authenticator{}
-)
-
-// Helper used by WithToken (and any other options) to register an authenticator
-// to be installed when NewSession is called with this config.
 func registerBootstrapAuth(cfg *SessionConfig, a Authenticator) {
-	bootstrapMu.Lock()
-	defer bootstrapMu.Unlock()
-	bootstraps[cfg] = a
+	cfg.bootstrapAuth = a
 }
 
-func takeBootstrapAuth(cfg *SessionConfig) Authenticator {
-	bootstrapMu.Lock()
-	defer bootstrapMu.Unlock()
-	a := bootstraps[cfg]
-	delete(bootstraps, cfg)
-	return a
+// requestAuthenticator snapshots the selected identity for a logical request.
+// Installed authenticators are immutable; explicit login affects new requests.
+func (s *Session) requestAuthenticator() Authenticator {
+	s.authMu.RLock()
+	defer s.authMu.RUnlock()
+	return s.authenticator
 }
 
 // NewSession creates a new Canvus API session.
 //
-// Drift remediation #4 from go.md: NewSession logs an Info-level lifecycle
-// event so embedders can confirm SDK boot ordering. The SDK uses slog.Default
-// per the conventions document; embedders configure the slog handler.
+// Configuration and supplied HTTP client values are copied. Use
+// DefaultSessionConfig for default read retries, or MaxRetries=0 for none.
 func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
+	if cfg == nil {
+		cfg = DefaultSessionConfig()
+	}
+	copyConfig := *cfg
+	cfg = &copyConfig
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -274,26 +226,16 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
 		}
-		if cfg.APIKey != "" {
-			t := client.Transport
-			if t == nil {
-				t = http.DefaultTransport
-			}
-			client.Transport = &transportWithAPIKey{transport: t, header: "Private-Token", apiKey: cfg.APIKey}
-		}
 		cfg.HTTPClient = client
-	} else if cfg.HTTPClient.Timeout == 0 {
-		cfg.HTTPClient.Timeout = cfg.RequestTimeout
-		if cfg.APIKey != "" {
-			t := cfg.HTTPClient.Transport
-			if t == nil {
-				t = http.DefaultTransport
-			}
-			cfg.HTTPClient.Transport = &transportWithAPIKey{transport: t, header: "Private-Token", apiKey: cfg.APIKey}
+	} else {
+		copyClient := *cfg.HTTPClient
+		cfg.HTTPClient = &copyClient
+		if cfg.HTTPClient.Timeout == 0 {
+			cfg.HTTPClient.Timeout = cfg.RequestTimeout
 		}
 	}
-	if cfg.MaxRetries == 0 {
-		cfg.MaxRetries = 3
+	if cfg.HTTPClient.CheckRedirect == nil {
+		cfg.HTTPClient.CheckRedirect = safeRedirect
 	}
 	if cfg.RetryWaitMin == 0 {
 		cfg.RetryWaitMin = 100 * time.Millisecond
@@ -314,7 +256,7 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 		logger:         slog.Default().With("component", "canvus-sdk"),
 	}
 
-	if boot := takeBootstrapAuth(cfg); boot != nil {
+	if boot := cfg.bootstrapAuth; boot != nil {
 		s.authenticator = boot
 	} else if s.tokenManager.tokenStore != nil {
 		if token, err := s.tokenManager.tokenStore.GetToken(); err == nil && token != "" {
@@ -322,7 +264,33 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 		}
 	}
 
-	s.logger.Debug("session created", "base_url", cfg.BaseURL)
+	if s.authenticator == nil && cfg.APIKey != "" {
+		s.authenticator = &APIKeyAuthenticator{Header: "Private-Token", APIKey: cfg.APIKey}
+	}
+
+	base := s.HTTPClient.Transport
+	// Reusing an SDK client must not nest another session's auth injection.
+	for {
+		wrapped, ok := base.(*authTransport)
+		if !ok {
+			break
+		}
+		base = wrapped.base
+	}
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	origin, err := url.Parse(cfg.BaseURL)
+	if err != nil || origin == nil || (origin.Scheme != "http" && origin.Scheme != "https") || origin.Hostname() == "" || origin.User != nil {
+		s.initErr = fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest)
+	}
+	if cfg.MaxRetries < 0 {
+		s.initErr = errors.Join(s.initErr, ErrInvalidRetryBudget)
+	}
+	s.transport = &authTransport{base: base, origin: origin, selected: s.requestAuthenticator, validate: s.validateRequestConfig}
+	s.HTTPClient.Transport = s.transport
+
+	s.logger.Debug("session created")
 	return s
 }
 
@@ -334,12 +302,30 @@ func (s *Session) SetLogger(l *slog.Logger) {
 	}
 }
 
-// doRequest issues an HTTP request with retry, circuit breaking, and token
-// refresh. queryParams may be nil for none.
+func (s *Session) validateRequestConfig() error {
+	if s.initErr != nil {
+		return s.initErr
+	}
+	if s.BaseURL != s.config.BaseURL || s.HTTPClient != s.config.HTTPClient || s.HTTPClient.Transport != s.transport {
+		return fmt.Errorf("%w: session URL/client/transport changed; construct a new session with options", ErrInvalidRequest)
+	}
+	return nil
+}
+
+// doRequest issues an HTTP request with safe-read retries and circuit breaking.
+// It never changes authority after rejection. queryParams may be nil for none.
 func (s *Session) doRequest(ctx context.Context, method, endpoint string, body any, out any, queryParams map[string]string, rawResponse bool, contentType ...string) error {
 	var lastErr error
 	var resp *http.Response
 	var respBody []byte
+
+	if err := s.validateRequestConfig(); err != nil {
+		return err
+	}
+	maxRetries := 0
+	if (method == http.MethodGet || method == http.MethodHead) && body == nil {
+		maxRetries = s.config.MaxRetries
+	}
 
 	if !s.circuitBreaker.allow() {
 		return &APIError{
@@ -366,17 +352,16 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 	var ct string
 	if len(contentType) > 0 {
 		ct = contentType[0]
-	} else if body != nil {
+	} else if body != nil || (method != http.MethodGet && method != http.MethodHead) {
 		ct = "application/json"
 	}
 
-	for attempt := 0; attempt <= s.config.MaxRetries; attempt++ {
-		reqBody, retryable, err := s.prepareRequestBody(body, ct)
+	auth := s.requestAuthenticator()
+	// Each failure branch returns at maxRetries; only safe reads may continue.
+	for attempt := 0; ; attempt++ {
+		reqBody, err := s.prepareRequestBody(body)
 		if err != nil {
-			if !retryable || attempt == s.config.MaxRetries {
-				return err
-			}
-			continue
+			return err
 		}
 
 		req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
@@ -387,9 +372,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 			req.Header.Set("Content-Type", ct)
 		}
 		req.Header.Set("User-Agent", s.config.UserAgent)
-		if s.authenticator != nil {
-			s.authenticator.Authenticate(req)
-		}
+		req = withRequestAuthority(req, auth)
 		// Phase 4b §4.1 #3: inject X-Request-ID if configured.
 		var requestID string
 		if s.config.RequestIDFunc != nil {
@@ -403,39 +386,35 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
 			s.logger.Debug("request transport error", "method", method, "url", u.String(), "attempt", attempt, "err", err)
-			if !isRetryableError(err) || attempt == s.config.MaxRetries {
+			if !IsRetryableError(err) || attempt == maxRetries {
 				s.circuitBreaker.failure()
 				return lastErr
 			}
-			if shouldRetry(err, attempt, s.config) {
-				time.Sleep(calculateBackoff(attempt, s.config))
-				continue
+			if err := waitForRetry(ctx, calculateBackoff(attempt, s.config)); err != nil {
+				return fmt.Errorf("retry wait: %w", errors.Join(err, lastErr))
 			}
-			return lastErr
+			continue
 		}
 
 		respBody, err = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
-			lastErr = fmt.Errorf("read response: %w", err)
+			lastErr = responseError(method, resp, respBody, err)
 			s.circuitBreaker.failure()
 			return lastErr
 		}
 
-		if resp.StatusCode >= 400 {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			lastErr = s.handleErrorResponse(resp, respBody, attempt)
 			var apiErr *APIError
 			if errors.As(lastErr, &apiErr) {
 				if requestID != "" && apiErr.RequestID == "" {
 					apiErr.RequestID = requestID
 				}
-				if apiErr.StatusCode == http.StatusUnauthorized && attempt == 0 {
-					if refreshErr := s.refreshAuthToken(ctx); refreshErr == nil {
-						continue
+				if IsRetryableError(apiErr) && attempt < maxRetries {
+					if err := waitForRetry(ctx, calculateBackoff(attempt, s.config)); err != nil {
+						return fmt.Errorf("retry wait: %w", errors.Join(err, lastErr))
 					}
-				}
-				if isRetryableError(apiErr) && attempt < s.config.MaxRetries {
-					time.Sleep(calculateBackoff(attempt, s.config))
 					continue
 				}
 			}
@@ -456,40 +435,38 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		}
 		if out != nil && len(respBody) > 0 {
 			if err := json.Unmarshal(respBody, out); err != nil {
-				return fmt.Errorf("failed to decode response: %w", err)
-			}
-			if err := validateResponse(out, body, method); err != nil {
-				return fmt.Errorf("response validation failed: %w", err)
+				return responseError(method, resp, respBody, err)
 			}
 		}
 		return nil
 	}
 
-	s.circuitBreaker.failure()
-	if lastErr != nil {
-		return fmt.Errorf("request failed after %d attempts: %w", s.config.MaxRetries, lastErr)
-	}
-	return errors.New("request failed: unknown error")
 }
 
-func (s *Session) prepareRequestBody(body any, _ string) (io.Reader, bool, error) {
+func (s *Session) prepareRequestBody(body any) (io.Reader, error) {
 	if body == nil {
-		return nil, true, nil
+		return nil, nil
 	}
 	if rdr, ok := body.(io.Reader); ok {
 		if seeker, ok := rdr.(io.ReadSeeker); ok {
-			_, _ = seeker.Seek(0, io.SeekStart)
+			if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+				return nil, fmt.Errorf("failed to rewind request body: %w", err)
+			}
 		}
-		return rdr, true, nil
+		return rdr, nil
 	}
 	b, err := json.Marshal(body)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	return bytes.NewReader(b), true, nil
+	return bytes.NewReader(b), nil
 }
 
 func (s *Session) handleErrorResponse(resp *http.Response, body []byte, _ int) error {
+	switch resp.StatusCode {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther, http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		return &APIError{StatusCode: resp.StatusCode, Code: CodeRedirectRefused, Message: "redirect not followed; configure the canonical API URL or an explicit safe redirect policy"}
+	}
 	var apiErr *APIError
 	if err := json.Unmarshal(body, &apiErr); err == nil && apiErr != nil && apiErr.Code != "" {
 		apiErr.StatusCode = resp.StatusCode
@@ -502,56 +479,15 @@ func (s *Session) handleErrorResponse(resp *http.Response, body []byte, _ int) e
 	}
 }
 
-func (s *Session) refreshAuthToken(ctx context.Context) error {
-	if tokenAuth, ok := s.authenticator.(*TokenAuthenticator); ok {
-		newToken := s.tokenManager.getToken()
-		if newToken != "" && newToken != tokenAuth.Token {
-			tokenAuth.Token = newToken
-			return nil
-		}
-		s.authenticator = nil
+func waitForRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
-	_ = ctx
-	return errors.New("unable to refresh authentication token")
-}
-
-func isRetryableError(err error) bool {
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
-	var apiErr *APIError
-	if errors.As(err, &apiErr) {
-		switch {
-		case apiErr.StatusCode >= 500:
-			return true
-		case apiErr.StatusCode == 429:
-			return true
-		case apiErr.StatusCode == 408:
-			return true
-		case apiErr.StatusCode == 0:
-			return true
-		}
-		return false
-	}
-	return false
-}
-
-func shouldRetry(err error, attempt int, config *SessionConfig) bool {
-	if attempt >= config.MaxRetries {
-		return false
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
-	return true
 }
 
 func calculateBackoff(attempt int, config *SessionConfig) time.Duration {
@@ -573,131 +509,12 @@ func calculateBackoff(attempt int, config *SessionConfig) time.Duration {
 	return duration
 }
 
-// validateResponse performs lightweight cross-checking that the server echoed
-// fields that were specified in a PATCH/POST/PUT body. See the original
-// SDK for the rationale.
-func validateResponse(obj any, reqBody any, method string) error {
-	if obj == nil {
-		return errors.New("response is nil")
-	}
-	if method == http.MethodDelete {
-		respMap := map[string]any{}
-		b, err := json.Marshal(obj)
-		if err != nil {
-			return nil
-		}
-		if err := json.Unmarshal(b, &respMap); err != nil {
-			return nil
-		}
-		var reqID any
-		switch v := reqBody.(type) {
-		case map[string]any:
-			reqID = v["id"]
-		case nil:
-		default:
-			rb, err := json.Marshal(reqBody)
-			if err == nil {
-				rm := map[string]any{}
-				if err := json.Unmarshal(rb, &rm); err == nil {
-					reqID = rm["id"]
-				}
-			}
-		}
-		if reqID != nil {
-			if respID, ok := respMap["id"]; ok {
-				if !reflect.DeepEqual(respID, reqID) {
-					return fmt.Errorf("response id mismatch: got %v, want %v", respID, reqID)
-				}
-			}
-		}
-		if status, ok := respMap["status"]; ok {
-			if v, ok := status.(string); ok && !strings.EqualFold(v, "deleted") {
-				return fmt.Errorf("response status is not 'deleted': got %v", v)
-			}
-		} else if state, ok := respMap["state"]; ok {
-			if v, ok := state.(string); ok && !strings.EqualFold(v, "deleted") {
-				return fmt.Errorf("response state is not 'deleted': got %v", v)
-			}
-		}
-		return nil
-	}
-
-	if method != http.MethodPatch && method != http.MethodPost && method != http.MethodPut {
-		return nil
-	}
-
-	serverGeneratedFields := map[string]struct{}{
-		"id": {}, "created_at": {}, "modified_at": {}, "last_login": {},
-		"state": {}, "access": {}, "preview_hash": {}, "asset_size": {},
-		"folder_id": {}, "parent_id": {}, "location": {}, "size": {},
-	}
-	writeOnlyFields := map[string]struct{}{"password": {}}
-
-	var reqMap map[string]any
-	switch v := reqBody.(type) {
-	case map[string]any:
-		reqMap = v
-	case nil:
-		return nil
-	default:
-		b, err := json.Marshal(reqBody)
-		if err != nil {
-			return nil
-		}
-		if err := json.Unmarshal(b, &reqMap); err != nil {
-			return nil
-		}
-	}
-	if len(reqMap) == 0 {
-		return nil
-	}
-
-	respMap := map[string]any{}
-	b, err := json.Marshal(obj)
-	if err != nil {
-		return nil
-	}
-	if err := json.Unmarshal(b, &respMap); err != nil {
-		return nil
-	}
-
-	for k, reqVal := range reqMap {
-		if _, skip := writeOnlyFields[k]; skip {
-			continue
-		}
-		respVal, ok := respMap[k]
-		if !ok {
-			continue
-		}
-		if _, skip := serverGeneratedFields[k]; skip {
-			continue
-		}
-		if k == "widget_type" {
-			if s1, ok1 := reqVal.(string); ok1 {
-				if s2, ok2 := respVal.(string); ok2 {
-					if !strings.EqualFold(s1, s2) {
-						return fmt.Errorf("response field %q mismatch (case-insensitive): got %v, want %v", k, respVal, reqVal)
-					}
-					continue
-				}
-			}
-		}
-		if isNumeric(reqVal) && isNumeric(respVal) {
-			if !numericEqual(reqVal, respVal) {
-				return fmt.Errorf("response field %q mismatch (numeric): got %v, want %v", k, respVal, reqVal)
-			}
-			continue
-		}
-		if !reflect.DeepEqual(respVal, reqVal) {
-			return fmt.Errorf("response field %q mismatch: got %v, want %v", k, respVal, reqVal)
-		}
-	}
-	return nil
-}
-
 // doRequestWithHeaders is like doRequest but supports custom headers and
 // flexible query params (string/int values).
 func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint string, body any, out any, queryParams any, headers map[string]string, rawResponse bool) error {
+	if err := s.validateRequestConfig(); err != nil {
+		return err
+	}
 	u, err := url.Parse(s.BaseURL)
 	if err != nil {
 		return err
@@ -738,9 +555,7 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 	if err != nil {
 		return err
 	}
-	if s.authenticator != nil {
-		s.authenticator.Authenticate(req)
-	}
+	req = withRequestAuthority(req, s.requestAuthenticator())
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -754,9 +569,12 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return responseError(method, resp, respBody, err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &APIError{StatusCode: resp.StatusCode, Message: string(respBody)}
+		return s.handleErrorResponse(resp, respBody, 0)
 	}
 
 	if out != nil {
@@ -766,9 +584,9 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 			} else {
 				return errors.New("out must be *[]byte when rawResponse is true")
 			}
-		} else {
+		} else if len(respBody) > 0 {
 			if err := json.Unmarshal(respBody, out); err != nil {
-				return err
+				return responseError(method, resp, respBody, err)
 			}
 		}
 	}
@@ -812,9 +630,11 @@ func (s *Session) Login(ctx context.Context, emailOrUser, password string) error
 	if loginResp.Token == "" {
 		return errors.New("login: no token returned")
 	}
+	s.authMu.Lock()
 	s.authenticator = &TokenAuthenticator{Token: loginResp.Token}
 	s.userID = loginResp.User.ID
-	s.logger.Info("login succeeded", "user_id", loginResp.User.ID)
+	s.authMu.Unlock()
+	s.logger.Debug("login succeeded", "user_id", loginResp.User.ID)
 	return nil
 }
 
@@ -823,9 +643,12 @@ func (s *Session) Logout(ctx context.Context) error {
 	if err := s.doRequest(ctx, http.MethodPost, "users/logout", map[string]string{}, nil, nil, false); err != nil {
 		return err
 	}
+	s.authMu.Lock()
 	s.authenticator = nil
+	s.userID = 0
+	s.authMu.Unlock()
 	s.tokenManager.clearToken()
-	s.logger.Info("logout succeeded")
+	s.logger.Debug("logout succeeded")
 	return nil
 }
 
@@ -834,51 +657,8 @@ func (s *Session) Logout(ctx context.Context) error {
 func (s *Session) Users() *Session { return s }
 
 // UserID returns the authenticated user's ID, or 0 if not logged in.
-func (s *Session) UserID() int64 { return s.userID }
-
-func isNumeric(v any) bool {
-	switch v.(type) {
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-		return true
-	}
-	return false
-}
-
-func numericEqual(a, b any) bool {
-	af, aok := toFloat64(a)
-	bf, bok := toFloat64(b)
-	if aok && bok {
-		return af == bf
-	}
-	return false
-}
-
-func toFloat64(v any) (float64, bool) {
-	switch n := v.(type) {
-	case int:
-		return float64(n), true
-	case int8:
-		return float64(n), true
-	case int16:
-		return float64(n), true
-	case int32:
-		return float64(n), true
-	case int64:
-		return float64(n), true
-	case uint:
-		return float64(n), true
-	case uint8:
-		return float64(n), true
-	case uint16:
-		return float64(n), true
-	case uint32:
-		return float64(n), true
-	case uint64:
-		return float64(n), true
-	case float32:
-		return float64(n), true
-	case float64:
-		return n, true
-	}
-	return 0, false
+func (s *Session) UserID() int64 {
+	s.authMu.RLock()
+	defer s.authMu.RUnlock()
+	return s.userID
 }

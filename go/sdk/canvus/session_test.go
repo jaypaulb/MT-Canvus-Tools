@@ -20,7 +20,7 @@ func TestNewSession_AppliesDefaults(t *testing.T) {
 	require.NotNil(t, s)
 	assert.Equal(t, "https://example.invalid/api/v1", s.BaseURL)
 	assert.NotNil(t, s.HTTPClient)
-	assert.Equal(t, 3, s.config.MaxRetries)
+	assert.Zero(t, s.config.MaxRetries, "zero-value budget explicitly disables retries")
 	assert.Equal(t, 30*time.Second, s.config.RequestTimeout)
 }
 
@@ -33,26 +33,22 @@ func TestNewSession_WithToken_InstallsAuthenticator(t *testing.T) {
 	assert.Equal(t, "abc", tok.Token)
 }
 
-func TestWithAPIKey_AppliesHeaderRoundTripper(t *testing.T) {
-	tests := []struct {
-		name   string
-		key    string
-		wantRt bool
-	}{
-		{name: "non-empty key installs round-tripper", key: "secret-key", wantRt: true},
-		{name: "empty key skips round-tripper", key: "", wantRt: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := &SessionConfig{BaseURL: "https://example.invalid/api/v1"}
-			s := NewSession(cfg, WithAPIKey(tt.key))
-			rt, ok := s.HTTPClient.Transport.(*transportWithAPIKey)
-			if tt.wantRt {
-				require.True(t, ok, "expected transportWithAPIKey, got %T", s.HTTPClient.Transport)
-				assert.Equal(t, "Private-Token", rt.header)
-				assert.Equal(t, tt.key, rt.apiKey)
+func TestWithAPIKey_AppliesSingleHeader(t *testing.T) {
+	for _, key := range []string{"synthetic-key", ""} {
+		t.Run(key, func(t *testing.T) {
+			headers := make(chan []string, 1)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				headers <- r.Header.Values("Private-Token")
+				_, _ = w.Write([]byte(`{"id":"n"}`))
+			}))
+			defer srv.Close()
+			s := NewSession(&SessionConfig{BaseURL: srv.URL}, WithAPIKey(key))
+			_, err := s.GetNote(context.Background(), "c", "n")
+			require.NoError(t, err)
+			if key == "" {
+				assert.Empty(t, <-headers)
 			} else {
-				assert.False(t, ok, "empty key should not install round-tripper")
+				assert.Equal(t, []string{key}, <-headers)
 			}
 		})
 	}

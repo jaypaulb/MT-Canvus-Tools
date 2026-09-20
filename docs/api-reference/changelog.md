@@ -5,6 +5,16 @@
 > Pending documentation updates extracted from `mt-restapi-client/doc-updates-for-developer-site.md` as of 2026-05-17.
 > Each entry describes a change from the current public developer documentation that downstream SDKs must reflect.
 
+## 2026-09-20 — Go SDK request safety (issue #6)
+
+Go actor authentication now uses one selected credential, retains actor identity after 401, and does not restore service authority after explicit logout. Config/client values are copied. A session-owned transport preserves selected-actor authentication for direct `HTTPClient` callers, without inheriting another SDK client's authority, and strips SDK credentials outside the configured API origin. Default redirects allow same-origin GET/HEAD but refuse mutation and cross-origin redirects; callers can supply an explicit policy. Bodyless writes retain JSON Content-Type, while bodyless reads no longer get that header just for using an API key. TLS defaults remain unchanged. Equivalent origin casing/default ports are recognized. Invalid base URLs and replacement of a session URL/client/transport fail closed with `ErrInvalidRequest`; configure these at construction. Refused redirects expose `ErrRedirectRefused`. This also affects binary asset/mipmap downloads redirected to other storage origins: opt in with an explicitly reviewed `WithHTTPClient`/`CheckRedirect` policy; Private-Token is never forwarded off the API origin.
+
+Zero retries is respected; negative budgets expose `ErrInvalidRetryBudget`. Only bodyless GET/HEAD requests can be automatically retried, with cancellable waits retaining the last error. Retry classification is centralized in `IsRetryableError`, which no longer marks unknown local errors or accepted-response failures as retryable. All mutation retries are disabled, including nested BatchProcessor retries; batch retry options are deprecated and ignored. Callers needing three read retries should use `DefaultSessionConfig()`.
+
+Accepted writes no longer require request/response echo equality. Empty 2xx bodies retain their prior success behavior. Additive Go `AcceptedResponseError` preserves a mutation's 2xx status and available string/numeric resource IDs on read/decode failure, unwrapping the underlying cause without retaining raw content. Failed reads do not claim mutation acceptance. The unused automatic-refresh placeholder was removed; `TokenRefreshThreshold` and its option remain as deprecated no-ops. See the Go SDK README for outcome/reconciliation guidance.
+
+**Explicit parity status:** this change is scoped to Go. Python already supports a zero retry budget and independent clients but does not adopt this Go error type; Python and TypeScript method-aware retry/outcome parity is deferred, and this release makes no claim that their mutation retries are safe. Their existing auth/login behavior is unchanged. Streaming lifecycle, current-user/SAML, geometry and MCP hardening remain separate work. No REST endpoints or existing Go resource signatures changed.
+
 ## Updates
 
 ### Widget Clone — Cross-Canvas Copy via Standard Create Endpoints

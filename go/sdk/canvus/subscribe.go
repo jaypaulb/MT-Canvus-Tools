@@ -39,6 +39,9 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	if s == nil {
 		return nil, fmt.Errorf("subscribeStream: nil session")
 	}
+	if err := s.validateRequestConfig(); err != nil {
+		return nil, fmt.Errorf("subscribeStream: %w", err)
+	}
 	u, err := url.Parse(s.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("subscribeStream: invalid base URL: %w", err)
@@ -54,9 +57,7 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	}
 	req.Header.Set("Accept", "application/x-ndjson, application/json")
 	req.Header.Set("User-Agent", s.config.UserAgent)
-	if s.authenticator != nil {
-		s.authenticator.Authenticate(req)
-	}
+	req = withRequestAuthority(req, s.requestAuthenticator())
 	if s.config.RequestIDFunc != nil {
 		if id := s.config.RequestIDFunc(); id != "" {
 			req.Header.Set("X-Request-ID", id)
@@ -70,7 +71,7 @@ func subscribeStream[T any](ctx context.Context, s *Session, endpoint string) (<
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &APIError{StatusCode: resp.StatusCode, Message: string(body)}
+		return nil, s.handleErrorResponse(resp, body, 0)
 	}
 
 	bufSize := s.config.SubscribeBuffer

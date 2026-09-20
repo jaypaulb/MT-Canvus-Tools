@@ -17,9 +17,11 @@ type SessionConfig struct {
 	// BaseURL is the base URL for all API requests.
 	BaseURL string
 	// HTTPClient is the HTTP client to use for requests.
-	// If nil, http.DefaultClient is used.
+	// If nil, a fresh client is built. Supplied clients are copied, not mutated.
 	HTTPClient *http.Client
-	// MaxRetries is the maximum number of retries for failed requests. Default: 3.
+	// MaxRetries bounds automatic retries of bodyless GET/HEAD requests only.
+	// Zero disables retries; negative values cause a pre-send configuration error.
+	// DefaultSessionConfig sets 3. Mutations are never automatically retried.
 	MaxRetries int
 	// RetryWaitMin is the minimum time to wait between retries. Default: 100ms.
 	RetryWaitMin time.Duration
@@ -29,7 +31,8 @@ type SessionConfig struct {
 	RequestTimeout time.Duration
 	// UserAgent is the User-Agent header to send with requests.
 	UserAgent string
-	// TokenRefreshThreshold controls when token refresh fires. Default: 5 minutes.
+	// TokenRefreshThreshold is retained for source compatibility.
+	// Deprecated: automatic token refresh is unsupported; explicitly authenticate again.
 	TokenRefreshThreshold time.Duration
 	// CircuitBreaker configures the circuit breaker behavior.
 	CircuitBreaker CircuitBreakerConfig
@@ -50,14 +53,15 @@ type SessionConfig struct {
 	// by the caller via WithHTTPClient — the caller's client takes precedence.
 	// Phase 4d Round B.
 	SkipTLSVerify bool
-	// APIKey, when non-empty, causes NewSession to wrap the HTTP transport with
-	// an auth round-tripper that adds the Private-Token header to every request.
-	// Set via WithAPIKey. Phase 4d Round B.
+	// APIKey selects the initial Private-Token authority when no token is supplied.
+	// Explicit Login replaces it; a 401 never falls back to it.
 	APIKey string
 	// SubscribeBuffer is the channel capacity used by subscribeStream for every
 	// Subscribe* call on this session. Default: 4. Set via WithSubscribeBuffer.
 	// Phase 4d Round B.
 	SubscribeBuffer int
+
+	bootstrapAuth Authenticator
 }
 
 // CircuitBreakerConfig holds configuration for the circuit breaker.
@@ -103,7 +107,8 @@ func WithHTTPClient(client *http.Client) SessionConfigOption {
 	return func(c *SessionConfig) { c.HTTPClient = client }
 }
 
-// WithMaxRetries sets the maximum number of retries for failed requests.
+// WithMaxRetries bounds retries of safe reads. Zero disables retries.
+// Negative budgets are rejected before sending; writes are never retried.
 func WithMaxRetries(maxRetries int) SessionConfigOption {
 	return func(c *SessionConfig) { c.MaxRetries = maxRetries }
 }
@@ -141,7 +146,8 @@ func WithCircuitBreaker(maxFailures int, resetTimeout time.Duration) SessionConf
 	}
 }
 
-// WithTokenRefreshThreshold sets the token refresh threshold.
+// WithTokenRefreshThreshold retains a legacy configuration value.
+// Deprecated: automatic token refresh is unsupported; explicitly authenticate again.
 func WithTokenRefreshThreshold(threshold time.Duration) SessionConfigOption {
 	return func(c *SessionConfig) { c.TokenRefreshThreshold = threshold }
 }

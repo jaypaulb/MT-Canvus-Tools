@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 )
@@ -23,6 +24,10 @@ type ErrorCode = string
 var (
 	// ErrInvalidRequest is returned for HTTP 400-class request validation failures.
 	ErrInvalidRequest = errors.New("invalid request")
+	// ErrInvalidRetryBudget indicates a negative MaxRetries configuration.
+	ErrInvalidRetryBudget = errors.New("invalid retry budget: MaxRetries must be non-negative")
+	// ErrRedirectRefused indicates an HTTP redirect that was not followed.
+	ErrRedirectRefused = errors.New("redirect refused")
 	// ErrUnauthorized is returned when authentication is missing or rejected (401).
 	ErrUnauthorized = errors.New("unauthorized")
 	// ErrForbidden is returned when the principal lacks permission for the operation (403).
@@ -59,6 +64,7 @@ var (
 // sentinels above. These will eventually be removed.
 const (
 	CodeInvalidRequest     ErrorCode = "invalid_request"
+	CodeRedirectRefused    ErrorCode = "redirect_refused"
 	CodeUnauthorized       ErrorCode = "unauthorized"
 	CodeForbidden          ErrorCode = "forbidden"
 	CodeNotFound           ErrorCode = "not_found"
@@ -123,6 +129,9 @@ func (e *APIError) Unwrap() error {
 	if e.Wrapped != nil {
 		return e.Wrapped
 	}
+	if e.Code == CodeRedirectRefused && e.StatusCode >= 300 && e.StatusCode < 400 {
+		return ErrRedirectRefused
+	}
 	switch e.StatusCode {
 	case http.StatusBadRequest:
 		return ErrInvalidRequest
@@ -150,6 +159,9 @@ func (e *APIError) Unwrap() error {
 // Supports matching against either another *APIError (status + code) or any of
 // the package-level sentinels.
 func (e *APIError) Is(target error) bool {
+	if target == ErrRedirectRefused && e.Code == CodeRedirectRefused && e.StatusCode >= 300 && e.StatusCode < 400 {
+		return true
+	}
 	if t, ok := target.(*APIError); ok {
 		if t.StatusCode != 0 && e.StatusCode != t.StatusCode {
 			return false
@@ -239,26 +251,30 @@ func IsContextError(err error) bool {
 	return false
 }
 
-// IsRetryableError checks if the error is retryable.
+// IsRetryableError classifies transient failures, not permission to replay a
+// mutation. The request layer additionally permits retries only for safe reads.
+// Accepted response failures, cancellation, and unknown local errors are not retryable.
 func IsRetryableError(err error) bool {
-	if err == nil {
+	if err == nil || IsContextError(err) || errors.Is(err, ErrInvalidRequest) || errors.Is(err, ErrInvalidRetryBudget) {
 		return false
 	}
-	if IsContextError(err) {
+	var accepted *AcceptedResponseError
+	if errors.As(err, &accepted) {
 		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
 	}
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) {
-		return true
+		return false
 	}
 	switch apiErr.Code {
 	case CodeTooManyRequests, CodeServiceUnavailable, CodeInternalServer:
 		return true
 	}
-	if apiErr.StatusCode >= 500 {
-		return true
-	}
-	return false
+	return apiErr.StatusCode >= 500 || apiErr.StatusCode == 429 || apiErr.StatusCode == 408 || apiErr.StatusCode == 0
 }
 
 // ErrorResponse represents a standard error response from the API.
