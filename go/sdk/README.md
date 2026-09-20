@@ -46,15 +46,18 @@ func main() {
 - Conventions: `docs/conventions/go.md` (monorepo root)
 - API reference: `docs/api-reference/` (monorepo root)
 - Migration notes: [`MIGRATION-NOTES.md`](MIGRATION-NOTES.md)
+- Stream/identity/target/geometry migration: [`MIGRATION-streams-identity-camera.md`](MIGRATION-streams-identity-camera.md)
 
 ## Authentication
 
-Two auth modes are supported:
+Authentication entry points:
 
 | Mode | Helper | Use when |
 | --- | --- | --- |
 | API key | `canvus.WithAPIKey(key)` | Service / automation accounts |
-| Username + password | `Session.Login(ctx, user, pw)` | Interactive flows; short-lived token |
+| Username + password | `Session.Login(ctx, user, pw)` | Interactive flows; token lifetime is server-defined |
+| Supplied token | `WithToken(token)` / `Session.LoginWithToken(ctx, token)` | Install a token, or explicitly exchange it for identity |
+| SAML response | `Session.SamlLogin(ctx, request)` | Adopt returned token/user; real IdP flow needs deployment validation |
 
 The SDK accepts both `username` and `email` in the login payload — see
 `MIGRATION-NOTES.md` for the field-name reconciliation history.
@@ -70,7 +73,7 @@ The SDK accepts both `username` and `email` in the login payload — see
 - Bodyless writes retain `Content-Type: application/json`. Bodyless reads no longer receive that header solely because an API key is configured; their Accept/content negotiation remains endpoint-specific.
 - **Accepted is not the same as fully applied:** native asynchronous normalization may happen later. Conversely, a transport error without an HTTP response does not prove a mutation was never applied. Do not automatically recreate after either situation.
 
-Python/TypeScript parity and exclusions are recorded in `docs/api-reference/changelog.md`. Stream lifetime/presence and camera helpers are not fixed by this change.
+Python/TypeScript parity and exclusions are recorded in `docs/api-reference/changelog.md`. Subsequent SDK-D–H work adds observable presence-preserving streams, explicit workspace targets, current-user/SAML adoption, rendered canvas geometry and guarded two-step camera control. Read the [migration contract](MIGRATION-streams-identity-camera.md) before adopting; it documents compatibility changes, partial outcomes and native integration limits.
 
 ## Integration tests
 
