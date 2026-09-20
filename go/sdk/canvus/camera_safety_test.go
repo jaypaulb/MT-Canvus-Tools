@@ -226,6 +226,79 @@ func TestCameraPreservesAcceptedZoomWithMalformedResponse(t *testing.T) {
 	require.ErrorAs(t, err, &accepted)
 }
 
+func TestWidgetFramingUsesObservedSharedCanvasRoot(t *testing.T) {
+	var mu sync.Mutex
+	var writes []canvus.Rectangle
+	view := canvus.Rectangle{Width: 600, Height: 600}
+	widgets := map[string]canvus.Widget{
+		"child":       {ID: "child", WidgetType: "Note", ParentID: "parent", Location: &canvus.Point{X: 20, Y: 30}, Size: &canvus.Size{Width: 90, Height: 90}, Scale: .5},
+		"parent":      {ID: "parent", WidgetType: "Note", ParentID: "shared-root", Location: &canvus.Point{X: 600, Y: 100}, Size: &canvus.Size{Width: 200, Height: 120}, Scale: 2},
+		"shared-root": {ID: "shared-root", WidgetType: "SharedCanvas", ParentID: "", Location: &canvus.Point{}, Size: &canvus.Size{Width: 9600, Height: 5400}, Scale: 1},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for id, widget := range widgets {
+			if r.URL.Path == "/canvases/canvas-resource/widgets/"+id {
+				_ = json.NewEncoder(w).Encode(widget)
+				return
+			}
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if r.Method == http.MethodPatch {
+			var body struct {
+				View canvus.Rectangle `json:"view_rectangle"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			view = body.View
+			writes = append(writes, view)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"index": 0, "canvas_id": "canvas-resource", "server_id": "server", "workspace_state": "open", "size": canvus.Size{Width: 600, Height: 600}, "view_rectangle": view})
+	}))
+	defer srv.Close()
+	s := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL})
+	index := 0
+	canvas, id, padding := "canvas-resource", "child", 30.0
+	err := canvus.SetWorkspaceViewport(context.Background(), s, s, "client", canvus.WorkspaceSelector{Index: &index}, canvus.SetViewportOptions{CanvasID: &canvas, WidgetID: &id, NotePadding: &padding, Margin: 5})
+	require.NoError(t, err)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []canvus.Rectangle{{Width: 3600, Height: 3600}, {X: -4170, Y: -1290, Width: 3600, Height: 3600}}, writes)
+}
+
+func TestCameraDoesNotPanAtUnconfirmedOrClampedZoom(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(fmt.Sprint(missing), func(t *testing.T) {
+			var mu sync.Mutex
+			writes := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				if r.Method == http.MethodPatch {
+					writes++
+				}
+				body := map[string]any{"index": 0, "canvas_id": "canvas", "server_id": "server", "workspace_state": "open", "size": canvus.Size{Width: 1000, Height: 600}}
+				if !missing {
+					body["view_rectangle"] = canvus.Rectangle{Width: 1000, Height: 600}
+				}
+				_ = json.NewEncoder(w).Encode(body)
+			}))
+			defer srv.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+			defer cancel()
+			idx := 0
+			err := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL}).FrameWorkspaceRegion(ctx, "client", canvus.WorkspaceSelector{Index: &idx}, "canvas", canvus.Rectangle{Width: 400, Height: 200})
+			var partial *canvus.CameraUpdateError
+			require.ErrorAs(t, err, &partial)
+			require.Equal(t, "settle", partial.Stage)
+			require.True(t, partial.ZoomAcknowledged)
+			require.False(t, canvus.IsRetryableError(err))
+			mu.Lock()
+			defer mu.Unlock()
+			require.Equal(t, 1, writes)
+		})
+	}
+}
+
 func TestOpenCanvasDoesNotReportLoadingAsReady(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"index":0,"canvas_id":"canvas","server_id":"server","workspace_state":"loading"}`)

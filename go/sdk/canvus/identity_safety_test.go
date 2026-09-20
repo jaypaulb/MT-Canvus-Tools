@@ -93,6 +93,26 @@ func TestAuthenticationPersistsWithoutRestoringOldAuthorityOnStoreFailure(t *tes
 	}
 }
 
+func TestCurrentUserLookupKeepsSelectedCredentialAndDoesNotPersistReplacement(t *testing.T) {
+	headers := make(chan []string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/users/login" {
+			fmt.Fprint(w, `{"token":"synthetic-replacement","user":{"id":7}}`)
+			return
+		}
+		headers <- r.Header.Values("Private-Token")
+		fmt.Fprint(w, `{"id":"n"}`)
+	}))
+	defer srv.Close()
+	s := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL, APIKey: "synthetic-selected", TokenStore: &identityStore{fail: true}})
+	user, err := s.GetCurrentUser(context.Background())
+	require.NoError(t, err)
+	require.EqualValues(t, 7, user.ID)
+	_, err = s.GetNote(context.Background(), "c", "n")
+	require.NoError(t, err)
+	require.Equal(t, []string{"synthetic-selected"}, <-headers)
+}
+
 func TestWaitingForAuthenticationHonorsCancellation(t *testing.T) {
 	started := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

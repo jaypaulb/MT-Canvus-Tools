@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -37,7 +38,7 @@ func (s *Session) FrameWorkspaceRegion(ctx context.Context, clientID string, sel
 	ctx = s.freezeAuthority(ctx)
 	ws, err := s.GetWorkspace(ctx, clientID, selector)
 	if err != nil {
-		return err
+		return fmt.Errorf("FrameWorkspaceRegion: %w", err)
 	}
 	if ws.CanvasID != canvasID {
 		return fmt.Errorf("FrameWorkspaceRegion: %w", ErrWorkspaceChanged)
@@ -51,12 +52,12 @@ func (s *Session) frameWorkspaceRegion(ctx context.Context, clientID string, bef
 	}
 	raw, err := ViewRectangleForRegion(region, *before.Size)
 	if err != nil {
-		return err
+		return fmt.Errorf("frame workspace geometry: %w", err)
 	}
 	selector := WorkspaceSelector{Index: &before.Index}
 	current, err := s.GetWorkspace(ctx, clientID, selector)
 	if err != nil {
-		return err
+		return fmt.Errorf("frame workspace recheck: %w", err)
 	}
 	if !sameWorkspaceTarget(before, *current) {
 		return fmt.Errorf("frame workspace: %w", ErrWorkspaceChanged)
@@ -107,20 +108,23 @@ func widgetAncestry(ctx context.Context, getter WorkspaceWidgetGetter, canvasID,
 	}
 	var nodes []Widget
 	seen := map[string]bool{}
-	for id != "" && id != canvasID {
+	for id != "" {
 		if seen[id] || len(nodes) >= 128 {
 			return nil, fmt.Errorf("widget ancestry: %w: cycle/depth limit", ErrInvalidGeometry)
 		}
 		seen[id] = true
 		w, err := getter.GetWidget(ctx, canvasID, id)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("widget ancestry: %w", err)
 		}
 		if w == nil || w.ID != id {
 			return nil, fmt.Errorf("widget ancestry: %w: missing/changed identity", ErrInvalidGeometry)
 		}
 		nodes = append(nodes, *w)
+		if strings.EqualFold(w.WidgetType, "SharedCanvas") {
+			return nodes, nil
+		}
 		id = w.ParentID
 	}
-	return nodes, nil
+	return nil, fmt.Errorf("widget ancestry: %w: SharedCanvas root missing", ErrInvalidGeometry)
 }

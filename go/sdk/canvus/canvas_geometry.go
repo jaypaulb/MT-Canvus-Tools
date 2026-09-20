@@ -7,15 +7,16 @@ import (
 )
 
 // GeometryModel selects an explicit registration model for a canvas snapshot.
-// CanvasID is required; ancestry must terminate at that explicit root. Missing
-// parent IDs are unknown metadata, not permission to assume a root transform.
+// RootWidgetID identifies the SharedCanvas widget, NOT the canvas resource ID.
+// The root and complete ancestry must be present. Missing parent IDs on ordinary
+// widgets are unknown metadata, not permission to assume a root transform.
 // NotePadding is required for Notes: 30 reproduces the documented legacy
 // padding/border model, 0 selects normalized model origins. Do not guess the
 // deployed model or silently rewrite the stored location. Non-Notes use zero
 // registration padding. Only unrotated, uniform positive scales are supported.
 type GeometryModel struct {
-	CanvasID    string
-	NotePadding *float64
+	RootWidgetID string
+	NotePadding  *float64
 }
 
 func finite(values ...float64) bool {
@@ -74,10 +75,10 @@ func ViewRectangleForRegion(region Rectangle, workspace Size) (Rectangle, error)
 // native text fitting can change them asynchronously. Legacy WidgetBoundingBox
 // remains a raw model-space helper and is not interchangeable with this function.
 func WidgetCanvasBounds(id string, widgets []Widget, model GeometryModel) (Rectangle, error) {
-	if model.CanvasID == "" {
+	if model.RootWidgetID == "" {
 		return Rectangle{}, fmt.Errorf("WidgetCanvasBounds: %w: canvas root required", ErrGeometryModelRequired)
 	}
-	if id == "" || id == model.CanvasID {
+	if id == "" || id == model.RootWidgetID {
 		return Rectangle{}, fmt.Errorf("WidgetCanvasBounds: %w: widget ID required", ErrInvalidGeometry)
 	}
 	if model.NotePadding != nil && (!finite(*model.NotePadding) || *model.NotePadding < 0) {
@@ -93,9 +94,13 @@ func WidgetCanvasBounds(id string, widgets []Widget, model GeometryModel) (Recta
 		}
 		byID[w.ID] = w
 	}
+	root, ok := byID[model.RootWidgetID]
+	if !ok || !strings.EqualFold(root.WidgetType, "SharedCanvas") || root.ParentID != "" || root.Location == nil || root.Location.X != 0 || root.Location.Y != 0 || root.Scale != 1 {
+		return Rectangle{}, fmt.Errorf("WidgetCanvasBounds: %w: missing/unsupported SharedCanvas root", ErrInvalidGeometry)
+	}
 	var chain []Widget
 	seen := map[string]bool{}
-	for current := id; current != "" && current != model.CanvasID; {
+	for current := id; current != model.RootWidgetID; {
 		if seen[current] {
 			return Rectangle{}, fmt.Errorf("WidgetCanvasBounds: %w: parent cycle", ErrInvalidGeometry)
 		}

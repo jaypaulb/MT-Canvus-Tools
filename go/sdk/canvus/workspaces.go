@@ -38,7 +38,7 @@ func (s *Session) resolveWorkspaceIndex(ctx context.Context, clientID string, se
 	}
 	workspaces, err := s.ListWorkspaces(ctx, clientID)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("resolve workspace: %w", err)
 	}
 	var matches []Workspace
 	for _, ws := range workspaces {
@@ -71,7 +71,7 @@ func (s *Session) ListWorkspaces(ctx context.Context, clientID string) ([]Worksp
 func (s *Session) GetWorkspace(ctx context.Context, clientID string, selector WorkspaceSelector) (*Workspace, error) {
 	idx, err := s.resolveWorkspaceIndex(ctx, clientID, selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetWorkspace: %w", err)
 	}
 	var ws Workspace
 	if err := s.doRequest(ctx, http.MethodGet, fmt.Sprintf("clients/%s/workspaces/%d", clientID, idx), nil, &ws, nil, false); err != nil {
@@ -90,7 +90,7 @@ func (s *Session) GetWorkspace(ctx context.Context, clientID string, selector Wo
 func (s *Session) UpdateWorkspace(ctx context.Context, clientID string, selector WorkspaceSelector, req any) (*Workspace, error) {
 	idx, err := s.resolveWorkspaceIndex(ctx, clientID, selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("UpdateWorkspace: %w", err)
 	}
 	var ws Workspace
 	if err := s.doRequest(ctx, http.MethodPatch, fmt.Sprintf("clients/%s/workspaces/%d", clientID, idx), req, &ws, nil, false); err != nil {
@@ -136,7 +136,7 @@ func SetWorkspaceViewport(ctx context.Context, getter WorkspaceWidgetGetter, api
 	ctx = apiClient.freezeAuthority(ctx)
 	ws, err := apiClient.GetWorkspace(ctx, clientID, selector)
 	if err != nil {
-		return err
+		return fmt.Errorf("SetWorkspaceViewport: %w", err)
 	}
 	if ws.CanvasID != *opts.CanvasID {
 		return fmt.Errorf("SetWorkspaceViewport: %w", ErrWorkspaceChanged)
@@ -145,11 +145,11 @@ func SetWorkspaceViewport(ctx context.Context, getter WorkspaceWidgetGetter, api
 	if opts.WidgetID != nil {
 		nodes, err := widgetAncestry(ctx, getter, *opts.CanvasID, *opts.WidgetID)
 		if err != nil {
-			return err
+			return fmt.Errorf("SetWorkspaceViewport ancestry: %w", err)
 		}
-		region, err = WidgetCanvasBounds(*opts.WidgetID, nodes, GeometryModel{CanvasID: *opts.CanvasID, NotePadding: opts.NotePadding})
+		region, err = WidgetCanvasBounds(*opts.WidgetID, nodes, GeometryModel{RootWidgetID: nodes[len(nodes)-1].ID, NotePadding: opts.NotePadding})
 		if err != nil {
-			return err
+			return fmt.Errorf("SetWorkspaceViewport bounds: %w", err)
 		}
 		margin := opts.Margin
 		if margin == 0 {
@@ -181,7 +181,7 @@ func (s *Session) OpenCanvasOnWorkspace(ctx context.Context, clientID string, se
 	ctx = s.freezeAuthority(ctx)
 	idx, err := s.resolveWorkspaceIndex(ctx, clientID, selector)
 	if err != nil {
-		return err
+		return fmt.Errorf("OpenCanvasOnWorkspace: %w", err)
 	}
 	selector = WorkspaceSelector{Index: &idx}
 	payload := map[string]any{"canvas_id": opts.CanvasID}
@@ -232,7 +232,7 @@ func (s *Session) OpenCanvasOnWorkspace(ctx context.Context, clientID string, se
 		}
 		visible, err := VisibleCanvasRegion(*ws.ViewRectangle, *ws.Size)
 		if err != nil {
-			return err
+			return fmt.Errorf("OpenCanvasOnWorkspace visible region: %w", err)
 		}
 		region := Rectangle{X: *opts.CenterX - visible.Width/2, Y: *opts.CenterY - visible.Height/2, Width: visible.Width, Height: visible.Height}
 		return s.frameWorkspaceRegion(ctx, clientID, *ws, region)

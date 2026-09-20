@@ -49,16 +49,17 @@ func (s *Session) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 // GetCurrentUser uses GET users/{id} after login. For a bootstrap API token
-// with no known ID it performs ONE explicit protocol token exchange (POST
-// users/login), installing the resulting authenticated session. It does not
-// guess users/current or infer identity from a workspace email. SAML tokens
-// may reject re-exchange; that error is returned without authority fallback.
+// with no known ID it uses the observed POST users/login metadata exchange,
+// caching only the user ID: selected credentials and TokenStore are unchanged.
+// One-time tokens must instead use explicit LoginWithToken. This is not a
+// read-only server endpoint, and SAML tokens may reject re-exchange. It never
+// guesses users/current or infers identity from a workspace email.
 func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
 	if err := s.validateRequestConfig(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetCurrentUser: %w", err)
 	}
 	if err := s.beginAuthChange(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetCurrentUser: %w", err)
 	}
 	defer s.endAuthChange()
 	if frozen, ok := ctx.Value(authorityKey{}).(requestAuthority); ok && frozen.auth != s.requestAuthenticator() {
@@ -67,7 +68,7 @@ func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
 	if id := s.UserID(); id != 0 {
 		user, err := s.GetUser(ctx, id)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("GetCurrentUser: %w", err)
 		}
 		if user.ID != id {
 			return nil, fmt.Errorf("GetCurrentUser: %w: identity mismatch", ErrIdentityUnavailable)
@@ -84,7 +85,19 @@ func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
 	if token == "" {
 		return nil, fmt.Errorf("GetCurrentUser: %w", ErrIdentityUnavailable)
 	}
-	return s.loginAuthenticated(ctx, "users/login", map[string]any{"token": token, "remember": false})
+	var result struct {
+		User *User `json:"user"`
+	}
+	if err := s.doRequest(ctx, http.MethodPost, "users/login", map[string]any{"token": token, "remember": false}, &result, nil, false); err != nil {
+		return nil, fmt.Errorf("GetCurrentUser bootstrap: %w", err)
+	}
+	if result.User == nil || result.User.ID <= 0 {
+		return nil, fmt.Errorf("GetCurrentUser bootstrap: %w", ErrIdentityUnavailable)
+	}
+	s.authMu.Lock()
+	s.userID = result.User.ID
+	s.authMu.Unlock()
+	return result.User, nil
 }
 
 // GetUser retrieves a user by ID.

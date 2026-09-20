@@ -6,12 +6,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/jaypaulb/MT-Canvus-Tools/go/sdk/canvus"
+	"github.com/stretchr/testify/require"
 )
 
-func TestKnownCameraConversion(t *testing.T) {
+func TestKnownScaledCameraConversion(t *testing.T) {
 	visible, err := canvus.VisibleCanvasRegion(canvus.Rectangle{X: -1280, Y: -720, Width: 512, Height: 288}, canvus.Size{Width: 1280, Height: 720})
 	require.NoError(t, err)
 	require.Equal(t, canvus.Rectangle{X: 3200, Y: 1800, Width: 3200, Height: 1800}, visible)
@@ -20,19 +19,35 @@ func TestKnownCameraConversion(t *testing.T) {
 	require.Equal(t, canvus.Rectangle{X: -250, Y: -450, Width: 2500, Height: 1500}, raw)
 }
 
+func sharedGeometryRoot() canvus.Widget {
+	return canvus.Widget{ID: "shared-root", WidgetType: "SharedCanvas", Location: &canvus.Point{}, Size: &canvus.Size{Width: 9600, Height: 5400}, Scale: 1}
+}
+
 func TestKnownNoteRegistrationAndParentScale(t *testing.T) {
 	padding := 30.0
 	nodes := []canvus.Widget{
-		{ID: "parent", WidgetType: "Note", ParentID: "canvas", Location: &canvus.Point{X: 600, Y: 100}, Size: &canvus.Size{Width: 200, Height: 120}, Scale: 2},
+		sharedGeometryRoot(),
+		{ID: "parent", WidgetType: "Note", ParentID: "shared-root", Location: &canvus.Point{X: 600, Y: 100}, Size: &canvus.Size{Width: 200, Height: 120}, Scale: 2},
 		{ID: "child", WidgetType: "Note", ParentID: "parent", Location: &canvus.Point{X: 20, Y: 30}, Size: &canvus.Size{Width: 90, Height: 90}, Scale: .5},
 	}
-	model := canvus.GeometryModel{CanvasID: "canvas", NotePadding: &padding}
+	model := canvus.GeometryModel{RootWidgetID: "shared-root", NotePadding: &padding}
 	root, err := canvus.WidgetCanvasBounds("parent", nodes, model)
 	require.NoError(t, err)
 	require.Equal(t, canvus.Rectangle{X: 570, Y: 70, Width: 400, Height: 240}, root)
 	child, err := canvus.WidgetCanvasBounds("child", nodes, model)
 	require.NoError(t, err)
 	require.Equal(t, canvus.Rectangle{X: 700, Y: 220, Width: 90, Height: 90}, child)
+	// Established registration is location+30-30*scale: at scale 1 it cancels.
+	nodes[1].Scale = 1
+	root, err = canvus.WidgetCanvasBounds("parent", nodes, model)
+	require.NoError(t, err)
+	require.Equal(t, canvus.Rectangle{X: 600, Y: 100, Width: 200, Height: 120}, root)
+	// Normalized origins differ from legacy registration when scale is nonunit.
+	nodes[1].Scale = 2
+	padding = 0
+	root, err = canvus.WidgetCanvasBounds("parent", nodes, model)
+	require.NoError(t, err)
+	require.Equal(t, canvus.Rectangle{X: 600, Y: 100, Width: 400, Height: 240}, root)
 }
 
 func TestGeometryRejectsIncompleteAndUnsupportedInputs(t *testing.T) {
@@ -40,21 +55,21 @@ func TestGeometryRejectsIncompleteAndUnsupportedInputs(t *testing.T) {
 		_, err := canvus.ViewRectangleForRegion(canvus.Rectangle{Width: 10, Height: 10}, size)
 		require.ErrorIs(t, err, canvus.ErrInvalidGeometry)
 	}
-	node := canvus.Widget{ID: "n", WidgetType: "Note", ParentID: "canvas", Location: &canvus.Point{}, Size: &canvus.Size{Width: 90, Height: 90}, Scale: 1}
+	node := canvus.Widget{ID: "n", WidgetType: "Note", ParentID: "shared-root", Location: &canvus.Point{}, Size: &canvus.Size{Width: 90, Height: 90}, Scale: 1}
 	_, err := canvus.WidgetCanvasBounds("n", []canvus.Widget{node}, canvus.GeometryModel{})
 	require.ErrorIs(t, err, canvus.ErrGeometryModelRequired)
-	_, err = canvus.WidgetCanvasBounds("n", []canvus.Widget{node}, canvus.GeometryModel{CanvasID: "canvas"})
+	_, err = canvus.WidgetCanvasBounds("n", []canvus.Widget{sharedGeometryRoot(), node}, canvus.GeometryModel{RootWidgetID: "shared-root"})
 	require.ErrorIs(t, err, canvus.ErrGeometryModelRequired)
 	p := 30.0
-	model := canvus.GeometryModel{CanvasID: "canvas", NotePadding: &p}
+	model := canvus.GeometryModel{RootWidgetID: "shared-root", NotePadding: &p}
 	for _, parent := range []string{"", "missing", "n"} {
 		node.ParentID = parent
-		_, err = canvus.WidgetCanvasBounds("n", []canvus.Widget{node}, model)
+		_, err = canvus.WidgetCanvasBounds("n", []canvus.Widget{sharedGeometryRoot(), node}, model)
 		require.ErrorIs(t, err, canvus.ErrInvalidGeometry)
 	}
-	node.ParentID = "canvas"
+	node.ParentID = "shared-root"
 	node.Scale = 0
-	_, err = canvus.WidgetCanvasBounds("n", []canvus.Widget{node}, model)
+	_, err = canvus.WidgetCanvasBounds("n", []canvus.Widget{sharedGeometryRoot(), node}, model)
 	require.ErrorIs(t, err, canvus.ErrInvalidGeometry)
 }
 

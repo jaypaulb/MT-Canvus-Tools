@@ -112,8 +112,11 @@ func Subscribe[T any](parent context.Context, s *Session, endpoint string) (*Sub
 	if budget <= 0 {
 		budget = s.config.RequestTimeout
 	}
+	var timer *time.Timer
+	var expired chan struct{}
 	if budget > 0 {
-		timer := time.AfterFunc(budget, func() { cancel(context.DeadlineExceeded) })
+		expired = make(chan struct{})
+		timer = time.AfterFunc(budget, func() { cancel(context.DeadlineExceeded); close(expired) })
 		defer timer.Stop()
 	}
 	client := *s.HTTPClient
@@ -133,6 +136,16 @@ func Subscribe[T any](parent context.Context, s *Session, endpoint string) (*Sub
 	capacity := s.config.SubscribeBuffer
 	if capacity < 1 {
 		capacity = 4
+	}
+	// Complete the establishment deadline handoff BEFORE exposing a live stream.
+	// Stop alone does not wait for an already-running AfterFunc callback.
+	if timer != nil && !timer.Stop() {
+		<-expired
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		stopClose()
+		closeBody()
+		return nil, fmt.Errorf("Subscribe establishment: %w", cause)
 	}
 	frames := make(chan StreamFrame[T], capacity)
 	stream := &Subscription[T]{Frames: frames, done: make(chan struct{}), cancel: cancel}

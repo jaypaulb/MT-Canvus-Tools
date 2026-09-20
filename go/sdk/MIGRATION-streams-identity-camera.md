@@ -26,7 +26,9 @@ field presence. For example, the endpoint for workspaces is
   150-second observation established full-object arrays, not sparse-delta rules.
 - Legacy `SubscribeClientWorkspaces` and other typed helpers remain value-only
   adapters. They cannot expose terminal errors, all field presence or empty-array
-  boundaries; migrate stateful consumers to the new handle.
+  boundaries; migrate stateful consumers to the new handle. Malformed frames now
+  **terminate** legacy adapters too, rather than being logged and skipped; silent
+  continuation after losing an event is unsafe. Legacy callers only see closure.
 
 ## Identity and explicit targets
 
@@ -42,7 +44,10 @@ by constructing a new session after fixing the store, or with explicitly selecte
 authority; no automatic recovery changes the actor.
 
 `GetCurrentUser` uses a known user ID or the observed `POST users/login` token
-exchange (`token`, `remember:false`). It does not guess `/users/current`, which
+exchange (`token`, `remember:false`), caching the user ID without replacing the
+selected credential or writing a replacement token to `TokenStore`. This is not
+an HTTP read-only endpoint; one-time tokens must use explicit `LoginWithToken`
+instead. It does not guess `/users/current`, which
 returned 400 for authenticated requests in the disposable trial. Some SAML-issued
 tokens do not support re-exchange: retain the live authenticated session/user ID
 or explicitly reauthenticate; do not infer identity from workspace discovery.
@@ -72,11 +77,14 @@ matching Python/TypeScript. Shared valid-rectangle/raw-box fixtures run in all
 three languages; that is not complete cross-language feature parity.
 
 Use `WidgetCanvasBounds(id, snapshot, GeometryModel{...})` for rendered canvas
-border-box bounds. Supply `CanvasID`, complete parent ancestry and positive
-uniform scales. Missing parents/types/transforms, cycles and invalid extents are
+border-box bounds. Supply `RootWidgetID` identifying the actual `SharedCanvas`
+widget, **not the canvas resource ID**, and include that identity-transform root
+plus complete parent ancestry and positive uniform scales. Missing parents/types/transforms, cycles and invalid extents are
 errors. For Notes explicitly choose `NotePadding`: 30 for the documented legacy
 29px padding + 1px border registration, or 0 for normalized origins. Do not guess
-the deployed model or rewrite raw locations. Only unrotated uniform transforms
+the deployed model or rewrite raw locations. Legacy registration is
+`location + 30 - 30*scale` at the root level, so the offset correctly cancels at
+scale 1; the models differ at nonunit scale. Only unrotated uniform transforms
 are supported. Native text fitting changes Note sizes asynchronously; a successful
 write echo is not a final rendered-size observation.
 
@@ -96,7 +104,9 @@ explicitly **canvas pixels**, not raw wire values. For a raw PATCH use
 
 The helpers apply zero-position zoom, wait at least 100 ms, observe matching zoom
 (up to one second), recheck the bound target, then pan. A combined zoom/pan PATCH
-is not equivalent on affected clients. The initial actor and resolved index are
+is not equivalent on affected clients. A clamped or unobserved zoom that cannot
+be confirmed within the bound returns a non-replayable partial error: the helper
+does not pan using an assumed scale or claim success. The initial actor and resolved index are
 pinned; canvas/server/native user/state/size are rechecked. This is best-effort
 race detection, **not** server compare-and-swap or a physical-operator lock.
 Camera formulas target the documented scaled contract; do not assume other

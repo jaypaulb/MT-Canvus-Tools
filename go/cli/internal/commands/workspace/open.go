@@ -11,6 +11,7 @@ import (
 var openCmd = &cobra.Command{
 	Use:   "open <client-id>",
 	Short: "Open canvas on workspace",
+	Long:  "Open a canvas on one explicit workspace. Supply exactly one of --index, --name or --user; use --index 0 to select workspace zero.",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runOpen,
 }
@@ -28,6 +29,8 @@ func init() {
 	openCmd.Flags().StringVarP(&openUser, "user", "u", "", "Workspace user")
 	openCmd.Flags().StringVar(&openCanvasID, "canvas-id", "", "Canvas ID to open")
 	openCmd.MarkFlagRequired("canvas-id")
+	openCmd.MarkFlagsOneRequired("index", "name", "user")
+	openCmd.MarkFlagsMutuallyExclusive("index", "name", "user")
 	WorkspaceCmd.AddCommand(openCmd)
 }
 
