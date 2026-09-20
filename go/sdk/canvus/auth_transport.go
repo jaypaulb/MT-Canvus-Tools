@@ -16,6 +16,17 @@ func withRequestAuthority(req *http.Request, auth Authenticator) *http.Request {
 	return req.WithContext(context.WithValue(req.Context(), authorityKey{}, requestAuthority{auth: auth}))
 }
 
+func (s *Session) authorityForContext(ctx context.Context) Authenticator {
+	if frozen, ok := ctx.Value(authorityKey{}).(requestAuthority); ok {
+		return frozen.auth
+	}
+	return s.requestAuthenticator()
+}
+
+func (s *Session) freezeAuthority(ctx context.Context) context.Context {
+	return context.WithValue(ctx, authorityKey{}, requestAuthority{auth: s.authorityForContext(ctx)})
+}
+
 // authTransport preserves authentication for legacy direct HTTPClient callers,
 // while restricting SDK credentials to the configured API origin.
 type authTransport struct {

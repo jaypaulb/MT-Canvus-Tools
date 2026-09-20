@@ -26,6 +26,26 @@ var (
 	ErrInvalidRequest = errors.New("invalid request")
 	// ErrInvalidRetryBudget indicates a negative MaxRetries configuration.
 	ErrInvalidRetryBudget = errors.New("invalid retry budget: MaxRetries must be non-negative")
+	// ErrInvalidStreamFrame indicates malformed/non-object resource events.
+	ErrInvalidStreamFrame = errors.New("invalid subscription frame")
+	// ErrStreamFrameTooLarge indicates a frame exceeded MaxSubscriptionFrameBytes.
+	ErrStreamFrameTooLarge = errors.New("subscription frame too large")
+	// ErrIdentityUnavailable indicates no credential-backed identity is available.
+	ErrIdentityUnavailable = errors.New("authenticated identity unavailable")
+	// ErrInvalidLoginResponse indicates missing token/user metadata after login.
+	ErrInvalidLoginResponse = errors.New("invalid authenticated login response")
+	// ErrTokenPersistence means authentication changed but its store operation failed.
+	ErrTokenPersistence = errors.New("token persistence failed")
+	// ErrAmbiguousWorkspace indicates more than one matching workspace.
+	ErrAmbiguousWorkspace = errors.New("ambiguous workspace selection")
+	// ErrWorkspaceMetadata indicates missing/invalid target metadata.
+	ErrWorkspaceMetadata = errors.New("invalid workspace metadata")
+	// ErrWorkspaceChanged indicates target identity no longer matches its snapshot.
+	ErrWorkspaceChanged = errors.New("workspace target changed")
+	// ErrInvalidGeometry indicates missing, unsupported or non-finite geometry.
+	ErrInvalidGeometry = errors.New("invalid geometry")
+	// ErrGeometryModelRequired indicates Note registration was not explicitly selected.
+	ErrGeometryModelRequired = errors.New("explicit Note registration model required")
 	// ErrRedirectRefused indicates an HTTP redirect that was not followed.
 	ErrRedirectRefused = errors.New("redirect refused")
 	// ErrUnauthorized is returned when authentication is missing or rejected (401).
@@ -255,7 +275,7 @@ func IsContextError(err error) bool {
 // mutation. The request layer additionally permits retries only for safe reads.
 // Accepted response failures, cancellation, and unknown local errors are not retryable.
 func IsRetryableError(err error) bool {
-	if err == nil || IsContextError(err) || errors.Is(err, ErrInvalidRequest) || errors.Is(err, ErrInvalidRetryBudget) {
+	if err == nil || IsContextError(err) || errors.Is(err, ErrInvalidRequest) || errors.Is(err, ErrInvalidRetryBudget) || errors.Is(err, ErrTokenPersistence) {
 		return false
 	}
 	var accepted *AcceptedResponseError

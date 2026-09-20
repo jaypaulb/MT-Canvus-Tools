@@ -48,17 +48,40 @@ func (s *Session) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-// GetCurrentUser returns the currently-authenticated user via
-// GET /users/{id} for s.UserID(). The Canvus server does not expose a
-// /users/me alias (see VERIFIED-CORRECTIONS §5), so this helper enforces
-// integer-ID lookup after a successful Login(). Returns an error if the
-// session has not authenticated. Phase 4b §4.1 #2.
+// GetCurrentUser uses GET users/{id} after login. For a bootstrap API token
+// with no known ID it performs ONE explicit protocol token exchange (POST
+// users/login), installing the resulting authenticated session. It does not
+// guess users/current or infer identity from a workspace email. SAML tokens
+// may reject re-exchange; that error is returned without authority fallback.
 func (s *Session) GetCurrentUser(ctx context.Context) (*User, error) {
-	userID := s.UserID()
-	if userID == 0 {
-		return nil, fmt.Errorf("GetCurrentUser: session is not logged in (call Login first)")
+	if err := s.beginAuthChange(ctx); err != nil {
+		return nil, err
 	}
-	return s.GetUser(ctx, userID)
+	defer s.endAuthChange()
+	if frozen, ok := ctx.Value(authorityKey{}).(requestAuthority); ok && frozen.auth != s.requestAuthenticator() {
+		return nil, fmt.Errorf("GetCurrentUser: %w: captured actor is no longer current", ErrIdentityUnavailable)
+	}
+	if id := s.UserID(); id != 0 {
+		user, err := s.GetUser(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if user.ID != id {
+			return nil, fmt.Errorf("GetCurrentUser: %w: identity mismatch", ErrIdentityUnavailable)
+		}
+		return user, nil
+	}
+	var token string
+	switch auth := s.requestAuthenticator().(type) {
+	case *TokenAuthenticator:
+		token = auth.Token
+	case *APIKeyAuthenticator:
+		token = auth.APIKey
+	}
+	if token == "" {
+		return nil, fmt.Errorf("GetCurrentUser: %w", ErrIdentityUnavailable)
+	}
+	return s.loginAuthenticated(ctx, "users/login", map[string]any{"token": token, "remember": false})
 }
 
 // GetUser retrieves a user by ID.
@@ -103,9 +126,15 @@ type SamlLoginRequest struct {
 	Remember     bool   `json:"remember"`
 }
 
-// SamlLogin performs a SAML login.
+// SamlLogin validates a SAML assertion with the server and installs the
+// authenticated user/token response. It does not validate assertions locally.
 func (s *Session) SamlLogin(ctx context.Context, req SamlLoginRequest) error {
-	return s.doRequest(ctx, http.MethodPost, "users/login/saml", req, nil, nil, false)
+	if err := s.beginAuthChange(ctx); err != nil {
+		return err
+	}
+	defer s.endAuthChange()
+	_, err := s.loginAuthenticated(ctx, "users/login/saml", req)
+	return err
 }
 
 // ValidateResetToken checks if a password reset token is valid.
@@ -146,14 +175,18 @@ func (s *Session) ChangeUserEmail(ctx context.Context, userID int64, newEmail st
 	return s.doRequest(ctx, http.MethodPost, fmt.Sprintf("users/%d/change-email", userID), req, nil, nil, false)
 }
 
-// SetUserPassword sets a user's password as an admin action.
-//
-// Field-name reconciliation per work item #9: the spec documents
-// `{old-password, new-password}` for self-change; the C++ canonical client
-// accepts a simple `{password}` body when invoked as admin. We send both
-// `password` and `new-password` so either server interpretation works.
+// SetUserPassword requests an administrative password change using the observed
+// new_password wire field. Server authorization still applies. For self-change,
+// use ChangeUserPassword with the current password; no fallback fields are sent.
 func (s *Session) SetUserPassword(ctx context.Context, userID int64, newPassword string) error {
-	req := map[string]string{"password": newPassword, "new-password": newPassword}
+	req := map[string]string{"new_password": newPassword}
+	return s.doRequest(ctx, http.MethodPost, fmt.Sprintf("users/%d/password", userID), req, nil, nil, false)
+}
+
+// ChangeUserPassword changes a password using the current_password/new_password
+// contract observed in the disposable trial and existing web-client API helper.
+func (s *Session) ChangeUserPassword(ctx context.Context, userID int64, currentPassword, newPassword string) error {
+	req := map[string]string{"current_password": currentPassword, "new_password": newPassword}
 	return s.doRequest(ctx, http.MethodPost, fmt.Sprintf("users/%d/password", userID), req, nil, nil, false)
 }
 
