@@ -1,9 +1,12 @@
 package canvus
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 // ClientInfo represents a client device registered with the server.
@@ -11,8 +14,42 @@ type ClientInfo struct {
 	ID               string `json:"id"`
 	InstallationName string `json:"installation_name"`
 	Name             string `json:"name"`
-	UserID           string `json:"user_id"`
-	CreatedAt        string `json:"created_at"`
+	// UserID is client association metadata, not proof of the physical operator.
+	// Numeric wire IDs are normalized to strings for source compatibility.
+	UserID    string `json:"user_id"`
+	UserIDRaw string `json:"-"` // Original scalar JSON, preserving wire representation.
+	CreatedAt string `json:"created_at"`
+}
+
+// UnmarshalJSON accepts string/integer association metadata without inventing
+// an operator identity. Workspace.User remains the separately observed email.
+func (c *ClientInfo) UnmarshalJSON(data []byte) error {
+	type plain ClientInfo
+	var value plain
+	aux := struct {
+		*plain
+		UserID json.RawMessage `json:"user_id"`
+	}{plain: &value}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return fmt.Errorf("decode ClientInfo: %w", err)
+	}
+	raw := bytes.TrimSpace(aux.UserID)
+	value.UserIDRaw = string(raw)
+	if len(raw) != 0 && !bytes.Equal(raw, []byte("null")) {
+		if raw[0] == '"' {
+			if err := json.Unmarshal(raw, &value.UserID); err != nil {
+				return fmt.Errorf("decode client user: %w", err)
+			}
+		} else {
+			id, err := strconv.ParseInt(string(raw), 10, 64)
+			if err != nil {
+				return fmt.Errorf("decode client user: %w", err)
+			}
+			value.UserID = strconv.FormatInt(id, 10)
+		}
+	}
+	*c = ClientInfo(value)
+	return nil
 }
 
 // ListClients retrieves all clients.

@@ -10,34 +10,52 @@ import (
 
 // WorkspaceWidgetGetter allows fetching a widget by ID for viewport logic.
 type WorkspaceWidgetGetter interface {
-	GetWidget(ctx context.Context, clientID, widgetID string) (*Widget, error)
+	GetWidget(ctx context.Context, canvasID, widgetID string) (*Widget, error)
 }
 
 func (s *Session) resolveWorkspaceIndex(ctx context.Context, clientID string, selector WorkspaceSelector) (int, error) {
+	count := 0
 	if selector.Index != nil {
+		count++
+	}
+	if selector.Name != nil {
+		count++
+	}
+	if selector.User != nil {
+		count++
+	}
+	if clientID == "" || count != 1 {
+		return 0, fmt.Errorf("resolve workspace: %w: client and exactly one selector required", ErrInvalidRequest)
+	}
+	if selector.Index != nil {
+		if *selector.Index < 0 {
+			return 0, fmt.Errorf("resolve workspace: %w: negative index", ErrInvalidRequest)
+		}
 		return *selector.Index, nil
+	}
+	if (selector.Name != nil && *selector.Name == "") || (selector.User != nil && *selector.User == "") {
+		return 0, fmt.Errorf("resolve workspace: %w: empty selector", ErrInvalidRequest)
 	}
 	workspaces, err := s.ListWorkspaces(ctx, clientID)
 	if err != nil {
 		return 0, err
 	}
-	if selector.Name != nil {
-		for _, ws := range workspaces {
-			if ws.WorkspaceName == *selector.Name {
-				return ws.Index, nil
-			}
+	var matches []Workspace
+	for _, ws := range workspaces {
+		if (selector.Name != nil && ws.WorkspaceName == *selector.Name) || (selector.User != nil && ws.User == *selector.User) {
+			matches = append(matches, ws)
 		}
-		return 0, fmt.Errorf("workspace with name %q not found", *selector.Name)
 	}
-	if selector.User != nil {
-		for _, ws := range workspaces {
-			if ws.User == *selector.User {
-				return ws.Index, nil
-			}
-		}
-		return 0, fmt.Errorf("workspace for user %q not found", *selector.User)
+	if len(matches) == 0 {
+		return 0, fmt.Errorf("resolve workspace: %w", ErrNotFound)
 	}
-	return 0, nil
+	if len(matches) != 1 {
+		return 0, fmt.Errorf("resolve workspace: %w", ErrAmbiguousWorkspace)
+	}
+	if !matches[0].validIndex() {
+		return 0, fmt.Errorf("resolve workspace: %w", ErrWorkspaceMetadata)
+	}
+	return matches[0].Index, nil
 }
 
 // ListWorkspaces retrieves all workspaces for a client.
@@ -58,6 +76,12 @@ func (s *Session) GetWorkspace(ctx context.Context, clientID string, selector Wo
 	var ws Workspace
 	if err := s.doRequest(ctx, http.MethodGet, fmt.Sprintf("clients/%s/workspaces/%d", clientID, idx), nil, &ws, nil, false); err != nil {
 		return nil, fmt.Errorf("GetWorkspace: %w", err)
+	}
+	if !ws.validIndex() {
+		return nil, fmt.Errorf("GetWorkspace: %w", ErrWorkspaceMetadata)
+	}
+	if ws.Index != idx || (selector.Name != nil && ws.WorkspaceName != *selector.Name) || (selector.User != nil && ws.User != *selector.User) {
+		return nil, fmt.Errorf("GetWorkspace: %w", ErrWorkspaceChanged)
 	}
 	return &ws, nil
 }
@@ -97,69 +121,69 @@ func (s *Session) ToggleWorkspacePinned(ctx context.Context, clientID string, se
 	return err
 }
 
-// SetWorkspaceViewport sets the workspace viewport either explicitly or by
-// centering on a widget.
+// SetWorkspaceViewport frames an explicit CANVAS-pixel region or a widget's
+// rendered bounds. CanvasID is required in both modes. Notes require an explicit
+// NotePadding model. For raw wire rectangles use UpdateWorkspace instead.
 func SetWorkspaceViewport(ctx context.Context, getter WorkspaceWidgetGetter, apiClient *Session, clientID string, selector WorkspaceSelector, opts SetViewportOptions) error {
-	var rect *Rectangle
-	switch {
-	case opts.WidgetID != nil:
-		if opts.CanvasID == nil || *opts.CanvasID == "" {
-			return errors.New("CanvasID is required when WidgetID is provided")
-		}
-		widget, err := getter.GetWidget(ctx, *opts.CanvasID, *opts.WidgetID)
+	if apiClient == nil || opts.CanvasID == nil || *opts.CanvasID == "" {
+		return fmt.Errorf("SetWorkspaceViewport: %w: session/canvas required", ErrInvalidRequest)
+	}
+	anyRect := opts.X != nil || opts.Y != nil || opts.Width != nil || opts.Height != nil
+	fullRect := opts.X != nil && opts.Y != nil && opts.Width != nil && opts.Height != nil
+	if (opts.WidgetID != nil && anyRect) || (opts.WidgetID == nil && !fullRect) {
+		return fmt.Errorf("SetWorkspaceViewport: %w: choose widget OR complete canvas rectangle", ErrInvalidRequest)
+	}
+	ctx = apiClient.freezeAuthority(ctx)
+	ws, err := apiClient.GetWorkspace(ctx, clientID, selector)
+	if err != nil {
+		return err
+	}
+	if ws.CanvasID != *opts.CanvasID {
+		return fmt.Errorf("SetWorkspaceViewport: %w", ErrWorkspaceChanged)
+	}
+	var region Rectangle
+	if opts.WidgetID != nil {
+		nodes, err := widgetAncestry(ctx, getter, *opts.CanvasID, *opts.WidgetID)
 		if err != nil {
 			return err
 		}
-		if widget.Location == nil || widget.Size == nil {
-			return fmt.Errorf("widget %s is missing location or size", *opts.WidgetID)
+		region, err = WidgetCanvasBounds(*opts.WidgetID, nodes, GeometryModel{CanvasID: *opts.CanvasID, NotePadding: opts.NotePadding})
+		if err != nil {
+			return err
 		}
 		margin := opts.Margin
 		if margin == 0 {
 			margin = 20
 		}
-		scale := widget.Scale
-		if scale == 0 {
-			scale = 1
+		if !finite(margin) || margin < 0 {
+			return fmt.Errorf("SetWorkspaceViewport: %w: margin", ErrInvalidGeometry)
 		}
-		targetWidth := widget.Size.Width * scale
-		targetHeight := widget.Size.Height * scale
-		centerX := widget.Location.X + targetWidth/2
-		centerY := widget.Location.Y + targetHeight/2
-		width := targetWidth + 2*margin
-		height := targetHeight + 2*margin
-		if workspace, err := apiClient.GetWorkspace(ctx, clientID, selector); err == nil && workspace.Size != nil && workspace.Size.Width > 0 && workspace.Size.Height > 0 {
-			workspaceAspect := workspace.Size.Width / workspace.Size.Height
-			if workspaceAspect > 0 {
-				rectAspect := width / height
-				if rectAspect > workspaceAspect {
-					height = width / workspaceAspect
-				} else {
-					width = height * workspaceAspect
-				}
-			}
-		}
-		rect = &Rectangle{
-			X:      centerX - width/2,
-			Y:      centerY - height/2,
-			Width:  width,
-			Height: height,
-		}
-	case opts.X != nil && opts.Y != nil && opts.Width != nil && opts.Height != nil:
-		rect = &Rectangle{X: *opts.X, Y: *opts.Y, Width: *opts.Width, Height: *opts.Height}
-	default:
-		return errors.New("must provide either WidgetID or all of X, Y, Width, Height")
+		region.X -= margin
+		region.Y -= margin
+		region.Width += 2 * margin
+		region.Height += 2 * margin
+	} else {
+		region = Rectangle{X: *opts.X, Y: *opts.Y, Width: *opts.Width, Height: *opts.Height}
 	}
-	_, err := apiClient.UpdateWorkspace(ctx, clientID, selector, UpdateWorkspaceRequest{ViewRectangle: rect})
-	return err
+	return apiClient.frameWorkspaceRegion(ctx, clientID, *ws, region)
 }
 
-// OpenCanvasOnWorkspace opens a canvas on a client workspace and optionally
-// centers the viewport.
-func (s *Session) OpenCanvasOnWorkspace(ctx context.Context, clientID string, selector WorkspaceSelector, opts OpenCanvasOptions) error {
+// OpenCanvasOnWorkspace submits one open command and waits for matching native
+// readiness, not merely canvas_id while loading. It does not authenticate the
+// native client. Polling/camera work pins the resolved index and initial actor.
+func (s *Session) OpenCanvasOnWorkspace(ctx context.Context, clientID string, selector WorkspaceSelector, opts OpenCanvasOptions) (err error) {
+	if opts.CanvasID == "" || (opts.CenterX == nil) != (opts.CenterY == nil) || (opts.WidgetID != nil && opts.CenterX != nil) {
+		return fmt.Errorf("OpenCanvasOnWorkspace: %w: canvas and unambiguous centre required", ErrInvalidRequest)
+	}
+	if opts.CenterX != nil && !finite(*opts.CenterX, *opts.CenterY) {
+		return fmt.Errorf("OpenCanvasOnWorkspace: %w", ErrInvalidGeometry)
+	}
+	ctx = s.freezeAuthority(ctx)
 	idx, err := s.resolveWorkspaceIndex(ctx, clientID, selector)
 	if err != nil {
 		return err
 	}
+	selector = WorkspaceSelector{Index: &idx}
 	payload := map[string]any{"canvas_id": opts.CanvasID}
 	if opts.ServerID != "" {
 		payload["server_id"] = opts.ServerID
@@ -167,43 +191,54 @@ func (s *Session) OpenCanvasOnWorkspace(ctx context.Context, clientID string, se
 	if opts.UserEmail != "" {
 		payload["user_email"] = opts.UserEmail
 	}
-	if err := s.doRequest(ctx, http.MethodPost, fmt.Sprintf("clients/%s/workspaces/%d/open-canvas", clientID, idx), payload, nil, nil, false); err != nil {
+	stage, acknowledged := "open", false
+	defer func() {
+		if err != nil {
+			var accepted *AcceptedResponseError
+			err = &OpenCanvasError{Stage: stage, CommandAcknowledged: acknowledged || errors.As(err, &accepted), Err: err}
+		}
+	}()
+	if err = s.doRequest(ctx, http.MethodPost, fmt.Sprintf("clients/%s/workspaces/%d/open-canvas", clientID, idx), payload, nil, nil, false); err != nil {
 		return fmt.Errorf("OpenCanvasOnWorkspace: %w", err)
 	}
-
-	timeout := 10 * time.Second
-	interval := 200 * time.Millisecond
+	stage, acknowledged = "readiness", true
+	timeout, interval := 10*time.Second, 200*time.Millisecond
 	if opts.PollTimeout > 0 {
 		timeout = opts.PollTimeout
 	}
 	if opts.PollInterval > 0 {
 		interval = opts.PollInterval
 	}
+	poll, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	var ws *Workspace
-	start := time.Now()
 	for {
-		ws, err = s.GetWorkspace(ctx, clientID, selector)
+		ws, err = s.GetWorkspace(poll, clientID, selector)
 		if err != nil {
-			return fmt.Errorf("OpenCanvasOnWorkspace: polling GetWorkspace failed: %w", err)
+			return fmt.Errorf("OpenCanvasOnWorkspace: command accepted, readiness unconfirmed: %w", err)
 		}
-		if ws.CanvasID == opts.CanvasID {
+		if ws.CanvasID == opts.CanvasID && ws.WorkspaceState == "open" && (opts.ServerID == "" || ws.ServerID == opts.ServerID) && (opts.UserEmail == "" || ws.User == opts.UserEmail) {
 			break
 		}
-		if time.Since(start) > timeout {
-			return fmt.Errorf("OpenCanvasOnWorkspace: timed out waiting for canvas ID %s (last seen: %s)", opts.CanvasID, ws.CanvasID)
+		if err = waitForRetry(poll, interval); err != nil {
+			return fmt.Errorf("OpenCanvasOnWorkspace: command accepted, readiness unconfirmed: %w", err)
 		}
-		time.Sleep(interval)
 	}
-
-	if opts.CenterX != nil && opts.CenterY != nil {
-		rect := &Rectangle{X: *opts.CenterX, Y: *opts.CenterY, Width: ws.Size.Width, Height: ws.Size.Height}
-		if _, err = s.UpdateWorkspace(ctx, clientID, selector, UpdateWorkspaceRequest{ViewRectangle: rect}); err != nil {
-			return fmt.Errorf("OpenCanvasOnWorkspace: failed to set viewport: %w", err)
+	cancel()
+	stage = "camera"
+	if opts.CenterX != nil {
+		if ws.Size == nil || ws.ViewRectangle == nil {
+			return fmt.Errorf("OpenCanvasOnWorkspace: open, but %w", ErrWorkspaceMetadata)
 		}
-	} else if opts.WidgetID != nil {
-		if err := SetWorkspaceViewport(ctx, s, s, clientID, selector, SetViewportOptions{CanvasID: &opts.CanvasID, WidgetID: opts.WidgetID}); err != nil {
-			return fmt.Errorf("OpenCanvasOnWorkspace: failed to center on widget: %w", err)
+		visible, err := VisibleCanvasRegion(*ws.ViewRectangle, *ws.Size)
+		if err != nil {
+			return err
 		}
+		region := Rectangle{X: *opts.CenterX - visible.Width/2, Y: *opts.CenterY - visible.Height/2, Width: visible.Width, Height: visible.Height}
+		return s.frameWorkspaceRegion(ctx, clientID, *ws, region)
+	}
+	if opts.WidgetID != nil {
+		return SetWorkspaceViewport(ctx, s, s, clientID, selector, SetViewportOptions{CanvasID: &opts.CanvasID, WidgetID: opts.WidgetID, NotePadding: opts.NotePadding})
 	}
 	return nil
 }

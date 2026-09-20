@@ -282,6 +282,14 @@ func IsRetryableError(err error) bool {
 	if errors.As(err, &accepted) {
 		return false
 	}
+	var opened *OpenCanvasError
+	if errors.As(err, &opened) {
+		return false
+	}
+	var camera *CameraUpdateError
+	if errors.As(err, &camera) {
+		return false
+	}
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		return true
