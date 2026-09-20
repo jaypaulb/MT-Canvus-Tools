@@ -11,7 +11,7 @@ Go actor authentication now uses one selected credential, retains actor identity
 
 Zero retries is respected; only bodyless GET/HEAD requests can be automatically retried, with cancellable waits. All mutation retries are disabled, including nested BatchProcessor retries; batch retry options are deprecated and ignored. Callers needing three read retries should use `DefaultSessionConfig()`.
 
-Accepted writes no longer require request/response echo equality. Additive Go `AcceptedResponseError` preserves 2xx status and available IDs on read/decode failure, unwrapping the underlying cause without retaining raw content. See the Go SDK README for outcome/reconciliation guidance.
+Accepted writes no longer require request/response echo equality. Empty 2xx bodies retain their prior success behavior. Additive Go `AcceptedResponseError` preserves a mutation's 2xx status and available string/numeric resource IDs on read/decode failure, unwrapping the underlying cause without retaining raw content. Failed reads do not claim mutation acceptance. The unused automatic-refresh placeholder was removed; `TokenRefreshThreshold` and its option remain as deprecated no-ops. See the Go SDK README for outcome/reconciliation guidance.
 
 **Explicit parity status:** this change is scoped to Go. Python already supports a zero retry budget and independent clients but does not adopt this Go error type; Python and TypeScript method-aware retry/outcome parity is deferred, and this release makes no claim that their mutation retries are safe. Their existing auth/login behavior is unchanged. Streaming lifecycle, current-user/SAML, geometry and MCP hardening remain separate work. No REST endpoints or existing Go resource signatures changed.
 

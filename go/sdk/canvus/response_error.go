@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// AcceptedResponseError reports an HTTP 2xx whose response could not be read or
+// AcceptedResponseError reports a mutation's HTTP 2xx whose response could not be read or
 // decoded. The server acknowledged the request: do not repeat a mutation solely
 // because decoding failed. Reconcile using ResourceID when available.
 // This does not guarantee completion of asynchronous server/native-client work.
@@ -26,14 +26,22 @@ func (e *AcceptedResponseError) Error() string {
 // Unwrap exposes the read/decode error to errors.Is and errors.As.
 func (e *AcceptedResponseError) Unwrap() error { return e.Err }
 
-func responseError(resp *http.Response, body []byte, err error) error {
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("read response (HTTP %d): %w", resp.StatusCode, err)
+func responseError(method string, resp *http.Response, body []byte, err error) error {
+	if method == http.MethodGet || method == http.MethodHead || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("read/decode response (HTTP %d): %w", resp.StatusCode, err)
 	}
 	var resource struct {
-		ID string `json:"id"`
+		ID json.RawMessage `json:"id"`
 	}
+	var id string
 	// IDs are retained only from a complete JSON object; never guess from broken JSON.
-	_ = json.Unmarshal(body, &resource)
-	return &AcceptedResponseError{StatusCode: resp.StatusCode, RequestID: resp.Header.Get("X-Request-ID"), ResourceID: resource.ID, Err: err}
+	if json.Unmarshal(body, &resource) == nil {
+		if json.Unmarshal(resource.ID, &id) != nil {
+			var number json.Number
+			if json.Unmarshal(resource.ID, &number) == nil {
+				id = number.String()
+			}
+		}
+	}
+	return &AcceptedResponseError{StatusCode: resp.StatusCode, RequestID: resp.Header.Get("X-Request-ID"), ResourceID: id, Err: err}
 }

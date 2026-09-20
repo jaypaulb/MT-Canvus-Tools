@@ -42,7 +42,8 @@ type BatchResult struct {
 	StartTime   time.Time
 	EndTime     time.Time
 	Duration    time.Duration
-	Retries     int
+	// Retries is always zero: automatic batch mutation retries are disabled.
+	Retries int
 }
 
 // BatchConfig configures BatchProcessor behavior.

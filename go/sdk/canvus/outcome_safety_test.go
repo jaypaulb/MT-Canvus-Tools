@@ -21,7 +21,7 @@ func TestAcceptedResponseFailuresRetainOutcome(t *testing.T) {
 	}{
 		{"malformed", `{"id":`, "", false},
 		{"wrong_field_type", `{"id":"created","text":42}`, "created", false},
-		{"empty", "", "", false},
+		{"numeric_resource_id", `{"id":42,"text":"hello"}`, "42", false},
 		{"truncated", `{"id":"created"}`, "created", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -59,6 +59,29 @@ func TestAcceptedResponseFailuresRetainOutcome(t *testing.T) {
 				t.Fatal("raw metadata should not be interpolated into error message")
 			}
 		})
+	}
+}
+
+func TestEmptySuccessfulWritesRemainSuccessful(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) }))
+			defer srv.Close()
+			s := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL})
+			if _, err := s.UpdateNote(context.Background(), "c", "n", map[string]any{"text": "hello"}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestReadDecodeFailureDoesNotImplyAcceptedMutation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, `{`) }))
+	defer srv.Close()
+	_, err := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL}).GetNote(context.Background(), "c", "n")
+	var accepted *canvus.AcceptedResponseError
+	if err == nil || errors.As(err, &accepted) {
+		t.Fatalf("read result: %v", err)
 	}
 }
 

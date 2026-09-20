@@ -146,48 +146,23 @@ func (cb *circuitBreaker) failure() {
 	}
 }
 
-// tokenManager handles token storage and refresh.
+// tokenManager retains the caller's optional token store for explicit logout.
+// Automatic refresh is not supported; it must never switch actor authority.
 type tokenManager struct {
-	tokenStore   TokenStore
-	currentToken string
-	tokenExpiry  time.Time
-	refreshMutex sync.Mutex
-	config       *SessionConfig
+	tokenStore TokenStore
+	mu         sync.Mutex
 }
 
 func newTokenManager(config *SessionConfig) *tokenManager {
-	tm := &tokenManager{config: config}
-	if config.TokenStore != nil {
-		tm.tokenStore = config.TokenStore
-		token, _ := tm.tokenStore.GetToken()
-		tm.currentToken = token
-	}
-	return tm
-}
-
-func (tm *tokenManager) getToken() string {
-	tm.refreshMutex.Lock()
-	defer tm.refreshMutex.Unlock()
-	if !tm.tokenExpiry.IsZero() && time.Until(tm.tokenExpiry) < tm.config.TokenRefreshThreshold {
-		_ = tm.refreshToken()
-	}
-	return tm.currentToken
+	return &tokenManager{tokenStore: config.TokenStore}
 }
 
 func (tm *tokenManager) clearToken() {
-	tm.refreshMutex.Lock()
-	defer tm.refreshMutex.Unlock()
-	tm.currentToken = ""
-	tm.tokenExpiry = time.Time{}
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
 	if tm.tokenStore != nil {
 		_ = tm.tokenStore.ClearToken()
 	}
-}
-
-func (tm *tokenManager) refreshToken() error {
-	// Placeholder: token refresh is dependent on the auth flow; consumers
-	// extending the SDK supply this. Returning nil keeps the lazy-get behavior.
-	return nil
 }
 
 // Session is the main entry point for interacting with the Canvus API.
@@ -352,13 +327,13 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 	var ct string
 	if len(contentType) > 0 {
 		ct = contentType[0]
-	} else if body != nil {
+	} else if body != nil || (method != http.MethodGet && method != http.MethodHead) {
 		ct = "application/json"
 	}
 
 	auth := s.requestAuthenticator()
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		reqBody, _, err := s.prepareRequestBody(body, ct)
+		reqBody, err := s.prepareRequestBody(body)
 		if err != nil {
 			return err
 		}
@@ -400,7 +375,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		respBody, err = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
-			lastErr = responseError(resp, respBody, err)
+			lastErr = responseError(method, resp, respBody, err)
 			s.circuitBreaker.failure()
 			return lastErr
 		}
@@ -434,9 +409,9 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 			}
 			return errors.New("out must be *[]byte when rawResponse is true")
 		}
-		if out != nil {
+		if out != nil && len(respBody) > 0 {
 			if err := json.Unmarshal(respBody, out); err != nil {
-				return responseError(resp, respBody, err)
+				return responseError(method, resp, respBody, err)
 			}
 		}
 		return nil
@@ -444,26 +419,28 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 
 	s.circuitBreaker.failure()
 	if lastErr != nil {
-		return fmt.Errorf("request failed after %d attempts: %w", s.config.MaxRetries, lastErr)
+		return fmt.Errorf("request failed after %d attempts: %w", maxRetries+1, lastErr)
 	}
 	return errors.New("request failed: unknown error")
 }
 
-func (s *Session) prepareRequestBody(body any, _ string) (io.Reader, bool, error) {
+func (s *Session) prepareRequestBody(body any) (io.Reader, error) {
 	if body == nil {
-		return nil, true, nil
+		return nil, nil
 	}
 	if rdr, ok := body.(io.Reader); ok {
 		if seeker, ok := rdr.(io.ReadSeeker); ok {
-			_, _ = seeker.Seek(0, io.SeekStart)
+			if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+				return nil, fmt.Errorf("failed to rewind request body: %w", err)
+			}
 		}
-		return rdr, true, nil
+		return rdr, nil
 	}
 	b, err := json.Marshal(body)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	return bytes.NewReader(b), true, nil
+	return bytes.NewReader(b), nil
 }
 
 func (s *Session) handleErrorResponse(resp *http.Response, body []byte, _ int) error {
@@ -598,7 +575,7 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return responseError(resp, respBody, err)
+		return responseError(method, resp, respBody, err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &APIError{StatusCode: resp.StatusCode, Message: string(respBody)}
@@ -611,9 +588,9 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 			} else {
 				return errors.New("out must be *[]byte when rawResponse is true")
 			}
-		} else {
+		} else if len(respBody) > 0 {
 			if err := json.Unmarshal(respBody, out); err != nil {
-				return responseError(resp, respBody, err)
+				return responseError(method, resp, respBody, err)
 			}
 		}
 	}

@@ -75,6 +75,34 @@ func TestReadRetryWaitHonorsCancellation(t *testing.T) {
 	}
 }
 
+func TestBodylessWriteRetainsJSONContentType(t *testing.T) {
+	var contentType string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType = r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+	s := canvus.NewSession(&canvus.SessionConfig{BaseURL: srv.URL}, canvus.WithAPIKey("synthetic-key"))
+	if err := s.ApproveUser(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if contentType != "application/json" {
+		t.Fatalf("content type=%q", contentType)
+	}
+}
+
+func TestUploadIsNotAutomaticallyRetried(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(503) }))
+	defer srv.Close()
+	cfg := canvus.DefaultSessionConfig()
+	cfg.BaseURL = srv.URL
+	_, err := canvus.NewSession(cfg).UploadNote(context.Background(), "c", strings.NewReader("synthetic upload"), "text/plain")
+	if err == nil || calls.Load() != 1 {
+		t.Fatalf("attempts=%d error=%v", calls.Load(), err)
+	}
+}
+
 func TestLostWriteResponseIsNotReplayed(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

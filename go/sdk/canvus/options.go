@@ -31,7 +31,8 @@ type SessionConfig struct {
 	RequestTimeout time.Duration
 	// UserAgent is the User-Agent header to send with requests.
 	UserAgent string
-	// TokenRefreshThreshold controls when token refresh fires. Default: 5 minutes.
+	// TokenRefreshThreshold is retained for source compatibility.
+	// Deprecated: automatic token refresh is unsupported; explicitly authenticate again.
 	TokenRefreshThreshold time.Duration
 	// CircuitBreaker configures the circuit breaker behavior.
 	CircuitBreaker CircuitBreakerConfig
@@ -145,7 +146,8 @@ func WithCircuitBreaker(maxFailures int, resetTimeout time.Duration) SessionConf
 	}
 }
 
-// WithTokenRefreshThreshold sets the token refresh threshold.
+// WithTokenRefreshThreshold retains a legacy configuration value.
+// Deprecated: automatic token refresh is unsupported; explicitly authenticate again.
 func WithTokenRefreshThreshold(threshold time.Duration) SessionConfigOption {
 	return func(c *SessionConfig) { c.TokenRefreshThreshold = threshold }
 }
