@@ -76,7 +76,8 @@ type CircuitBreakerConfig struct {
 type TokenStore interface {
 	// GetToken returns the stored token or an error if not found.
 	GetToken() (string, error)
-	// StoreToken stores the token.
+	// StoreToken stores the token. A zero expiresAt means the server supplied
+	// no expiry; implementations must not treat it as an already-expired token.
 	StoreToken(token string, expiresAt time.Time) error
 	// ClearToken removes the stored token.
 	ClearToken() error

@@ -145,7 +145,7 @@ func (cb *circuitBreaker) failure() {
 	}
 }
 
-// tokenManager retains the caller's optional token store for explicit logout.
+// tokenManager retains the caller's optional token store for login/logout.
 // Automatic refresh is not supported; it must never switch actor authority.
 type tokenManager struct {
 	tokenStore TokenStore
@@ -156,12 +156,22 @@ func newTokenManager(config *SessionConfig) *tokenManager {
 	return &tokenManager{tokenStore: config.TokenStore}
 }
 
-func (tm *tokenManager) clearToken() {
+func (tm *tokenManager) clearToken() error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 	if tm.tokenStore != nil {
-		_ = tm.tokenStore.ClearToken()
+		return tm.tokenStore.ClearToken()
 	}
+	return nil
+}
+
+func (tm *tokenManager) storeToken(token string) error {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	if tm.tokenStore != nil {
+		return tm.tokenStore.StoreToken(token, time.Time{})
+	}
+	return nil
 }
 
 // Session is the main entry point for interacting with the Canvus API.
@@ -174,6 +184,7 @@ type Session struct {
 	config         *SessionConfig
 	authenticator  Authenticator
 	authMu         sync.RWMutex
+	authChanges    chan struct{} // context-aware login/logout/bootstrap serialization
 	tokenManager   *tokenManager
 	circuitBreaker *circuitBreaker
 	userID         int64
@@ -251,6 +262,7 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 		BaseURL:        cfg.BaseURL,
 		HTTPClient:     cfg.HTTPClient,
 		config:         cfg,
+		authChanges:    make(chan struct{}, 1),
 		tokenManager:   newTokenManager(cfg),
 		circuitBreaker: newCircuitBreaker(cfg.CircuitBreaker.MaxFailures, cfg.CircuitBreaker.ResetTimeout),
 		logger:         slog.Default().With("component", "canvus-sdk"),
@@ -259,12 +271,14 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	if boot := cfg.bootstrapAuth; boot != nil {
 		s.authenticator = boot
 	} else if s.tokenManager.tokenStore != nil {
-		if token, err := s.tokenManager.tokenStore.GetToken(); err == nil && token != "" {
+		if token, err := s.tokenManager.tokenStore.GetToken(); err != nil {
+			s.initErr = fmt.Errorf("bootstrap token store: %w", errors.Join(ErrTokenPersistence, err))
+		} else if token != "" {
 			s.authenticator = &TokenAuthenticator{Token: token}
 		}
 	}
 
-	if s.authenticator == nil && cfg.APIKey != "" {
+	if s.authenticator == nil && s.initErr == nil && cfg.APIKey != "" {
 		s.authenticator = &APIKeyAuthenticator{Header: "Private-Token", APIKey: cfg.APIKey}
 	}
 
@@ -282,7 +296,7 @@ func NewSession(cfg *SessionConfig, opts ...SessionConfigOption) *Session {
 	}
 	origin, err := url.Parse(cfg.BaseURL)
 	if err != nil || origin == nil || (origin.Scheme != "http" && origin.Scheme != "https") || origin.Hostname() == "" || origin.User != nil {
-		s.initErr = fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest)
+		s.initErr = errors.Join(s.initErr, fmt.Errorf("%w: BaseURL must be an absolute HTTP(S) URL without userinfo", ErrInvalidRequest))
 	}
 	if cfg.MaxRetries < 0 {
 		s.initErr = errors.Join(s.initErr, ErrInvalidRetryBudget)
@@ -356,7 +370,7 @@ func (s *Session) doRequest(ctx context.Context, method, endpoint string, body a
 		ct = "application/json"
 	}
 
-	auth := s.requestAuthenticator()
+	auth := s.authorityForContext(ctx)
 	// Each failure branch returns at maxRetries; only safe reads may continue.
 	for attempt := 0; ; attempt++ {
 		reqBody, err := s.prepareRequestBody(body)
@@ -555,7 +569,7 @@ func (s *Session) doRequestWithHeaders(ctx context.Context, method, endpoint str
 	if err != nil {
 		return err
 	}
-	req = withRequestAuthority(req, s.requestAuthenticator())
+	req = withRequestAuthority(req, s.authorityForContext(ctx))
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -614,32 +628,20 @@ func toString(v any) string {
 
 // Login authenticates a user and stores the returned token + user ID.
 func (s *Session) Login(ctx context.Context, emailOrUser, password string) error {
-	loginReq := map[string]string{
-		"email":    emailOrUser,
-		"password": password,
-	}
-	var loginResp struct {
-		Token string `json:"token"`
-		User  struct {
-			ID int64 `json:"id"`
-		} `json:"user"`
-	}
-	if err := s.doRequest(ctx, http.MethodPost, "users/login", loginReq, &loginResp, nil, false); err != nil {
+	if err := s.beginAuthChange(ctx); err != nil {
 		return err
 	}
-	if loginResp.Token == "" {
-		return errors.New("login: no token returned")
-	}
-	s.authMu.Lock()
-	s.authenticator = &TokenAuthenticator{Token: loginResp.Token}
-	s.userID = loginResp.User.ID
-	s.authMu.Unlock()
-	s.logger.Debug("login succeeded", "user_id", loginResp.User.ID)
-	return nil
+	defer s.endAuthChange()
+	_, err := s.loginAuthenticated(ctx, "users/login", map[string]string{"email": emailOrUser, "password": password})
+	return err
 }
 
 // Logout invalidates the current token and clears authentication.
 func (s *Session) Logout(ctx context.Context) error {
+	if err := s.beginAuthChange(ctx); err != nil {
+		return err
+	}
+	defer s.endAuthChange()
 	if err := s.doRequest(ctx, http.MethodPost, "users/logout", map[string]string{}, nil, nil, false); err != nil {
 		return err
 	}
@@ -647,7 +649,9 @@ func (s *Session) Logout(ctx context.Context) error {
 	s.authenticator = nil
 	s.userID = 0
 	s.authMu.Unlock()
-	s.tokenManager.clearToken()
+	if err := s.tokenManager.clearToken(); err != nil {
+		return fmt.Errorf("logout succeeded; clear token store: %w", errors.Join(ErrTokenPersistence, err))
+	}
 	s.logger.Debug("logout succeeded")
 	return nil
 }

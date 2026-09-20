@@ -440,9 +440,13 @@ type VideoOutput struct {
 
 // Workspace represents one of the workspaces on a client device.
 type Workspace struct {
-	CanvasID         string     `json:"canvas_id"`
-	CanvasSize       *Size      `json:"canvas_size,omitempty"`
-	Index            int        `json:"index"`
+	CanvasID   string `json:"canvas_id"`
+	CanvasSize *Size  `json:"canvas_size,omitempty"`
+	Index      int    `json:"index"`
+	// IndexPresent/IndexNull distinguish an omitted/null index from workspace zero.
+	// They describe decoded wire data; use StreamItem.Raw for other field presence.
+	IndexPresent     bool       `json:"-"`
+	IndexNull        bool       `json:"-"`
 	InfoPanelVisible bool       `json:"info_panel_visible"`
 	Location         *Point     `json:"location,omitempty"`
 	Pinned           bool       `json:"pinned"`
@@ -455,19 +459,23 @@ type Workspace struct {
 	WorkspaceState   string     `json:"workspace_state"`
 }
 
-// Size describes a 2-D extent in canvas units (pixels).
+// Size describes a 2-D extent. The containing API field defines the pixel space:
+// widget model/border-box size and workspace display size are not interchangeable.
 type Size struct {
 	Height float64 `json:"height"`
 	Width  float64 `json:"width"`
 }
 
-// Point describes a 2-D position in canvas units (pixels).
+// Point describes a 2-D position in the containing API field's pixel space.
+// Widget locations may be parent-relative and subject to registration padding.
 type Point struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
 }
 
-// Rectangle describes an axis-aligned rectangle in canvas units (pixels).
+// Rectangle describes an axis-aligned rectangle. Coordinate space is defined
+// by the API field/helper: Workspace.ViewRectangle is a scaled wire rectangle,
+// NOT a canvas-space visible region. Use VisibleCanvasRegion to convert it.
 type Rectangle struct {
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
@@ -490,16 +498,18 @@ type Viewport struct {
 	Height float64
 }
 
-// SetViewportOptions supports setting a workspace viewport either explicitly
-// (X/Y/Width/Height) or by centering on a widget (WidgetID).
+// SetViewportOptions selects a canvas-pixel region or a widget to frame.
+// CanvasID is required in both modes. NotePadding explicitly selects the Note
+// registration model; raw wire rectangles instead belong in UpdateWorkspace.
 type SetViewportOptions struct {
-	CanvasID *string
-	WidgetID *string
-	X        *float64
-	Y        *float64
-	Width    *float64
-	Height   *float64
-	Margin   float64
+	CanvasID    *string
+	WidgetID    *string
+	X           *float64
+	Y           *float64
+	Width       *float64
+	Height      *float64
+	Margin      float64
+	NotePadding *float64
 }
 
 // OpenCanvasOptions configures Session.OpenCanvasOnWorkspace.
@@ -510,6 +520,7 @@ type OpenCanvasOptions struct {
 	CenterX      *float64      `json:"center_x,omitempty"`
 	CenterY      *float64      `json:"center_y,omitempty"`
 	WidgetID     *string       `json:"widget_id,omitempty"`
+	NotePadding  *float64      `json:"-"`
 	PollTimeout  time.Duration `json:"-"`
 	PollInterval time.Duration `json:"-"`
 }
