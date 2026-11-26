@@ -86,6 +86,8 @@ func (s *Session) CreateWidget(ctx context.Context, canvasID string, req any, co
 				return nil, err
 			}
 			return &Widget{ID: c.ID, WidgetType: "connector"}, nil
+		case "layoutzone", "layout-zone":
+			return s.CreateLayoutZone(ctx, canvasID, m)
 		case "table":
 			t, err := s.CreateTable(ctx, canvasID, m)
 			if err != nil {
@@ -170,6 +172,8 @@ func (s *Session) UpdateWidget(ctx context.Context, canvasID, widgetID string, r
 			return nil, err
 		}
 		return &Widget{ID: c.ID, WidgetType: "connector"}, nil
+	case "layoutzone", "layout-zone":
+		return s.UpdateLayoutZone(ctx, canvasID, widgetID, req)
 	case "table":
 		t, err := s.UpdateTable(ctx, canvasID, widgetID, req)
 		if err != nil {
@@ -211,6 +215,8 @@ func (s *Session) DeleteWidget(ctx context.Context, canvasID, widgetID, widgetTy
 		return s.DeleteVideo(ctx, canvasID, widgetID)
 	case "connector":
 		return s.DeleteConnector(ctx, canvasID, widgetID)
+	case "layoutzone", "layout-zone":
+		return s.DeleteLayoutZone(ctx, canvasID, widgetID)
 	case "table":
 		return s.DeleteTable(ctx, canvasID, widgetID)
 	case "ip_video", "ipvideo", "ip-video":

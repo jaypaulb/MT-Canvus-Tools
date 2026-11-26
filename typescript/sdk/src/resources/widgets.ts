@@ -10,6 +10,9 @@ import type {
   CreateBrowserRequest,
   CreateConnectorRequest,
   CreateNoteRequest,
+  CreateLayoutZoneRequest,
+  UpdateLayoutZoneRequest,
+  LayoutZone,
   CreateTableRequest,
   CreateVideoInputRequest,
   Connector,
@@ -61,7 +64,7 @@ export interface CloneWidgetArgs {
   readonly destCanvasId: Uuid;
   readonly sourceCanvasId: Uuid;
   readonly sourceWidgetId: Uuid;
-  readonly widgetType: "Note" | "Image" | "Video" | "Pdf" | "Browser" | "Anchor" | "Table";
+  readonly widgetType: "Note" | "Image" | "Video" | "Pdf" | "Browser" | "Anchor" | "Table" | "LayoutZone";
   readonly location?: { readonly x: number; readonly y: number };
 }
 
@@ -79,6 +82,7 @@ const SEGMENT: Record<CloneWidgetArgs["widgetType"], string> = {
   Pdf: "pdfs",
   Browser: "browsers",
   Anchor: "anchors",
+  LayoutZone: "layout-zones",
   Table: "tables",
 };
 
@@ -99,6 +103,8 @@ const GENERIC_SEGMENT: Record<string, string> = {
   browser: "browsers",
   anchor: "anchors",
   connector: "connectors",
+  layoutzone: "layout-zones",
+  "layout-zone": "layout-zones",
   table: "tables",
   videoinput: "video-inputs",
   video_input: "video-inputs",
@@ -548,6 +554,25 @@ export class WidgetsResource {
         `canvases/${canvasId}/connectors/${connectorId}`,
       );
     },
+  };
+
+  /** Layout-zone CRUD; all mutations are confirmed by the server runtime. */
+  readonly layoutZones = {
+    list: (canvasId: Uuid): Promise<readonly LayoutZone[]> =>
+      this.transport.request("GET", `canvases/${canvasId}/layout-zones`),
+    get: (canvasId: Uuid, zoneId: Uuid): Promise<LayoutZone> =>
+      this.transport.request("GET", `canvases/${canvasId}/layout-zones/${zoneId}`),
+    create: (canvasId: Uuid, body: CreateLayoutZoneRequest): Promise<LayoutZone> =>
+      this.transport.request("POST", `canvases/${canvasId}/layout-zones`, body),
+    update: (canvasId: Uuid, zoneId: Uuid, body: UpdateLayoutZoneRequest): Promise<LayoutZone> =>
+      this.transport.request("PATCH", `canvases/${canvasId}/layout-zones/${zoneId}`, body),
+    delete: async (canvasId: Uuid, zoneId: Uuid): Promise<void> => {
+      await this.transport.request<undefined>("DELETE", `canvases/${canvasId}/layout-zones/${zoneId}`);
+    },
+    subscribe: (canvasId: Uuid, opts?: StreamOptions): AsyncGenerator<LayoutZone, void, void> =>
+      streamNdjson<LayoutZone>(this.transport, `canvases/${canvasId}/layout-zones`, opts),
+    subscribeOne: (canvasId: Uuid, zoneId: Uuid, opts?: StreamOptions): AsyncGenerator<LayoutZone, void, void> =>
+      streamNdjson<LayoutZone>(this.transport, `canvases/${canvasId}/layout-zones/${zoneId}`, opts),
   };
 
   /** Table CRUD + cell read. */

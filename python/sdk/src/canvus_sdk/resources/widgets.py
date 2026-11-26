@@ -34,6 +34,7 @@ from ..models import (
     Connector,
     Image,
     IPVideo,
+    LayoutZone,
     Note,
     RDPConnection,
     Table,
@@ -62,6 +63,9 @@ CLONE_WIDGET_PATHS: dict[str, str] = {
     "browsers": "browsers",
     "anchor": "anchors",
     "anchors": "anchors",
+    "layoutzone": "layout-zones",
+    "layout-zone": "layout-zones",
+    "layout-zones": "layout-zones",
     "table": "tables",
     "tables": "tables",
 }
@@ -87,6 +91,9 @@ WIDGET_TYPE_TO_PATH: dict[str, str] = {
     "anchors": "anchors",
     "connector": "connectors",
     "connectors": "connectors",
+    "layoutzone": "layout-zones",
+    "layout-zone": "layout-zones",
+    "layout-zones": "layout-zones",
     "table": "tables",
     "tables": "tables",
     "videoinput": "video-inputs",
@@ -419,6 +426,46 @@ class BrowsersResource(_TypedSubResource[Browser]):
         """Subscribe to one browser."""
         return self._typed_subscribe(
             Browser, f"canvases/{canvas_id}/browsers/{browser_id}", params=params
+        )
+
+
+class LayoutZonesResource(_TypedSubResource[LayoutZone]):
+    _path = "layout-zones"
+    _model = LayoutZone
+
+    async def list(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> list[LayoutZone]:
+        return await self._list_impl(canvas_id, params=params)
+
+    async def get(self, canvas_id: str, zone_id: str) -> LayoutZone:
+        return await self._get_impl(canvas_id, zone_id)
+
+    async def create(self, canvas_id: str, payload: dict[str, Any]) -> LayoutZone:
+        return await self._create_impl(canvas_id, payload)
+
+    async def update(
+        self, canvas_id: str, zone_id: str, payload: dict[str, Any]
+    ) -> LayoutZone:
+        return await self._patch_impl(canvas_id, zone_id, payload)
+
+    async def delete(self, canvas_id: str, zone_id: str) -> None:
+        await self._delete_impl(canvas_id, zone_id)
+
+    def subscribe(
+        self, canvas_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[LayoutZone]:
+        """Subscribe to all layout-zones on a canvas (Phase 4b §4.2 #13)."""
+        return self._typed_subscribe(
+            LayoutZone, f"canvases/{canvas_id}/layout-zones", params=params
+        )
+
+    def subscribe_one(
+        self, canvas_id: str, zone_id: str, *, params: dict[str, Any] | None = None
+    ) -> AsyncIterator[LayoutZone]:
+        """Subscribe to one anchor."""
+        return self._typed_subscribe(
+            LayoutZone, f"canvases/{canvas_id}/layout-zones/{zone_id}", params=params
         )
 
 
@@ -775,6 +822,7 @@ class WidgetsResource(Resource):
         self.anchors = AnchorsResource(transport)
         self.connectors = ConnectorsResource(transport)
         self.tables = TablesResource(transport)
+        self.layout_zones = LayoutZonesResource(transport)
         self.video_inputs = VideoInputsResource(transport)
         self.ip_videos = IPVideosResource(transport)
         self.rdp_connections = RDPConnectionsResource(transport)
@@ -1099,6 +1147,7 @@ __all__ = [
     "ConnectorsResource",
     "IPVideosResource",
     "ImagesResource",
+    "LayoutZonesResource",
     "NotesResource",
     "PDFsResource",
     "RDPConnectionsResource",
