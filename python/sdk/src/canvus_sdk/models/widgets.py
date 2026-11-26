@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -124,6 +124,22 @@ class Connector(BaseWidget):
     type: str = "curve"
 
 
+LayoutMode = Literal["auto", "large_left", "large_right", "large_center", "grid"]
+
+
+class LayoutZone(BaseWidget):
+    """Native server-managed layout container; deletion releases children intact."""
+
+    widget_type: str = "LayoutZone"
+    title: str | None = None
+    size: dict[str, float] = Field(default_factory=lambda: {"width": 960.0, "height": 540.0})
+    layout_mode: LayoutMode = "auto"
+    slot_order: list[str] = Field(default_factory=list)
+    main_promoted: bool = False
+    gap_fraction: float = 0.015
+    layout_version: int = 1
+
+
 class Table(BaseWidget):
     """A table widget.
 
@@ -231,6 +247,8 @@ __all__ = [
     "ConnectorEndpoint",
     "IPVideo",
     "Image",
+    "LayoutMode",
+    "LayoutZone",
     "Note",
     "RDPConnection",
     "Table",

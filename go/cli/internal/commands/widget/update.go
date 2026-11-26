@@ -2,6 +2,7 @@ package widget
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jaypaulb/MT-Canvus-Tools/go/cli/internal/output"
@@ -34,15 +35,19 @@ Examples:
 }
 
 var (
-	updateText   string
-	updateParent string
-	updateX      *float64
-	updateY      *float64
-	updateWidth  *float64
-	updateHeight *float64
+	updateLayoutMode string
+	updateSlotOrder  string
+	updateText       string
+	updateParent     string
+	updateX          *float64
+	updateY          *float64
+	updateWidth      *float64
+	updateHeight     *float64
 )
 
 func init() {
+	updateCmd.Flags().StringVar(&updateLayoutMode, "layout-mode", "", "Layout zone mode: auto, large_left, large_right, large_center, grid")
+	updateCmd.Flags().StringVar(&updateSlotOrder, "slot-order", "", "JSON array containing every current layout-zone child ID once")
 	updateCmd.Flags().StringVar(&updateText, "text", "", "New text content")
 	updateCmd.Flags().StringVar(&updateParent, "parent", "", "Parent widget ID")
 
@@ -100,6 +105,16 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	// Build update data with only provided fields
 	updateData := make(map[string]interface{})
 	updateData["widget_type"] = widget.WidgetType
+	if cmd.Flags().Changed("layout-mode") {
+		updateData["layout_mode"] = updateLayoutMode
+	}
+	if cmd.Flags().Changed("slot-order") {
+		var ids []string
+		if err := json.Unmarshal([]byte(updateSlotOrder), &ids); err != nil || ids == nil {
+			return fmt.Errorf("slot-order must be a JSON array of child IDs")
+		}
+		updateData["slot_order"] = ids
+	}
 
 	if updateText != "" {
 		updateData["text"] = updateText

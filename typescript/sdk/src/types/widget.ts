@@ -16,6 +16,7 @@ export type WidgetKind =
   | "Browser"
   | "Anchor"
   | "Connector"
+  | "LayoutZone"
   | "Table"
   | "VideoInput"
   | "IpVideo"
@@ -363,6 +364,7 @@ export type Widget =
   | Browser
   | Anchor
   | Connector
+  | LayoutZone
   | Table
   | VideoInput
   | IpVideo
@@ -382,3 +384,25 @@ export interface UploadsFolderUploadJson {
   readonly title?: string;
   readonly location?: Location;
 }
+
+/** Native server-managed container. DELETE releases children, never recursively deletes them. */
+export type LayoutMode = "auto" | "large_left" | "large_right" | "large_center" | "grid";
+export interface LayoutZone extends BaseWidget {
+ readonly widget_type: "LayoutZone";
+ readonly title?: string;
+ readonly layout_mode: LayoutMode;
+ readonly slot_order: readonly string[];
+ readonly main_promoted: boolean;
+ readonly gap_fraction: number;
+ readonly layout_version: number;
+}
+/** Omitted fields use server defaults: auto, [], false, .015, 1 and 960x540. */
+export interface CreateLayoutZoneRequest extends WidgetMutableBase {
+ readonly title?: string;
+ readonly layout_mode?: LayoutMode;
+ readonly slot_order?: readonly string[];
+ readonly main_promoted?: boolean;
+ readonly gap_fraction?: number;
+ readonly layout_version?: number;
+}
+export type UpdateLayoutZoneRequest = CreateLayoutZoneRequest;

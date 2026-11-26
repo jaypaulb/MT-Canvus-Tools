@@ -185,16 +185,22 @@ type Video struct {
 
 // Widget is the polymorphic envelope returned by the generic widgets endpoints.
 type Widget struct {
-	ID          string       `json:"id"`
-	WidgetType  string       `json:"widget_type"`
-	ParentID    string       `json:"parent_id"`
-	Location    *Point       `json:"location,omitempty"`
-	Size        *Size        `json:"size,omitempty"`
-	Pinned      bool         `json:"pinned"`
-	Scale       float64      `json:"scale"`
-	State       string       `json:"state"`
-	Depth       float64      `json:"depth"`
-	Annotations []Annotation `json:"annotations,omitempty"`
+	Title         string       `json:"title,omitempty"`
+	LayoutMode    LayoutMode   `json:"layout_mode,omitempty"`
+	SlotOrder     []string     `json:"slot_order,omitempty"`
+	MainPromoted  bool         `json:"main_promoted,omitempty"`
+	GapFraction   float64      `json:"gap_fraction,omitempty"`
+	LayoutVersion int          `json:"layout_version,omitempty"`
+	ID            string       `json:"id"`
+	WidgetType    string       `json:"widget_type"`
+	ParentID      string       `json:"parent_id"`
+	Location      *Point       `json:"location,omitempty"`
+	Size          *Size        `json:"size,omitempty"`
+	Pinned        bool         `json:"pinned"`
+	Scale         float64      `json:"scale"`
+	State         string       `json:"state"`
+	Depth         float64      `json:"depth"`
+	Annotations   []Annotation `json:"annotations,omitempty"`
 }
 
 // Annotation represents a drawing annotation (stroke) on a widget.
