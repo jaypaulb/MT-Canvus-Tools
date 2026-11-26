@@ -15,6 +15,7 @@ use (
 	./examples/projects/note-mapper
 	./internal/llm
 	./sdk
+	./tools/autolayout
 	./tools/db-solver
 	./tools/powertoys
 	./tools/translator
